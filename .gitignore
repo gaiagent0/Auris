@@ -1,0 +1,69 @@
+# ── Model weights (never commit large binaries) ────────────────────────────────
+model_backup/
+*.safetensors
+*.bin
+*.pt
+*.ckpt
+
+# ── Offline wheels (too large for git) ────────────────────────────────────────
+wheels/
+
+# ── OmniVoice library source (nested git repo — install via setup.py) ─────────
+OmniVoice/
+source/
+
+# ── Runtime-generated directories ─────────────────────────────────────────────
+reader/audio_cache/
+reader/exports/
+reader/uploads/
+
+# ── Database & user settings (machine-specific) ───────────────────────────────
+reader/data/reader.db
+reader/data/settings.json
+reader/data/backup-schedule.json
+reader/data/backup-schedule.tmp
+reader/data/backups/
+reader/data/voice_profiles/
+reader/data/performance/
+reader/data/reader.db-wal
+reader/data/reader.db-shm
+
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.whl
+venv/
+.venv/
+.higgs_runtime/
+env/
+.env/
+
+# ── OS ────────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── IDE ───────────────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+.worktrees/
+*.swp
+*.swo
+# Local LLM evaluation output
+reader/data/llm_eval_*
+
+# ── Downloaded engine models (Piper, Supertonic, MOSS-TTS-Nano) ──────────────
+reader/models/
+docker-data/
+/build-*.log
+
+# Local video productions and agent skills (contain the owner's voice sample)
+.agents/
+videos/

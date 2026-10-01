@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}Auris{% endblock %}</title>
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#1c1a18">
+<script>
+/* Apply the theme before the first paint (no dark flash on light themes). */
+(function () {
+  var t = null;
+  try { t = localStorage.getItem('theme'); } catch (e) {}
+  // Same default as the reader and Settings: the saved server-side theme.
+  window.AURIS_THEME = '{{ ui_theme|default("night") }}';
+  if (!t) t = window.AURIS_THEME;
+  if (t && t !== 'night') document.documentElement.classList.add('theme-' + t);
+})();
+</script>
+<link rel="stylesheet" href="/static/css/style.css">
+<link rel="stylesheet" href="/static/css/tokens.css">
+<link rel="stylesheet" href="/static/css/experience.css">
+{% block head %}{% endblock %}
+</head>
+<body>
+<a class="skip-link" href="#main-content">Ugrás a tartalomra</a>
+<nav class="topnav" aria-label="Fő navigáció">
+  <a class="brand" href="/">Auris<span class="brand-sub">hangoskönyv</span></a>
+  <span class="nav-links">
+    <a href="/" id="nav-library"{% if request.path == '/' %} class="active"{% endif %}>Könyvtár</a>
+    <a href="/jobs"{% if request.path == '/jobs' %} class="active"{% endif %}>Feladatok</a>
+    <a href="/settings" id="nav-settings"{% if request.path == '/settings' %} class="active"{% endif %}>Beállítások</a>
+    <a href="/docs" id="nav-docs"{% if request.path == '/docs' %} class="active"{% endif %}>Súgó</a>
+    <span id="model-badge" class="badge badge-loading" role="status" aria-live="polite">Ellenőrzés…</span>
+  </span>
+</nav>
+<div id="main-content" tabindex="-1"></div>
+{% block content %}{% endblock %}
+<script>window.AURIS_I18N = {{ i18n|tojson }};</script>
+<script src="/static/js/common.js"></script>
+<script src="/static/js/icons.js"></script>
+<script>
+/* One server-sent event stream replaces per-page polling. Pages subscribe
+   with Auris.onEvent('engine' | 'jobs', handler). */
+(function () {
+  const badge = document.getElementById('model-badge');
+  const listeners = {engine: [], jobs: []};
+  Auris.onEvent = (name, handler) => {
+    const list = (listeners[name] = listeners[name] || []);
+    list.push(handler);
+    return () => { const at = list.indexOf(handler); if (at >= 0) list.splice(at, 1); };
+  };
+  function showEngine(s) {
+    if (!badge) return;
+    badge.className = 'badge';
+    badge.title = '';
+    if (s.state === 'ready') {
+      badge.textContent = s.generating ? 'Beszédmotor dolgozik…' : 'Beszédmotor kész';
+      badge.classList.add('badge-ready');
+    } else if (s.state === 'loading') {
+      badge.textContent = 'Beszédmotor betöltése…';
+      badge.classList.add('badge-loading');
+    } else if (s.state === 'error') {
+      badge.textContent = 'Beszédmotor-hiba';
+      badge.classList.add('badge-error');
+      badge.title = s.message || '';
+    } else {
+      badge.textContent = s.model_exists === false ? 'Modell hiányzik' : 'Beszédmotor: nincs betöltve';
+      badge.classList.add(s.model_exists === false ? 'badge-error' : 'badge-idle');
+    }
+  }
+  Auris.onEvent('engine', showEngine);
+  function dispatch(name, data) { (listeners[name] || []).forEach((fn) => { try { fn(data); } catch (_) {} }); }
+  if (window.EventSource) {
+    const source = new EventSource('/api/events');
+    ['engine', 'jobs'].forEach((name) => source.addEventListener(name, (e) => dispatch(name, JSON.parse(e.data))));
+  } else {
+    (async function poll() {
+      try { dispatch('engine', await fetch('/api/tts/status').then((r) => r.json())); } catch (_) {}
+      setTimeout(poll, 3000);
+    })();
+  }
+})();
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('/service-worker.js').catch(() => {}));
+}
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>
