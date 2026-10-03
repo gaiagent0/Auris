@@ -300,3 +300,51 @@ async function showIpa(text) {
   }
 }
 sx("dictionary-source")?.addEventListener("change", (event) => showIpa(event.target.value));
+
+async function loadBuiltinPronunciation() {
+  const box = sx("builtin-list");
+  const query = sx("builtin-search")?.value || "";
+  const category = sx("builtin-category")?.value || "";
+  box.innerHTML = "<p>Betöltés…</p>";
+  try {
+    const params = new URLSearchParams();
+    if (query) params.set("q", query);
+    if (category) params.set("category", category);
+    const book = sx("dictionary-book")?.value;
+    if (book) params.set("book_id", book);
+    const data = await sxApi("/api/pronunciation/builtin?" + params.toString());
+    const select = sx("builtin-category");
+    if (select && select.options.length <= 1 && data.categories) {
+      for (const name of data.categories) {
+        const option = document.createElement("option");
+        option.value = name;
+        option.textContent = name;
+        select.appendChild(option);
+      }
+    }
+    sx("builtin-count").textContent = `${data.rules.length} / ${data.total} szabály`;
+    box.innerHTML = data.rules.length
+      ? data.rules
+          .map(
+            (rule) =>
+              `<button type="button" class="candidate-chip${rule.overridden ? "" : " is-foreign"}" data-source="${sxEscape(rule.source)}" data-replacement="${sxEscape(rule.replacement)}" title="${sxEscape(rule.note)}">${sxEscape(rule.source)} → ${sxEscape(rule.replacement)}${rule.overridden ? " *" : ""}</button>`,
+          )
+          .join("")
+      : "<p>Nincs a szűrésnek megfelelő beépített kiejtés.</p>";
+  } catch (error) {
+    box.innerHTML = `<p>${sxEscape(error.message)}</p>`;
+  }
+}
+sx("builtin-list")?.addEventListener("click", (event) => {
+  const chip = event.target.closest("[data-source]");
+  if (!chip) return;
+  sx("dictionary-source").value = chip.dataset.source;
+  sx("dictionary-replacement").value = chip.dataset.replacement;
+  sx("dictionary-replacement").focus();
+  showIpa(chip.dataset.source);
+});
+sx("builtin-search")?.addEventListener("input", () => {
+  clearTimeout(sx._builtinTimer);
+  sx._builtinTimer = setTimeout(loadBuiltinPronunciation, 250);
+});
+sx("builtin-category")?.addEventListener("change", loadBuiltinPronunciation);

@@ -123,7 +123,7 @@ const PRESET_VOICES = {
 };
 const ENGINE_LABELS = {
   omnivoice: "OmniVoice", higgs: "Higgs TTS 3", moss_tts: "MOSS-TTS 1.5",
-  moss_nano: "MOSS-TTS-Nano", supertonic: "Supertonic 3", piper: "Piper",
+  supertonic: "Supertonic 3", piper: "Piper",
 };
 let activeEngine = { engine: "omnivoice", capabilities: { voice_clone: true, voice_design: true } };
 

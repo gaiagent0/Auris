@@ -2,7 +2,6 @@
   "engine.omnivoice": "OmniVoice",
   "engine.higgs": "Higgs TTS 3",
   "engine.moss_tts": "MOSS-TTS 1.5",
-  "engine.moss_nano": "MOSS-TTS-Nano",
   "engine.supertonic": "Supertonic 3",
   "engine.piper": "Piper",
   "engine_state.ready": "kész",

@@ -304,6 +304,26 @@ def pronunciation_ipa():
         return jsonify(ipa=None, error="Az IPA-átírás a Piper telepítésével érhető el.")
 
 
+@bp.route("/api/pronunciation/builtin")
+def pronunciation_builtin():
+    """Beépített magyar kiejtések kereséssel; a felhasználó szabálya nyer."""
+    from core import experience, hu_pronunciation
+
+    book_id = request.args.get("book_id", type=int)
+    query = str(request.args.get("q") or "")
+    category = str(request.args.get("category") or "")
+    saved = {r["source"] for r in experience.list_rules(book_id) if book_id}
+    saved |= {r["source"] for r in experience.list_rules(None)}
+    items = hu_pronunciation.search(query, category)
+    for item in items:
+        item["overridden"] = item["source"] in saved
+    return jsonify(
+        rules=items,
+        categories=list(hu_pronunciation.CATEGORIES),
+        total=hu_pronunciation.builtin_count(),
+    )
+
+
 @bp.route("/api/pronunciation/listen", methods=["POST"])
 def pronunciation_listen():
     """Speak a sentence with a candidate rule applied, in the narrator's voice."""

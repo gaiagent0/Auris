@@ -5,17 +5,34 @@ from __future__ import annotations
 import threading
 import time
 
-ENGINE_NAMES = ("omnivoice", "higgs", "moss_tts", "moss_nano", "supertonic", "piper")
+ENGINE_NAMES = ("omnivoice", "higgs", "moss_tts", "supertonic", "piper")
 
 
 def selected_engine_name() -> str:
     try:
         from core.settings import get
 
-        value = str(get("tts_engine", "omnivoice") or "omnivoice").lower()
+        value = str(get("tts_engine", "auto") or "auto").lower()
     except Exception:
-        value = "omnivoice"
-    return value if value in ENGINE_NAMES else "omnivoice"
+        value = "auto"
+
+    if value == "auto":
+        # No explicit choice yet: ask the hardware what it can actually run.
+        # An engine the user picked always wins, even on unsupported hardware.
+        return recommended_engine_name()
+
+    return value if value in ENGINE_NAMES else recommended_engine_name()
+
+
+def recommended_engine_name() -> str:
+    """Best engine for this machine, falling back to the historical default."""
+    try:
+        from core.hardware import recommend
+
+        name = recommend().get("engine")
+    except Exception:
+        return "omnivoice"
+    return name if name in ENGINE_NAMES else "omnivoice"
 
 
 class TTSEngineRouter:
@@ -29,7 +46,7 @@ class TTSEngineRouter:
             from core.higgs_engine import HiggsTTSEngine
 
             return HiggsTTSEngine()
-        if name in ("moss_tts", "moss_nano", "supertonic", "piper"):
+        if name in ("moss_tts", "supertonic", "piper"):
             from core.local_engines import ENGINE_CLASSES
 
             return ENGINE_CLASSES[name]()

@@ -12,11 +12,46 @@ import re
 
 AVAILABLE_LANGS = ["en", "ko", "ja", "ar", "bg", "cs", "da", "de", "el", "es", "et", "fi", "fr", "hi", "hr", "hu", "id", "it", "lt", "lv", "nl", "pl", "pt", "ro", "ru", "sk", "sl", "sv", "tr", "uk", "vi", "na"]
 
+# Model file names per quantization. The graphs take the same inputs and
+# produce the same outputs in both variants, so only the names differ: the INT8
+# export appends ".int8" and stores the unicode table as a binary int32 array.
+# "tts.json" and the voice styles are shared by every variant.
+MODEL_VARIANTS = {
+    "fp32": {
+        "duration_predictor": "duration_predictor.onnx",
+        "text_encoder": "text_encoder.onnx",
+        "vector_estimator": "vector_estimator.onnx",
+        "vocoder": "vocoder.onnx",
+        "unicode_indexer": "unicode_indexer.json",
+    },
+    "int8": {
+        "duration_predictor": "duration_predictor.int8.onnx",
+        "text_encoder": "text_encoder.int8.onnx",
+        "vector_estimator": "vector_estimator.int8.onnx",
+        "vocoder": "vocoder.int8.onnx",
+        "unicode_indexer": "unicode_indexer.bin",
+    },
+}
+
+
+def variant_files(variant: str = "fp32") -> dict:
+    """File names for a variant, falling back to fp32 for anything unknown."""
+    return MODEL_VARIANTS.get(str(variant or "fp32").lower(), MODEL_VARIANTS["fp32"])
+
 
 class UnicodeProcessor:
     def __init__(self, unicode_indexer_path: str):
-        with open(unicode_indexer_path, "r") as f:
-            self.indexer = json.load(f)
+        if str(unicode_indexer_path).endswith(".bin"):
+            # The INT8 export ships the codepoint -> token table as a flat
+            # int32 array indexed by codepoint (-1 marks an unknown one). It is
+            # the same mapping as the JSON list, only without the file overhead.
+            import numpy as _np
+
+            with open(unicode_indexer_path, "rb") as f:
+                self.indexer = _np.frombuffer(f.read(), dtype=_np.int32)
+        else:
+            with open(unicode_indexer_path, "r") as f:
+                self.indexer = json.load(f)
 
     def _preprocess_text(self, text: str, lang: str) -> str:
         # TODO: Need advanced normalizer for better performance
@@ -287,22 +322,18 @@ def load_onnx(
 
 
 def load_onnx_all(
-    onnx_dir: str, opts: ort.SessionOptions, providers: list[str]
+    onnx_dir: str, opts: ort.SessionOptions, providers: list[str], variant: str = "fp32"
 ) -> tuple[
     ort.InferenceSession,
     ort.InferenceSession,
     ort.InferenceSession,
     ort.InferenceSession,
 ]:
-    dp_onnx_path = os.path.join(onnx_dir, "duration_predictor.onnx")
-    text_enc_onnx_path = os.path.join(onnx_dir, "text_encoder.onnx")
-    vector_est_onnx_path = os.path.join(onnx_dir, "vector_estimator.onnx")
-    vocoder_onnx_path = os.path.join(onnx_dir, "vocoder.onnx")
-
-    dp_ort = load_onnx(dp_onnx_path, opts, providers)
-    text_enc_ort = load_onnx(text_enc_onnx_path, opts, providers)
-    vector_est_ort = load_onnx(vector_est_onnx_path, opts, providers)
-    vocoder_ort = load_onnx(vocoder_onnx_path, opts, providers)
+    names = variant_files(variant)
+    dp_ort = load_onnx(os.path.join(onnx_dir, names["duration_predictor"]), opts, providers)
+    text_enc_ort = load_onnx(os.path.join(onnx_dir, names["text_encoder"]), opts, providers)
+    vector_est_ort = load_onnx(os.path.join(onnx_dir, names["vector_estimator"]), opts, providers)
+    vocoder_ort = load_onnx(os.path.join(onnx_dir, names["vocoder"]), opts, providers)
     return dp_ort, text_enc_ort, vector_est_ort, vocoder_ort
 
 
@@ -313,13 +344,13 @@ def load_cfgs(onnx_dir: str) -> dict:
     return cfgs
 
 
-def load_text_processor(onnx_dir: str) -> UnicodeProcessor:
-    unicode_indexer_path = os.path.join(onnx_dir, "unicode_indexer.json")
+def load_text_processor(onnx_dir: str, variant: str = "fp32") -> UnicodeProcessor:
+    unicode_indexer_path = os.path.join(onnx_dir, variant_files(variant)["unicode_indexer"])
     text_processor = UnicodeProcessor(unicode_indexer_path)
     return text_processor
 
 
-def load_text_to_speech(onnx_dir: str, use_gpu: bool = False) -> TextToSpeech:
+def load_text_to_speech(onnx_dir: str, use_gpu: bool = False, variant: str = "fp32") -> TextToSpeech:
     opts = ort.SessionOptions()
     if use_gpu:
         raise NotImplementedError("GPU mode is not fully tested")
@@ -328,9 +359,9 @@ def load_text_to_speech(onnx_dir: str, use_gpu: bool = False) -> TextToSpeech:
         print("Using CPU for inference")
     cfgs = load_cfgs(onnx_dir)
     dp_ort, text_enc_ort, vector_est_ort, vocoder_ort = load_onnx_all(
-        onnx_dir, opts, providers
+        onnx_dir, opts, providers, variant
     )
-    text_processor = load_text_processor(onnx_dir)
+    text_processor = load_text_processor(onnx_dir, variant)
     return TextToSpeech(
         cfgs, text_processor, dp_ort, text_enc_ort, vector_est_ort, vocoder_ort
     )

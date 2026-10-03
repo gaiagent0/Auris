@@ -96,6 +96,7 @@ async function loadSettings() {
   const setValue = (id, value) => { const el = document.getElementById(id); if (el) el.value = value; };
   setValue('piper-voice', _settings.piper_voice || 'anna');
   setValue('supertonic-voice', _settings.supertonic_voice || 'F1');
+  setValue('supertonic-variant', _settings.supertonic_variant || 'fp32');
   setValue('supertonic-steps', _settings.supertonic_steps ?? 10);
   setValue('moss-seed', _settings.moss_seed ?? 1234);
   setValue('moss-temperature', _settings.moss_temperature ?? 1.7);
@@ -374,7 +375,6 @@ const ENGINE_CAPABILITIES = {
   omnivoice: {clone: true, design: true, speed: true, device: 'GPU vagy CPU', license: 'kód Apache-2.0, súlyok CC-BY-NC'},
   higgs: {clone: true, design: false, speed: true, device: 'GPU', license: 'Boson kutatási licenc'},
   moss_tts: {clone: true, design: false, speed: false, device: 'GPU, ~14 GB VRAM', license: 'Apache-2.0'},
-  moss_nano: {clone: true, design: false, speed: false, device: 'CPU', license: 'Apache-2.0'},
   supertonic: {clone: false, design: false, speed: true, device: 'CPU', license: 'OpenRAIL-M'},
   piper: {clone: false, design: false, speed: true, device: 'CPU', license: 'GPL-3.0 (piper-tts)'},
 };
@@ -733,6 +733,7 @@ async function saveSettingsValues() {
     abs_folder_id: document.getElementById('abs-library')?.selectedOptions?.[0]?.dataset.folder || '',
     piper_voice:      document.getElementById('piper-voice')?.value || 'anna',
     supertonic_voice: document.getElementById('supertonic-voice')?.value || 'F1',
+    supertonic_variant: document.getElementById('supertonic-variant')?.value || 'fp32',
     supertonic_steps: parseInt(document.getElementById('supertonic-steps')?.value || '10', 10),
     moss_seed:        parseInt(document.getElementById('moss-seed')?.value || '1234', 10),
     moss_temperature: parseFloat(document.getElementById('moss-temperature')?.value || '1.7'),

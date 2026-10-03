@@ -1,4 +1,4 @@
-"""Additional local TTS engines: Piper, Supertonic 3, MOSS-TTS-Nano and MOSS-TTS.
+"""Additional local TTS engines: Piper, Supertonic 3 and MOSS-TTS.
 
 Every engine exposes the same interface as ``TTSEngine``/``HiggsTTSEngine``
 (status, load/unload, generate, generate_many, generate_preview), writes
@@ -59,11 +59,6 @@ ENGINE_INFO: dict[str, dict] = {
     "moss_tts": {
         "label": "MOSS-TTS 1.5 (4B)", "voice_clone": True, "voice_design": False,
         "speed": False, "device": "GPU (~14 GB VRAM)", "hungarian": "hivatalos",
-        "license": "Apache-2.0", "takes": True,
-    },
-    "moss_nano": {
-        "label": "MOSS-TTS-Nano (CPU)", "voice_clone": True, "voice_design": False,
-        "speed": False, "device": "CPU", "hungarian": "hivatalos",
         "license": "Apache-2.0", "takes": True,
     },
     "supertonic": {
@@ -138,6 +133,17 @@ def resample(audio: np.ndarray, sr: int, target: int = SAMPLE_RATE) -> np.ndarra
         import soxr
 
         return soxr.resample(audio, sr, target).astype(np.float32)
+    except Exception:
+        pass
+    # soxr has no win_arm64 wheel, and torchaudio has none either. SciPy ships
+    # an ARM64 wheel everywhere, so it is the portable last resort.
+    try:
+        from math import gcd
+
+        from scipy.signal import resample_poly
+
+        divisor = gcd(int(sr), int(target))
+        return resample_poly(audio, target // divisor, sr // divisor).astype(np.float32)
     except Exception:
         import torch
         import torchaudio.functional as AF
@@ -329,11 +335,33 @@ class LocalEngineBase:
         if not prepared:
             audio = np.zeros(int(SAMPLE_RATE * 0.2), dtype=np.float32)
         else:
+            audio = self._synthesize_verified(
+                prepared, instruct, ref_audio, ref_text, float(speed or 1.0), language)
+        os.makedirs(AUDIO_CACHE_DIR, exist_ok=True)
+        _write_audio_atomic(path, audio, SAMPLE_RATE)
+        return {"audio_path": path, "duration_sec": len(audio) / SAMPLE_RATE,
+                "cache_hit": False, "cache_key": key}
+
+    def _synthesize_verified(self, prepared, instruct, ref_audio, ref_text, speed, language):
+        """Synthesise, then reject and retry a take with a broken internal pause.
+
+        The qa.loudness path flags these too (``long_pause``), but only after the
+        audio is cached, so the reader hears them first. Retrying here costs one
+        extra synthesis and keeps the defect out of the cache entirely.
+
+        The threshold scales with the text: a one-sentence excerpt can legitimately
+        contain a long pause, while a 20-sentence paragraph cannot hide nineteen
+        seconds of codec noise behind one.
+        """
+        attempts = max(1, min(3, int(_setting("silence_retry_attempts", 2))))
+        sentences = max(1, len(split_sentences(prepared)))
+        limit = max(SILENCE_MIN_SEC, SILENCE_SEC_PER_SENTENCE * sentences)
+        for attempt in range(attempts):
             self._generating.set()
             try:
                 with self._lock:
                     raw, sr = self._synthesize(prepared, instruct, ref_audio, ref_text,
-                                               float(speed or 1.0), language)
+                                               speed, language)
             finally:
                 self._generating.clear()
             audio = resample(raw, sr)
@@ -342,10 +370,22 @@ class LocalEngineBase:
             peak = float(np.max(np.abs(audio)))
             if peak > 1.0:
                 audio = audio / peak * 0.98
-        os.makedirs(AUDIO_CACHE_DIR, exist_ok=True)
-        _write_audio_atomic(path, audio, SAMPLE_RATE)
-        return {"audio_path": path, "duration_sec": len(audio) / SAMPLE_RATE,
-                "cache_hit": False, "cache_key": key}
+            # resample() returns the cache rate, so the gap check uses it too.
+            gaps = find_long_silences(audio, sample_rate=SAMPLE_RATE,
+                                      min_silence_sec=limit)
+            if not gaps:
+                return audio
+            if attempt + 1 < attempts:
+                log.warning(
+                    "%s produced %d internal silence(s) over %.1f s (longest %.2f s); "
+                    "regenerating (attempt %d/%d)", self.engine_name, len(gaps), limit,
+                    max(end - start for start, end in gaps), attempt + 2, attempts)
+                # A different seed is what makes the retry produce other audio.
+                self._take = getattr(self, "_take", 0) + 1
+        log.error(
+            "%s kept a broken take after %d attempts: internal silence(s) at %s",
+            self.engine_name, attempts, gaps)
+        return audio
 
     def generate_many(self, items: list[dict], num_step: int | None = None,
                       batch_size: int | None = None, on_item=None, on_status=None) -> list[dict]:
@@ -465,6 +505,24 @@ SUPERTONIC_REPO = "supertone-oss-archive/supertonic-3"
 SUPERTONIC_REVISION = "aafc6e32416a594460b32413efc49d7fe4ce6d46"
 SUPERTONIC_VOICES = {**{f"F{i}": "female" for i in range(1, 6)},
                      **{f"M{i}": "male" for i in range(1, 6)}}
+# Quantization variants. "int8" uses the smaller graphs from the sherpa-onnx
+# export; they take the same inputs and produce the same outputs, so the engine
+# only has to point at different file names. The voice styles are shared, which
+# is why the INT8 folder ships none.
+SUPERTONIC_VARIANT_DIRS = {"fp32": "supertonic-3", "int8": "supertonic-3-int8"}
+# Mirrors helper.variant_files(). It is duplicated here only so that the
+# presence check works without importing the vendored helper (which needs the
+# vendor directory on sys.path); a test asserts the two never drift apart.
+SUPERTONIC_FILES = {
+    "fp32": ("duration_predictor.onnx", "text_encoder.onnx",
+             "vector_estimator.onnx", "vocoder.onnx", "unicode_indexer.json"),
+    "int8": ("duration_predictor.int8.onnx", "text_encoder.int8.onnx",
+             "vector_estimator.int8.onnx", "vocoder.int8.onnx", "unicode_indexer.bin"),
+}
+
+
+def _supertonic_files(variant: str) -> tuple[str, ...]:
+    return SUPERTONIC_FILES.get(variant, SUPERTONIC_FILES["fp32"])
 
 
 class SupertonicEngine(LocalEngineBase):
@@ -475,20 +533,43 @@ class SupertonicEngine(LocalEngineBase):
         self._styles: dict[str, object] = {}
 
     @property
+    def variant(self) -> str:
+        chosen = str(_setting("supertonic_variant", "fp32") or "fp32").lower()
+        return chosen if chosen in SUPERTONIC_VARIANT_DIRS else "fp32"
+
+    @property
     def folder(self) -> Path:
-        return Path(_setting("supertonic_models_dir", "") or (MODELS_DIR / "supertonic-3"))
+        override = _setting("supertonic_models_dir", "")
+        if override:
+            return Path(override)
+        return MODELS_DIR / SUPERTONIC_VARIANT_DIRS[self.variant]
+
+    @property
+    def voice_dir(self) -> Path:
+        """Voice styles are identical in both variants, so keep one location."""
+        override = _setting("supertonic_models_dir", "")
+        if override:
+            return Path(override) / "voice_styles"
+        return MODELS_DIR / SUPERTONIC_VARIANT_DIRS["fp32"] / "voice_styles"
 
     def model_location(self) -> str:
         return str(self.folder)
 
     def model_present(self) -> bool:
-        return (self.folder / "onnx" / "tts.json").is_file() and (
-            self.folder / "voice_styles" / "F1.json").is_file()
+        names = _supertonic_files(self.variant)
+        onnx_dir = self.folder / "onnx"
+        return (
+            (onnx_dir / "tts.json").is_file()
+            and all((onnx_dir / name).is_file() for name in names)
+            and (self.voice_dir / "F1.json").is_file()
+        )
 
     def _load_model(self) -> None:
         if not self.model_present():
             self._detail = "Supertonic 3 letöltése (~0,4 GB)…"
-            hf_download(SUPERTONIC_REPO, self.folder, revision=SUPERTONIC_REVISION,
+            # The fp32 release also carries the voice styles every variant uses.
+            hf_download(SUPERTONIC_REPO, MODELS_DIR / SUPERTONIC_VARIANT_DIRS["fp32"],
+                        revision=SUPERTONIC_REVISION,
                         allow_patterns=["onnx/*", "voice_styles/*", "LICENSE*", "README*"])
         sys.path.insert(0, str(VENDOR_DIR / "supertonic"))
         try:
@@ -496,9 +577,10 @@ class SupertonicEngine(LocalEngineBase):
         finally:
             sys.path.pop(0)
         self._helper = supertonic_helper
-        self.model = supertonic_helper.load_text_to_speech(str(self.folder / "onnx"), use_gpu=False)
+        self.model = supertonic_helper.load_text_to_speech(
+            str(self.folder / "onnx"), use_gpu=False, variant=self.variant)
         self._styles = {}
-        self._detail = "CPU · ONNX Runtime"
+        self._detail = f"CPU · ONNX Runtime · {self.variant}"
 
     def _release(self) -> None:
         self._styles = {}
@@ -512,7 +594,9 @@ class SupertonicEngine(LocalEngineBase):
         return "style=" + choose_preset_voice(instruct, SUPERTONIC_VOICES, self._default_voice())
 
     def settings_identity(self) -> str:
-        return f"steps={self._steps()}"
+        # The variant belongs here: fp32 and int8 produce different audio for
+        # the same text, so a cache shared between them would serve stale takes.
+        return f"variant={self.variant}|steps={self._steps()}"
 
     @staticmethod
     def _steps() -> int:
@@ -524,7 +608,7 @@ class SupertonicEngine(LocalEngineBase):
     def _style(self, name: str):
         if name not in self._styles:
             self._styles[name] = self._helper.load_voice_style(
-                [str(self.folder / "voice_styles" / f"{name}.json")]
+                [str(self.voice_dir / f"{name}.json")]
             )
         return self._styles[name]
 
@@ -543,10 +627,58 @@ class SupertonicEngine(LocalEngineBase):
 # MOSS-TTS-Nano — CPU voice cloning
 # ════════════════════════════════════════════════════════════════════════════
 
-NANO_REPOS = ("OpenMOSS-Team/MOSS-TTS-Nano-100M-ONNX", "OpenMOSS-Team/MOSS-Audio-Tokenizer-Nano-ONNX")
 NANO_REFERENCE_TEXT = (
     "Jó napot kívánok. Ez egy nyugodt, tiszta hangminta, természetes magyar hangsúllyal."
 )
+# A pause is only a defect when it is out of proportion to the text. Hungarian
+# narration pauses 0.6-1.2 s between sentences, so a fixed 1 s threshold flags
+# perfectly normal reading; measured speech duty is roughly 5 s per sentence.
+SILENCE_MIN_SEC = 1.0
+SILENCE_SEC_PER_SENTENCE = 1.2
+
+_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?…])[\s ]+|(?<=[.!?…])$")
+
+
+def find_long_silences(audio: np.ndarray, sample_rate: int = SAMPLE_RATE,
+                        min_silence_sec: float = 1.0,
+                        silence_db: float = -45.0) -> list[tuple[float, float]]:
+    """Locate silences longer than ``min_silence_sec`` inside the speech.
+
+    Returns (start_sec, end_sec) pairs. A leading or trailing pause is not
+    reported: only a gap that interrupts the reading is a defect. Used to catch
+    the codec-noise blocks some engines emit, which the loudness check counts as
+    silence but which still hiss in an exported file.
+    """
+    mono = audio.mean(axis=1) if np.ndim(audio) > 1 else np.asarray(audio, dtype=np.float32).reshape(-1)
+    if mono.size == 0:
+        return []
+    frame = max(1, int(0.05 * sample_rate))
+    count = mono.size // frame
+    if count < 4:
+        return []
+    frames = mono[:count * frame].reshape(count, frame)
+    rms = np.sqrt((frames ** 2).mean(axis=1) + 1e-12)
+    silent = rms < 10 ** (silence_db / 20)
+    speech = np.flatnonzero(~silent)
+    if not speech.size:
+        return []
+    found: list[tuple[float, float]] = []
+    run = 0
+    for index in range(speech[0], speech[-1] + 1):
+        if silent[index]:
+            run += 1
+            continue
+        if run * 0.05 >= min_silence_sec:
+            start = (index - run) * 0.05
+            found.append((round(start, 2), round(index * 0.05, 2)))
+        run = 0
+    return found
+
+
+def split_sentences(text: str) -> list[str]:
+    """Split into sentences, keeping the punctuation with its own sentence."""
+    parts = [part.strip() for part in _SENTENCE_SPLIT_RE.split(str(text or ""))]
+    return [part for part in parts if part]
 
 
 def fallback_key(instruct) -> str:
@@ -587,84 +719,6 @@ def fallback_reference(instruct) -> str:
     )
 
 
-class MossNanoEngine(LocalEngineBase):
-    engine_name = "moss_nano"
-
-    @property
-    def folder(self) -> Path:
-        return Path(_setting("moss_nano_models_dir", "") or (MODELS_DIR / "moss-tts-nano"))
-
-    def model_location(self) -> str:
-        return str(self.folder)
-
-    def model_present(self) -> bool:
-        return all((self.folder / repo.split("/")[1]).is_dir() for repo in NANO_REPOS)
-
-    def _load_model(self) -> None:
-        for repo in NANO_REPOS:
-            target = self.folder / repo.split("/")[1]
-            if not target.is_dir() or not any(target.iterdir()):
-                self._detail = f"MOSS-TTS-Nano letöltése: {repo.split('/')[1]}…"
-                hf_download(repo, target)
-        vendor = str(VENDOR_DIR / "moss_tts_nano_onnx")
-        if vendor not in sys.path:
-            sys.path.insert(0, vendor)
-        from onnx_tts_runtime import OnnxTtsRuntime
-
-        class AurisNanoRuntime(OnnxTtsRuntime):
-            def _load_reference_audio(self, path):
-                # torchaudio.load needs torchcodec in torchaudio 2.9+; read with
-                # soundfile and convert to the codec's rate/channels instead.
-                import torch
-
-                audio, sr = sf.read(str(path), dtype="float32", always_2d=True)
-                wav = torch.from_numpy(audio.T.copy())
-                codec = self.codec_meta["codec_config"]
-                target_sr, channels = int(codec["sample_rate"]), int(codec["channels"])
-                if sr != target_sr:
-                    import torchaudio.functional as AF
-
-                    wav = AF.resample(wav, sr, target_sr)
-                if wav.shape[0] == 1 and channels > 1:
-                    wav = wav.repeat(channels, 1)
-                elif wav.shape[0] > 1 and channels == 1:
-                    wav = wav.mean(0, keepdim=True)
-                return wav.unsqueeze(0).numpy().astype(np.float32)
-
-        threads = max(1, min(8, (os.cpu_count() or 4)))
-        self._tmp = Path(tempfile.mkdtemp(prefix="auris-nano-"))
-        self.model = AurisNanoRuntime(model_dir=str(self.folder), thread_count=threads,
-                                      execution_provider="cpu", output_dir=str(self._tmp))
-        self._detail = f"CPU · ONNX Runtime · {threads} szál"
-
-    def voice_identity(self, instruct, ref_audio, ref_text, language) -> str:
-        if ref_audio:
-            try:
-                st = os.stat(ref_audio)
-                return f"ref={os.path.abspath(ref_audio)}|{st.st_mtime_ns}|{st.st_size}"
-            except OSError:
-                return f"ref={ref_audio}"
-        return "fallback=" + fallback_key(instruct)
-
-    def settings_identity(self) -> str:
-        return f"seed={_setting('moss_seed', 1234)}"
-
-    def _synthesize(self, text, instruct, ref_audio, ref_text, speed, language):
-        reference = ref_audio if ref_audio and os.path.exists(ref_audio) else fallback_reference(instruct)
-        output = self._tmp / f"out-{time.time_ns()}.wav"
-        try:
-            result = self.model.synthesize(
-                text=text, prompt_audio_path=reference, output_audio_path=str(output),
-                enable_wetext=False, enable_normalize_tts_text=True, streaming=False,
-                seed=int(_setting("moss_seed", 1234)) + 7919 * getattr(self, "_take", 0),
-            )
-        finally:
-            output.unlink(missing_ok=True)
-        return np.asarray(result["waveform"], dtype=np.float32), int(result["sample_rate"])
-
-
-# ════════════════════════════════════════════════════════════════════════════
-# MOSS-TTS 1.5 (4B) — GPU, isolated worker process
 # ════════════════════════════════════════════════════════════════════════════
 
 MOSS_TTS_REPO = "OpenMOSS-Team/MOSS-TTS-Local-Transformer-v1.5"
@@ -808,6 +862,5 @@ def _moss_language(language: str | None) -> str | None:
 ENGINE_CLASSES = {
     "piper": PiperEngine,
     "supertonic": SupertonicEngine,
-    "moss_nano": MossNanoEngine,
     "moss_tts": MossTTSEngine,
 }

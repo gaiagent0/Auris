@@ -32,7 +32,7 @@ TTS_SEGMENT_BOUNDARY_POLICY_VERSION = 2
 
 DEFAULTS: dict = {
     # Active TTS engine. Each engine keeps an independent model configuration.
-    'tts_engine': 'omnivoice',          # 'omnivoice' | 'higgs'
+    'tts_engine': 'auto',   # 'auto' (hardware-detected) | 'omnivoice' | 'higgs' | ...
 
     # OmniVoice model
     'model_source': 'local',           # 'local' | 'download'
@@ -66,6 +66,9 @@ DEFAULTS: dict = {
     # OpenAI-compatible server (LM Studio, Ollama, llama.cpp) or OpenAI's API;
     # "legacy" keeps the original English spaCy/regex detector.
     'character_detection_mode': 'legacy',
+    # Supertonic 3 quantization: 'fp32' (default) or 'int8'. Same voices, very
+    # different footprint; the int8 graphs come from the sherpa-onnx export.
+    'supertonic_variant': 'fp32',
     'llm_provider': 'local',           # 'local' | 'openai'
     'llm_base_url': 'http://127.0.0.1:1234/v1',
     'llm_api_key': '',
