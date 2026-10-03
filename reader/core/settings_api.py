@@ -48,7 +48,7 @@ def save_settings():
         'subtitle_format', 'theme', 'font_size', 'font_family', 'line_height',
         'normalize_text', 'tts_num_step', 'tts_batch_size', 'tts_coalesce_chars',
         'audio_mastering', 'voice_design_anchor',
-        'piper_voice', 'supertonic_voice', 'supertonic_steps',
+        'piper_voice', 'supertonic_voice', 'supertonic_steps', 'supertonic_variant',
         'moss_seed', 'moss_temperature', 'moss_top_p', 'moss_top_k',
         'trim_segment_silence', 'export_room_tone',
         'narrator_credit', 'export_intro_template', 'export_outro_template',
@@ -69,8 +69,9 @@ def save_settings():
             return jsonify({'error': 'Érvénytelen Hugging Face repó-azonosító.'}), 400
     if 'tts_engine' in updates:
         from core.tts_router import ENGINE_NAMES
-        engine = str(updates['tts_engine'] or 'omnivoice').strip().lower()
-        updates['tts_engine'] = engine if engine in ENGINE_NAMES else 'omnivoice'
+        engine = str(updates['tts_engine'] or 'auto').strip().lower()
+        # 'auto' keeps the hardware-detected engine; an explicit name always wins.
+        updates['tts_engine'] = engine if engine in (*ENGINE_NAMES, 'auto') else 'auto'
     if 'higgs_model_source' in updates:
         source = str(updates['higgs_model_source'] or 'download').strip().lower()
         updates['higgs_model_source'] = source if source in ('local', 'download') else 'download'
@@ -129,11 +130,14 @@ def save_settings():
         updates['audio_mastering'] = bool(updates['audio_mastering'])
     if 'voice_design_anchor' in updates:
         updates['voice_design_anchor'] = bool(updates['voice_design_anchor'])
-    from core.local_engines import PIPER_VOICES, SUPERTONIC_VOICES
+    from core.local_engines import PIPER_VOICES, SUPERTONIC_VARIANT_DIRS, SUPERTONIC_VOICES
     if 'piper_voice' in updates and updates['piper_voice'] not in PIPER_VOICES:
         updates['piper_voice'] = 'anna'
     if 'supertonic_voice' in updates and updates['supertonic_voice'] not in SUPERTONIC_VOICES:
         updates['supertonic_voice'] = 'F1'
+    if ('supertonic_variant' in updates
+            and updates['supertonic_variant'] not in SUPERTONIC_VARIANT_DIRS):
+        updates['supertonic_variant'] = 'fp32'
     for key in ('narrator_credit', 'export_intro_template', 'export_outro_template',
                 'abs_library_id', 'abs_folder_id', 'api_token'):
         if key in updates:
@@ -220,7 +224,7 @@ def save_settings():
         'tts_num_step',
         'normalize_text',
         'voice_design_anchor',
-        'piper_voice', 'supertonic_voice', 'supertonic_steps',
+        'piper_voice', 'supertonic_voice', 'supertonic_steps', 'supertonic_variant',
         'moss_seed', 'moss_temperature', 'moss_top_p', 'moss_top_k',
     }
     if any(

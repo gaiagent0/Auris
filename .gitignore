@@ -67,3 +67,7 @@ docker-data/
 # Local video productions and agent skills (contain the owner's voice sample)
 .agents/
 videos/
+
+# ARM64 TTS quality measurement artefacts
+reader/quality_out/
+reader/quality_report.py

@@ -128,6 +128,60 @@ def is_apple_silicon():
     return platform.system() == "Darwin" and platform.machine() == "arm64"
 
 
+def is_arm64():
+    """True on ARM64 Windows (Snapdragon X and friends) and on aarch64 Linux."""
+    machine = platform.machine().lower()
+    return machine in {"arm64", "aarch64"} and platform.system() != "Darwin"
+
+
+def arm64_platform_tag():
+    """Return 'win_arm64' or 'linux_aarch64' on ARM64, else None.
+
+    The tag selects the dependency sets below. Windows on ARM has no
+    torchaudio, thinc or soxr wheel, so the CPU engines there must be
+    installed without them; aarch64 Linux has all of them.
+    """
+    if not is_arm64():
+        return None
+    return "win_arm64" if platform.system() == "Windows" else "linux_aarch64"
+
+
+# Packages the CPU engines need, as (requirement, platforms_to_skip). torchaudio
+# has no win_arm64 wheel; soxr has no ARM wheel at all; and thinc, spaCy's
+# compiled backend, dropped its aarch64 wheels in the 9.1 series, so aarch64
+# needs the 9.0 pin rather than a skip.
+ARM64_SOFT_DEPS = (
+    ("torchaudio>=2.4,<2.12", ("win_arm64",)),
+    ("soxr", ("win_arm64", "linux_aarch64")),
+    ("scipy", ()),  # portable resample fallback, replaces soxr on every ARM tag
+    ("thinc<9.1", ()),
+    ("spacy>=3.7", ()),
+)
+
+# Everything else the app needs on an ARM64 machine without a CUDA GPU.
+ARM64_BASE_DEPS = (
+    "onnxruntime>=1.20,<2",
+    "huggingface_hub",
+    "sentencepiece>=0.2",
+    "soundfile>=0.12",
+    "librosa>=0.11",
+    "num2words>=0.5.13",
+    "pydub>=0.25",
+    "flask>=3.0",
+    "ebooklib>=0.18",
+    "pymupdf>=1.24",
+    "pillow>=10",
+    "python-docx>=1.1",
+    "pyphen>=0.15",
+    "onnx-asr==0.12.0",
+)
+
+
+def arm64_requirements(tag):
+    """Filter the ARM64 dependency set for the given platform tag."""
+    return [req for req, missing in ARM64_SOFT_DEPS if tag not in missing]
+
+
 def cuda_to_wheel_tag(cuda_version):
     """Map the detected CUDA version to the PyTorch wheel index tag."""
     if cuda_version is None:
@@ -160,6 +214,14 @@ def detect_hardware():
     if is_apple_silicon():
         ok("Apple Silicon (MPS) detected")
         return "mps"
+
+    # ARM64 (Snapdragon X on Windows/WSL2, aarch64 Linux) has no CUDA path.
+    # Check it before nvidia-smi so an emulated x64 environment cannot pick a
+    # CUDA build that does not exist for this architecture.
+    if is_arm64():
+        tag = arm64_platform_tag()
+        ok(f"ARM64 detected ({tag}) - no CUDA; installing the ONNX CPU engine set")
+        return "arm64_onnx"
 
     # AMD wheels are GPU/OS/Python-specific. Preserve an already installed,
     # working vendor pair rather than replacing it with a generic CPU wheel.
@@ -249,7 +311,22 @@ def install_torch(hw_tag):
     if hw_tag == "rocm":
         verify_torch(hw_tag)
         return
-    if hw_tag == "mps":
+    if hw_tag == "arm64_onnx":
+        # No CUDA build exists for ARM64, and torchaudio has no win_arm64
+        # wheel at all. The ONNX CPU engines (Supertonic 3, MOSS-TTS-Nano,
+        # Piper) do not need either, so install torch alone from the CPU
+        # index: MOSS-TTS-Nano's vendored runtime imports it.
+        tag = arm64_platform_tag()
+        info(f"ARM64 ({tag}) detected. Installing CPU-only torch; torchaudio is skipped.")
+        info("The CPU engines (Supertonic 3, MOSS-TTS-Nano) run on ONNX Runtime.")
+        if tag == "linux_aarch64":
+            pip_install(TORCHAUDIO_SPEC)
+        elif offline_wheels_available():
+            pip_install(TORCH_SPEC, no_index=True)
+        else:
+            pip_install(TORCH_SPEC, index_url="https://download.pytorch.org/whl/cpu")
+        ok("PyTorch installed (CPU)")
+    elif hw_tag == "mps":
         pip_install(TORCH_SPEC, TORCHAUDIO_SPEC)
     elif hw_tag == "cpu":
         if offline_wheels_available():
@@ -287,6 +364,19 @@ def install_torch(hw_tag):
 
 def verify_torch(hw_tag):
     """Import native libraries in a fresh process before declaring setup ready."""
+    if hw_tag == "arm64_onnx":
+        step("Checking PyTorch runtime and ONNX Runtime")
+        code = (
+            "import torch, onnxruntime as ort; "
+            "print('torch:', torch.__version__); "
+            "print('onnxruntime:', ort.__version__, ort.get_available_providers()); "
+        )
+        if arm64_platform_tag() == "linux_aarch64":
+            code += "import torchaudio; print('torchaudio:', torchaudio.__version__); "
+        run([sys.executable, "-c", code])
+        ok("ARM64 native runtime verified")
+        return
+
     step("Checking PyTorch + torchaudio runtime")
     code = (
         "import torch; import torchaudio; "
@@ -367,7 +457,21 @@ def install_higgs_transformers_runtime():
     ok("Higgs Transformers runtime installed (isolated from OmniVoice)")
 
 
-def install_reader_deps():
+def install_reader_deps(hw_tag=None):
+    if hw_tag == "arm64_onnx":
+        step("Installing ARM64 dependency set")
+        tag = arm64_platform_tag()
+        skipped = [req for req, missing in ARM64_SOFT_DEPS if tag in missing]
+        # requirements.txt lists omnivoice and torch, neither of which resolves
+        # on ARM64, so install the portable set explicitly instead.
+        pip_install(*ARM64_BASE_DEPS, *arm64_requirements(tag))
+        if skipped:
+            info("Not available for " + tag + ": " + ", ".join(skipped))
+            info("The app runs without them: SciPy resamples, and character")
+            info("detection falls back to its regex mode when spaCy is absent.")
+        ok("ARM64 dependencies installed")
+        return
+
     step("Installing remaining dependencies from requirements.txt")
     # requirements.txt intentionally omits torch/torchaudio so this step cannot
     # replace a CUDA build with a CPU wheel from PyPI.
@@ -454,8 +558,17 @@ def print_summary(hw_tag):
     device_label = {
         "rocm": "AMD GPU (ROCm)",
         "mps": "Apple Silicon (MPS)",
+        "arm64_onnx": "ARM64 CPU (ONNX Runtime)",
         "cpu": "CPU only",
     }.get(hw_tag, f"NVIDIA GPU ({hw_tag})")
+
+    engine_hint = ""
+    if hw_tag == "arm64_onnx":
+        engine_hint = f"""
+  {BD}Engines     : {BD}Supertonic 3 or MOSS-TTS-Nano (CPU){W}
+                   Pick one under Settings -> Beszédmotorok.
+                   Higgs and MOSS-TTS 1.5 need a CUDA GPU and stay unavailable.
+"""
 
     launch_hint = (
         r".venv\Scripts\python.exe app.py"
@@ -470,7 +583,7 @@ def print_summary(hw_tag):
 {BD}+------------------------------------------+{W}
 
   Device      : {G}{device_label}{W}
-  To launch   : {BD}{launch_hint}{W}
+{engine_hint}  To launch   : {BD}{launch_hint}{W}
   Windows     : {BD}run.bat{W}
   Linux / Mac : {BD}bash run.sh{W}
   Browser     : http://127.0.0.1:7860
@@ -506,12 +619,25 @@ def main():
         ensure_pip()
 
     hw_tag = detect_hardware()
+
+    if hw_tag == "arm64_onnx":
+        # omnivoice needs a torch build with the CUDA/MPS path, thinc has no
+        # aarch64 wheel in the 9.1 series, and neither is needed by the ONNX
+        # CPU engines. Skipping them keeps the ARM64 install wheel-only.
+        install_torch(hw_tag)
+        verify_torch(hw_tag)
+        install_reader_deps(hw_tag)
+        install_triton_acceleration(hw_tag)
+        verify_torch(hw_tag)
+        print_summary(hw_tag)
+        return
+
     install_torch(hw_tag)
     verify_torch(hw_tag)
     install_omnivoice_deps()
     install_omnivoice()
     install_higgs_transformers_runtime()
-    install_reader_deps()
+    install_reader_deps(hw_tag)
     install_spacy_model()
     install_hungarian_spacy_model()
     install_triton_acceleration(hw_tag)

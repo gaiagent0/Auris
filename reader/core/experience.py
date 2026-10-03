@@ -177,17 +177,25 @@ def _inflectable(source: str) -> bool:
 
 def apply_pronunciation(text, book_id=None, rules=None):
     mapping = {}
+    exact_only = set()
     for rule in list_rules(book_id) if rules is None else rules:
         mapping[rule["source"]] = rule["replacement"]
+    # A beépített magyar kiejtések csak akkor érvényesek, ha nincs felettük
+    # mentett szabály, így a felhasználó bármikor felülírhatja őket.
+    from core import hu_pronunciation
+
+    for source, replacement in hu_pronunciation.builtin_map().items():
+        mapping.setdefault(source, replacement)
+    exact_only |= hu_pronunciation.EXACT_ONLY
     if not mapping:
         return text
     alternatives = []
     for key in sorted(mapping, key=len, reverse=True):
-        if _inflectable(key):
+        if _inflectable(key) and key not in exact_only:
             stem = re.escape(key)
             if key[-1] in _LENGTHEN:
                 # Anna -> Annának: the final vowel lengthens before a suffix.
-                stem = f'(?:{stem}|{re.escape(key[:-1])}{_LENGTHEN[key[-1]]}(?=\w))'
+                stem = rf'(?:{stem}|{re.escape(key[:-1])}{_LENGTHEN[key[-1]]}(?=\w))'
             alternatives.append(f'(?P<w{len(alternatives)}>{stem})(?:-?{_HU_SUFFIX})?')
         else:
             alternatives.append(f'(?P<w{len(alternatives)}>{re.escape(key)})')

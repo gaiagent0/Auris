@@ -108,11 +108,17 @@ class RouterTest(unittest.TestCase):
     def test_router_creates_new_engines(self):
         from core import tts_router
 
-        for name in ("piper", "supertonic", "moss_nano", "moss_tts"):
+        for name in ("piper", "supertonic", "moss_tts"):
             engine = tts_router.TTSEngineRouter._create(name)
             self.assertEqual(engine.engine_name, name)
-        with patch("core.settings.get", return_value="bogus"):
-            self.assertEqual(tts_router.selected_engine_name(), "omnivoice")
+
+    def test_unknown_setting_falls_back_to_the_hardware_recommendation(self):
+        """An unrecognised stored value must not pin an unsupported engine."""
+        from core import tts_router
+
+        with patch("core.settings.get", return_value="bogus"), \
+             patch.object(tts_router, "recommended_engine_name", return_value="supertonic"):
+            self.assertEqual(tts_router.selected_engine_name(), "supertonic")
 
 
 if __name__ == "__main__":

@@ -1678,7 +1678,10 @@ def _editor_payload(chapter):
 
 def _engine_supports_speed() -> bool:
     from core.local_engines import ENGINE_INFO
-    engine = app_settings.get('tts_engine', 'omnivoice')
+    from core.tts_router import selected_engine_name
+    engine = app_settings.get('tts_engine', 'auto')
+    if engine == 'auto':
+        engine = selected_engine_name()
     if engine == 'higgs':
         return app_settings.get('higgs_prompt_mode', 'raw') != 'raw'
     return bool(ENGINE_INFO.get(engine, {}).get('speed', True))

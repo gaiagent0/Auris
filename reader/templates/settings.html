@@ -37,6 +37,11 @@
           <p>Egy könyv kiválasztása után a program kigyűjti a neveket, helyeket és idegennek tűnő szavakat (magyar névfelismerővel, ha a HuSpaCy telepítve van). Az idegen írásképűek elöl állnak. Kattints egy szóra a szabály kitöltéséhez; az olvasóban egy szó kijelölésével közvetlenül is javíthatod a kiejtést.</p>
           <p><button class="btn btn-ghost" type="button" onclick="loadPronunciationCandidates()">Szavak kigyűjtése a kiválasztott könyvből</button></p>
           <div id="dictionary-candidates" class="dictionary-candidates"></div>
+          <h3>Beépített magyar kiejtések</h3>
+          <p>Gyakori magyar és idegen nevek, helynevek, illetve rövidítések, amelyeket a beszédmotor a magyar írásmódból még nem mindig találja biztosan. Ezek automatikusan érvényesek; ha egyiket máshogy szeretnéd, kattints rá, és mentsd felül. A törölt vagy felülírt szabály mindig a te beállításod győzel.</p>
+          <div class="form-grid"><label>Szűrés<input id="builtin-search" placeholder="pl. sakszpér, Bethlen, stb." maxlength="60"></label><label>Kategória<select id="builtin-category"><option value="">Mindegyik</option></select></label></div>
+          <p><button type="button" class="btn btn-ghost" id="builtin-load" onclick="loadBuiltinPronunciation()">Beépített kiejtések megjelenítése</button> <span id="builtin-count" class="muted"></span></p>
+          <div id="builtin-list" class="dictionary-candidates"></div>
         </section>
       </div>
       <div class="settings-category" id="settings-storage" data-settings-category="storage" role="tabpanel" hidden>
@@ -65,7 +70,6 @@
           <option value="moss_tts">MOSS-TTS 1.5 — 4B</option>
         </optgroup>
         <optgroup label="CPU, grafikus kártya nélkül is">
-          <option value="moss_nano">MOSS-TTS-Nano (hangklónozás)</option>
           <option value="supertonic">Supertonic 3 (beépített hangok, klónozás nélkül)</option>
           <option value="piper">Piper — Anna, Berta, Imre (klónozás nélkül)</option>
         </optgroup>
@@ -233,25 +237,22 @@
     </div>
   </section>
 
-  <!-- MOSS-TTS-Nano -->
-  <section class="settings-section engine-settings moss_nano-settings hidden">
-    <div class="settings-section-title">MOSS-TTS-Nano (CPU)</div>
-    <p class="section-desc">100 millió paraméteres, Apache-2.0 licencű hangklónozó modell, amely videokártya nélkül, processzoron fut. Első betöltéskor kb. 0,8 GB-ot tölt le a <code>reader/models</code> mappába. Referenciahang nélkül automatikusan készített magyar mintahangot klónoz; saját hanghoz tölts fel referenciát a Hangstúdióban (átirat nem szükséges). Tempóállítást nem támogat.</p>
-    <div class="setting-row">
-      <label>Véletlenmag (azonos mag → ismételhető hang)</label>
-      <input type="number" id="moss-seed" class="text-input" min="-1" step="1" style="max-width:140px">
-    </div>
-  </section>
-
   <!-- Supertonic 3 -->
   <section class="settings-section engine-settings supertonic-settings hidden">
     <div class="settings-section-title">Supertonic 3 (CPU)</div>
     <p class="section-desc"><strong>Nem támogat hangklónozást:</strong> tíz beépített hanggal (F1–F5 női, M1–M5 férfi) dolgozik. A Hangstúdióban feltöltött referenciahangot figyelmen kívül hagyja; a szereplő hangját a leírás neme vagy a Hangstúdióban választott beépített hang határozza meg. Nagyon gyors, 44,1 kHz-en készül. Első betöltéskor kb. 0,4 GB-ot tölt le. A modell licence BigScience OpenRAIL-M (használati korlátozásokkal), a kód MIT.</p>
+    <p class="section-desc">A <strong>Pontosság</strong> ugyanazt a hangot adja fp32-ben és INT8-ban, eltérő mérettel: a tömör változat 138 MB (a teljes 383 MB), és a betöltés utáni csúcsmemória feleakkora (241 MB helyett 494 MB). Ezen a processzoron az INT8 nem gyorsabb, némileg lassabb is lehet, ezért a teljes az alapértelmezett.</p>
     <div class="setting-row setting-grid-3">
       <label>Alapértelmezett hang
         <select id="supertonic-voice" class="select-input">
           <option value="F1">F1 (női)</option><option value="F2">F2 (női)</option><option value="F3">F3 (női)</option><option value="F4">F4 (női)</option><option value="F5">F5 (női)</option>
           <option value="M1">M1 (férfi)</option><option value="M2">M2 (férfi)</option><option value="M3">M3 (férfi)</option><option value="M4">M4 (férfi)</option><option value="M5">M5 (férfi)</option>
+        </select>
+      </label>
+      <label>Pontosság
+        <select id="supertonic-variant" class="select-input">
+          <option value="fp32">Teljes (fp32) — 383 MB, gyorsabb</option>
+          <option value="int8">Tömör (INT8) — 138 MB, feleakkora memória</option>
         </select>
       </label>
       <label>Minőség (lépések, 4–32)<input type="number" id="supertonic-steps" class="text-input" min="4" max="32" step="1"></label>
