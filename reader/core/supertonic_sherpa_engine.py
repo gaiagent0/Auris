@@ -39,6 +39,13 @@ SHERPA_FILES = (
     "unicode_indexer.bin", "voice.bin",
 )
 
+# Voice.bin carries the same ten preset styles as the VP vendored engine:
+# F1–F5 (female) then M1–M5 (male), addressed here by sherpa-onnx `sid`.
+SHERPA_VOICES = {
+    "F1": 0, "F2": 1, "F3": 2, "F4": 3, "F5": 4,
+    "M1": 5, "M2": 6, "M3": 7, "M4": 8, "M5": 9,
+}
+
 
 class SherpaSupertonicEngine(LocalEngineBase):
     engine_name = "supertonic_sherpa"
@@ -49,10 +56,31 @@ class SherpaSupertonicEngine(LocalEngineBase):
         self.tts: Optional[Any] = None
         self.sample_rate: int = 44100
 
+    def _default_voice(self) -> str:
+        from core import settings
+
+        try:
+            return str(settings.get("supertonic_voice", "F1") or "F1").upper()
+        except Exception:
+            return "F1"
+
+    def _selected_sid(self) -> int:
+        """Map the chosen voice name (F1–M5) to the sherpa style index 0–9."""
+        name = self._default_voice()
+        return SHERPA_VOICES.get(name, 0)
+
+    def voice_identity(self, instruct, ref_audio, ref_text, language) -> str:
+        # No cloning: a reference recording never changes the output. The
+        # preset voice name is the only thing that decides the voice.
+        return "voice=" + self._default_voice()
+
+    def settings_identity(self) -> str:
+        return f"sid={self._selected_sid()}"
+
     @property
     def capabilities(self) -> dict[str, Any]:
         return {
-            "label": "Supertonic 3 (sherpa-onnx int8, CPU, 44,1 kHz)",
+            "label": "Supertonic 3 (sherpa-onnx int8, CPU, 44,1 kHz · 10 hang)",
             "voice_clone": False,
             "voice_design": False,
             "speed": True,
@@ -108,7 +136,8 @@ class SherpaSupertonicEngine(LocalEngineBase):
     def _synthesize(self, text: str, instruct, ref_audio, ref_text, speed, language) -> tuple[np.ndarray, int]:
         if self.tts is None:
             raise RuntimeError("Supertonic sherpa engine nem lett betöltve")
-        audio = self.tts.generate(text, sid=0, speed=float(speed or 1.0))
+        sid = self._selected_sid()
+        audio = self.tts.generate(text, sid=sid, speed=float(speed or 1.0))
         wav = np.asarray(audio.samples, dtype=np.float32)
         if wav.size:
             peak = float(np.max(np.abs(wav)))

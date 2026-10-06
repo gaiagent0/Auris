@@ -96,6 +96,7 @@ async function loadSettings() {
   const setValue = (id, value) => { const el = document.getElementById(id); if (el) el.value = value; };
   setValue('piper-voice', _settings.piper_voice || 'anna');
   setValue('supertonic-voice', _settings.supertonic_voice || 'F1');
+  setValue('supertonic-voice-sherpa', _settings.supertonic_voice || 'F1');
   setValue('supertonic-variant', _settings.supertonic_variant || 'fp32');
   setValue('supertonic-steps', _settings.supertonic_steps ?? 10);
   setValue('supertonic-batch', _settings.supertonic_batch ?? 4);
@@ -734,7 +735,8 @@ async function saveSettingsValues() {
     abs_library_id: document.getElementById('abs-library')?.value || '',
     abs_folder_id: document.getElementById('abs-library')?.selectedOptions?.[0]?.dataset.folder || '',
     piper_voice:      document.getElementById('piper-voice')?.value || 'anna',
-    supertonic_voice: document.getElementById('supertonic-voice')?.value || 'F1',
+    supertonic_voice: (document.getElementById('supertonic-voice-sherpa')?.value ||
+                        document.getElementById('supertonic-voice')?.value) || 'F1',
     supertonic_variant: document.getElementById('supertonic-variant')?.value || 'fp32',
     supertonic_steps: parseInt(document.getElementById('supertonic-steps')?.value || '10', 10),
     supertonic_batch: parseInt(document.getElementById('supertonic-batch')?.value || '4', 10),
