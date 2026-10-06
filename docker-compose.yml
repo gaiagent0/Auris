@@ -6,7 +6,7 @@
 # ONNX CPU engines (Supertonic, sherpa-onnx Supertonic, Piper) run natively —
 # and Docker here is a portable alternative that works anywhere.
 #
-# NVIDIA GPU build (opt-in, fast OmniVoice):  TORCH_VARIANT=cu128
+# NVIDIA GPU build (opt-in, fast OmniVoice) — pass cu128 on the CLI:
 #   docker compose build --build-arg TORCH_VARIANT=cu128
 services:
   auris:

@@ -36,7 +36,7 @@ SHERPA_SUPERTONIC_DIR = "supertonic-sherpa-int8"
 SHERPA_FILES = (
     "duration_predictor.int8.onnx", "text_encoder.int8.onnx",
     "vector_estimator.int8.onnx", "vocoder.int8.onnx", "tts.json",
-    "unicode_indexer.bin", "voice.bin",
+    "unicode_indexer.bin", "voice.bin", "LICENSE",
 )
 
 # Voice.bin carries the same ten preset styles as the VP vendored engine:
