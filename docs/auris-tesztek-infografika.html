@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How we test Auris — a simple guide</title>
+<style>
+  /* ─────────────────────────────────────────────────────────────
+     DYSLEXIA-FRIENDLY TYPE SYSTEM
+     1. Verdana first: wide letter shapes, easy to tell apart.
+     2. Big base size (19px) and tall lines (1.9).
+     3. Extra letter and word spacing.
+     4. Text is always left aligned. Never justified.
+     5. No italics anywhere, and no long blocks of capital letters.
+     6. Lines are kept short (about 34 words).
+     7. The "Big text" button makes everything even bigger.
+     ───────────────────────────────────────────────────────────── */
+  :root{
+    --ink:#15202e;
+    --grey:#42506a; --line:#d8dee9;
+    --paper:#fcfbf7; --card:#ffffff;
+    --blue:#1256a0; --blue-bg:#e8f0fb;
+    --green:#0f6b45; --green-bg:#e4f4ec;
+    --amber:#8a5200; --amber-bg:#fdf0dc;
+    --red:#9a2020;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:Verdana,Geneva,"DejaVu Sans",Tahoma,sans-serif;
+    font-size:19px;
+    line-height:1.9;
+    letter-spacing:.015em;
+    word-spacing:.08em;
+    text-align:left;
+  }
+  /* the big-text mode */
+  body.big{font-size:22px;line-height:2.05}
+
+  .wrap{max-width:900px;margin:0 auto;padding:0 22px 80px}
+
+  /* ── TOP BAR ─────────────────────────────────────────── */
+  .topbar{
+    display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:space-between;
+    padding:14px 0;border-bottom:3px solid var(--line);margin-bottom:34px;
+  }
+  .topbar .who{font-size:15px;color:var(--grey)}
+  .btn{
+    font-family:inherit;font-size:16px;font-weight:bold;
+    background:var(--blue);color:#fff;border:0;border-radius:10px;
+    padding:12px 20px;cursor:pointer;letter-spacing:.02em;
+  }
+  .btn:hover{background:#0d4480}
+  .btn:focus-visible{outline:3px solid #ffb703;outline-offset:3px}
+
+  /* ── HEADINGS ────────────────────────────────────────── */
+  h1{
+    font-size:44px;line-height:1.28;margin:0 0 14px;letter-spacing:0;
+    font-weight:bold;
+  }
+  .lead{font-size:22px;line-height:1.85;color:var(--grey);margin:0 0 12px;max-width:34em}
+  h2{
+    font-size:31px;line-height:1.4;margin:64px 0 8px;
+    padding-bottom:10px;border-bottom:4px solid var(--blue);
+  }
+  h2 .num{
+    display:inline-block;background:var(--blue);color:#fff;
+    width:44px;height:44px;line-height:44px;text-align:center;
+    border-radius:10px;font-size:23px;margin-right:14px;vertical-align:3px;
+  }
+  h3{font-size:23px;line-height:1.5;margin:34px 0 8px}
+  p,li{max-width:34em}
+  p{margin:0 0 20px}
+
+  .card{
+    background:var(--card);border:2px solid var(--line);border-radius:16px;
+    padding:26px 30px;margin:0 0 22px;
+  }
+
+  /* ── BIG NUMBER GRID ─────────────────────────────────── */
+  .numbers{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:28px 0}
+  @media (max-width:760px){ .numbers{grid-template-columns:repeat(2,1fr)} }
+  @media (max-width:460px){ .numbers{grid-template-columns:1fr} }
+  .num-card{
+    background:var(--card);border:2px solid var(--line);border-radius:16px;
+    padding:22px 20px;text-align:left;
+  }
+  .num-card .big{font-size:46px;line-height:1.15;font-weight:bold;display:block;margin-bottom:6px}
+  .num-card .cap{font-size:16px;line-height:1.6;color:var(--grey);display:block}
+  .num-card.ok .big{color:var(--green)}
+  .num-card.warn .big{color:var(--amber)}
+
+  /* ── THE LAYER STACK ─────────────────────────────────── */
+  .layer{
+    display:grid;grid-template-columns:96px 1fr;gap:22px;align-items:start;
+    background:var(--card);border:2px solid var(--line);border-radius:16px;
+    padding:24px 26px;margin-bottom:18px;
+  }
+  .layer .badge{
+    background:var(--blue-bg);color:var(--blue);
+    border-radius:14px;padding:14px 8px;text-align:center;
+    font-size:15px;font-weight:bold;line-height:1.45;
+  }
+  .layer h3{margin:0 0 8px}
+  .layer p{margin:0 0 12px}
+  .layer p:last-child{margin-bottom:0}
+  .layer .detail{
+    background:#f2f5fa;border-left:6px solid var(--blue);
+    padding:14px 18px;border-radius:0 10px 10px 0;margin:0;
+  }
+
+  /* ── PLAIN LISTS ─────────────────────────────────────── */
+  ul.plain{list-style:none;padding:0;margin:0 0 22px}
+  ul.plain li{
+    padding-left:38px;position:relative;margin-bottom:14px;max-width:34em;
+  }
+  ul.plain li::before{
+    content:"";position:absolute;left:0;top:.62em;
+    width:16px;height:16px;border-radius:4px;background:var(--blue);
+  }
+  ul.plain li b{color:var(--blue)}
+
+  /* ── TERM BOXES (what does this word mean) ───────────── */
+  .term{
+    background:var(--card);border:2px solid var(--line);border-left:8px solid var(--blue);
+    border-radius:0 14px 14px 0;padding:18px 24px;margin-bottom:16px;
+  }
+  .term .word{font-size:21px;font-weight:bold;color:var(--blue);display:block;margin-bottom:4px}
+  .term p{margin:0}
+
+  /* ── COMMAND BLOCKS ──────────────────────────────────── */
+  .cmd{
+    background:#14243b;color:#eef4ff;border-radius:14px;
+    padding:20px 24px;margin:0 0 14px;
+    font-family:"Cascadia Mono",Consolas,"DejaVu Sans Mono",monospace;
+    font-size:17px;line-height:1.85;letter-spacing:0;word-spacing:.04em;
+    overflow-x:auto;
+  }
+  .cmd .note{color:#9dc4f2;display:block;margin-bottom:6px;font-size:15px}
+
+  /* ── THE LOOP (four steps) ───────────────────────────── */
+  .loop{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px;margin:28px 0}
+  .step{
+    background:var(--card);border:2px solid var(--line);border-radius:16px;
+    padding:22px 20px;position:relative;
+  }
+  .step .n{
+    display:inline-block;background:var(--green);color:#fff;font-size:17px;font-weight:bold;
+    border-radius:8px;padding:4px 12px;margin-bottom:12px;
+  }
+  .step h3{margin:0 0 6px;font-size:20px}
+  .step p{margin:0;font-size:16px;line-height:1.75}
+
+  /* ── HONEST LIMITS ───────────────────────────────────── */
+  .limit{
+    background:var(--amber-bg);border:2px solid #e2c48c;border-radius:16px;
+    padding:22px 26px;margin-bottom:16px;
+  }
+  .limit h3{margin:0 0 8px;color:var(--amber)}
+  .limit p{margin:0}
+  .limit p:last-child{margin-bottom:0}
+
+  footer{
+    margin-top:66px;padding-top:24px;border-top:3px solid var(--line);
+    font-size:16px;color:var(--grey);line-height:1.85;
+  }
+  footer p{max-width:34em}
+
+  code{
+    font-family:"Cascadia Mono",Consolas,monospace;
+    background:#eef2f8;border-radius:6px;padding:2px 8px;font-size:.92em;letter-spacing:0;
+  }
+
+  @media print{
+    body{background:#fff;font-size:12pt}
+    .topbar .btn{display:none}
+    .layer,.card,.num-card,.step,.limit{break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <div class="topbar">
+    <div class="who">Auris project · test guide · made 2026-10-04</div>
+    <button class="btn" id="bigToggle" type="button">Make the text bigger</button>
+  </div>
+
+  <h1>How we test Auris</h1>
+  <p class="lead">Auris turns a book file into spoken audio. We check that the code works, that the pages open, and that the voice reads the right words. This page shows how.</p>
+  <p class="lead">No difficult words. Short sentences. One idea at a time.</p>
+
+  <!-- ══ NUMBERS ═══════════════════════════════════════ -->
+  <h2><span class="num">1</span>The short answer</h2>
+  <p>Here is the result of the last full test run. It was run on this computer, on an ARM64 Windows machine.</p>
+
+  <div class="numbers">
+    <div class="num-card"><span class="big">655</span><span class="cap">unit tests, all in Python</span></div>
+    <div class="num-card ok"><span class="big">0</span><span class="cap">real failures</span></div>
+    <div class="num-card warn"><span class="big">2</span><span class="cap">errors from missing software</span></div>
+    <div class="num-card"><span class="big">1</span><span class="cap">test was skipped</span></div>
+    <div class="num-card"><span class="big">66</span><span class="cap">test files in Python</span></div>
+    <div class="num-card"><span class="big">17</span><span class="cap">browser test files</span></div>
+  </div>
+
+  <div class="card">
+    <p><b>The 2 errors are not bugs in Auris.</b></p>
+    <p>Two small helper programs do not exist for ARM64 Windows. They cannot be installed here. Two tests try to use them, so those two tests stop early.</p>
+    <p>The same 2 errors happen on a clean copy of the project. They are expected. They are written down so nobody wastes time on them again.</p>
+  </div>
+
+  <!-- ══ LAYERS ════════════════════════════════════════ -->
+  <h2><span class="num">2</span>Four kinds of checks</h2>
+  <p>Each kind answers a different question. Each one catches different mistakes.</p>
+
+  <div class="layer">
+    <div class="badge">Layer 1</div>
+    <div>
+      <h3>Unit tests</h3>
+      <p>These test small parts of the program. One part at a time. No web browser is used.</p>
+      <p class="detail"><b>Good for:</b> finding a mistake early. They run fast. There are 655 of them. They finish in about 30 seconds.</p>
+    </div>
+  </div>
+
+  <div class="layer">
+    <div class="badge">Layer 2</div>
+    <div>
+      <h3>Browser tests</h3>
+      <p>These open the real Auris pages in a real web browser. They click buttons. They fill in boxes.</p>
+      <p class="detail"><b>Good for:</b> checking what a person actually sees. A button must react. A list must load. There are 17 of these files.</p>
+    </div>
+  </div>
+
+  <div class="layer">
+    <div class="badge">Layer 3</div>
+    <div>
+      <h3>Sound checks</h3>
+      <p>Auris makes speech. So we listen to it with a computer. A speech recognition program writes the words down. Then we compare that text with the original book text.</p>
+      <p class="detail"><b>Good for:</b> catching a wrong pronunciation or a skipped sentence. This is the only way to test the voice on its own.</p>
+    </div>
+  </div>
+
+  <div class="layer">
+    <div class="badge">Layer 4</div>
+    <div>
+      <h3>Speed and memory checks</h3>
+      <p>These do not check for mistakes. They measure how fast the work is done. And how much memory it needs.</p>
+      <p class="detail"><b>Good for:</b> making a long book finish in a reasonable time. Also good for keeping memory use low.</p>
+    </div>
+  </div>
+
+  <!-- ══ VOCABULARY ════════════════════════════════════ -->
+  <h2><span class="num">3</span>What the numbers mean</h2>
+  <p>Two numbers appear many times. Here is what they mean, in plain words.</p>
+
+  <div class="term">
+    <span class="word">RTF — how fast is it?</span>
+    <p>RTF means how much audio we get per second of work. A small number is good. For example, 0.144 means we make 7 seconds of audio in 1 second of work. That is 7 times faster than real time.</p>
+  </div>
+
+  <div class="term">
+    <span class="word">WER — how many words were wrong?</span>
+    <p>WER means word error rate. A computer listens to the audio. It writes down what it hears. We compare that with the text we wanted. WER is the share of words that did not match. So 11 percent means 11 words out of 100 were different. A small number is good.</p>
+  </div>
+
+  <div class="term">
+    <span class="word">CER — how many letters were wrong?</span>
+    <p>CER means character error rate. It counts letters instead of whole words. It is useful for names and numbers, where one wrong letter can ruin a word. A small number is good.</p>
+  </div>
+
+  <!-- ══ SOUND CHECKS ══════════════════════════════════ -->
+  <h2><span class="num">4</span>What we listen for in the audio</h2>
+  <p>After every chapter, five things are checked. If one of them is wrong, the chapter is marked.</p>
+
+  <ul class="plain">
+    <li><b>Clipping.</b> The loud parts were cut off. The audio was too strong.</li>
+    <li><b>Long pause.</b> A silence longer than 1.5 seconds was found inside the sentence.</li>
+    <li><b>Silent.</b> No speech was found at all. The chapter may be empty.</li>
+    <li><b>Too fast.</b> The voice spoke faster than 0.035 seconds per letter.</li>
+    <li><b>Too slow.</b> The voice spoke slower than 0.25 seconds per letter.</li>
+  </ul>
+
+  <div class="card">
+    <p><b>One known false alarm.</b></p>
+    <p>The long pause check fires too often. The threshold is fixed at 1.5 seconds. But a normal break between two sentences is often 1.5 to 2.1 seconds long.</p>
+    <p>So the check says there is a problem, when there is none. We found the cause. We wrote it down.</p>
+  </div>
+
+  <!-- ══ COMMANDS ══════════════════════════════════════ -->
+  <h2><span class="num">5</span>How to run the tests</h2>
+  <p>You run these in a terminal window. The first one is the most useful. It checks the small parts.</p>
+
+  <h3>Run the unit tests</h3>
+  <div class="cmd">
+    <span class="note">go to the reader folder first</span>
+    <div>cd "C:\Users\istva\Dev\portfolio\Projects\audiobook narrator\auris\reader"</div>
+    <span class="note">now run the tests</span>
+    <div>.venv\Scripts\python.exe -m unittest discover -s tests -t tests -p "test_*.py"</div>
+  </div>
+  <p>The last line tells you what happened. Look for the word OK.</p>
+
+  <h3>Run the sound check on the whole book</h3>
+  <div class="cmd"><div>.venv\Scripts\python.exe -m core.hu_wer</div></div>
+  <p>This reads 24 Hungarian sentences out loud. Then it listens to them. Then it prints the WER.</p>
+
+  <h3>Run the browser tests</h3>
+  <div class="cmd">
+    <span class="note">start the small fake server in one window</span>
+    <div>set AURIS_QA_DATA=/tmp/aurisqa</div>
+    <div>set AURIS_QA_PORT=17881</div>
+    <div>.venv\Scripts\python.exe tests\ui_fixture_server.py</div>
+    <span class="note">then run the browser test in another window</span>
+    <div>set AURIS_QA_URL=http://127.0.0.1:17881</div>
+    <div>node tests\browser_experience.cjs</div>
+  </div>
+
+  <!-- ══ THE LOOP ══════════════════════════════════════ -->
+  <h2><span class="num">6</span>The daily loop</h2>
+  <p>When something changes in Auris, these four steps are always the same.</p>
+
+  <div class="loop">
+    <div class="step"><span class="n">Step 1</span><h3>Change the code</h3><p>Make the change you need.</p></div>
+    <div class="step"><span class="n">Step 2</span><h3>Run the tests</h3><p>All of them, not just one.</p></div>
+    <div class="step"><span class="n">Step 3</span><h3>Read the numbers</h3><p>Look at the results. Not just the last line.</p></div>
+    <div class="step"><span class="n">Step 4</span><h3>Keep it, or undo it</h3><p>Keep the change only if the numbers are still good.</p></div>
+  </div>
+
+  <div class="card">
+    <p><b>Why all of them?</b></p>
+    <p>A change can make the code faster and break a page at the same time. A change can fix a sound problem and break a button. One test cannot see everything.</p>
+  </div>
+
+  <!-- ══ LIMITS ════════════════════════════════════════ -->
+  <h2><span class="num">7</span>What these tests cannot do</h2>
+  <p>This part is important. A test that looks strong can still be weak in some way.</p>
+
+  <div class="limit">
+    <h3>Two tests cannot run on this computer</h3>
+    <p>They need two helper programs. These do not exist for ARM64 Windows. The tests stop early with an error.</p>
+    <p>This is not a bug in Auris. It is a missing building block.</p>
+  </div>
+
+  <div class="limit">
+    <h3>The sound check uses only 24 sentences</h3>
+    <p>That is a small sample. A result like 0.19 percent WER looks perfect. But it is only two or three sentences.</p>
+    <p>Treat it as a sign of quality. Do not treat it as a final answer.</p>
+  </div>
+
+  <div class="limit">
+    <h3>There is no test for the NPU</h3>
+    <p>We tried three ways to run the model on the special AI chip. All three failed. The chip never ran the model.</p>
+    <p>So we cannot say if the chip would be faster. There is no number. A missing number is not the same as a slow number.</p>
+  </div>
+
+  <!-- ══ WHERE ═════════════════════════════════════════ -->
+  <h2><span class="num">8</span>Where to find things</h2>
+
+  <div class="card">
+    <ul class="plain">
+      <li><b>All unit tests:</b> <code>reader/tests/test_*.py</code></li>
+      <li><b>All browser tests:</b> <code>reader/tests/*.cjs</code> and <code>*.js</code></li>
+      <li><b>The small fake server:</b> <code>reader/tests/ui_fixture_server.py</code></li>
+      <li><b>The sound check:</b> <code>reader/core/hu_wer.py</code></li>
+      <li><b>The speed and memory checks:</b> <code>reader/scripts/bench_supertonic_variants.py</code></li>
+      <li><b>Every measured number:</b> <code>reader/docs/meresek.md</code></li>
+    </ul>
+  </div>
+
+  <footer>
+    <p><b>Every number on this page came from a real run on this computer.</b> Nothing here is a guess.</p>
+    <p>Sources: <code>docs/meresek.md</code> and <code>docs/handoff-2026-10-03.md</code>. Made on 2026-10-04. Not committed.</p>
+  </footer>
+
+</div>
+
+<script>
+  // The "bigger text" button. It only changes font size and line height.
+  var btn = document.getElementById('bigToggle');
+  btn.addEventListener('click', function () {
+    document.body.classList.toggle('big');
+    var on = document.body.classList.contains('big');
+    btn.textContent = on ? 'Use normal text size' : 'Make the text bigger';
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+</script>
+</body>
+</html>

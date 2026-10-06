@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Auris — hogyan működik a te gépeden</title>
+<style>
+  :root{
+    --ink:#141726; --ink-soft:#4b5163; --line:#e2e6ef; --bg:#f5f7fb; --card:#fff;
+    --amber:#d97706; --amber-bg:#fff7e6; --blue:#1d4ed8; --blue-bg:#eef2ff;
+    --green:#047857; --green-bg:#e7f6ef; --red:#b91c1c; --red-bg:#fdeaea;
+    --violet:#6d28d9; --violet-bg:#f3ecff;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:"Segoe UI",system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.55; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:0 24px 72px}
+
+  /* ── HERO ─────────────────────────────────────────── */
+  header.hero{
+    background:linear-gradient(135deg,#141726 0%,#232a4a 55%,#2f2350 100%);
+    color:#fff;padding:56px 0 52px;margin-bottom:-46px;
+  }
+  .hero .wrap{padding-bottom:0}
+  .kicker{font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:#9fb2e8;margin:0 0 12px}
+  h1{font-size:clamp(34px,5.4vw,58px);line-height:1.06;margin:0 0 14px;font-weight:800;letter-spacing:-.02em}
+  h1 .thin{font-weight:300;color:#c3cdf0}
+  .lead{font-size:clamp(17px,2.1vw,21px);max-width:66ch;margin:0 0 30px;color:#d9e0f7}
+  .badges{display:flex;flex-wrap:wrap;gap:10px;margin:0;padding:0;list-style:none}
+  .badges li{
+    background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.20);
+    border-radius:999px;padding:7px 15px;font-size:13.5px;color:#eaf0ff;
+  }
+  .badges b{color:#fff;font-weight:650}
+
+  /* ── SZÁK ─────────────────────────────────────────── */
+  main{position:relative}
+  .sheet{
+    background:var(--card);border:1px solid var(--line);border-radius:18px;
+    box-shadow:0 1px 2px rgba(20,23,38,.05),0 12px 32px -18px rgba(20,23,38,.35);
+  }
+  .intro{margin-top:46px;padding:30px 32px}
+
+  h2{font-size:clamp(23px,3vw,31px);margin:0 0 6px;letter-spacing:-.01em;font-weight:750}
+  .sub{color:var(--ink-soft);margin:0 0 22px;font-size:15.5px;max-width:70ch}
+  section{margin-top:34px}
+
+  /* ── KÁRTYASOROK ──────────────────────────────────── */
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(248px,1fr));gap:16px}
+  .card{border:1px solid var(--line);border-radius:14px;padding:20px 20px 18px;background:var(--card)}
+  .card h3{margin:0 0 8px;font-size:16.5px;letter-spacing:-.01em}
+  .card p{margin:0;color:var(--ink-soft);font-size:14.6px}
+  .num{
+    display:inline-flex;align-items:center;justify-content:center;
+    width:30px;height:30px;border-radius:9px;background:var(--blue-bg);color:var(--blue);
+    font-weight:750;font-size:15px;margin-bottom:12px;
+  }
+
+  /* ── PIPELINE ─────────────────────────────────────── */
+  .flow{display:grid;grid-template-columns:repeat(4,1fr);gap:30px 32px}
+  .stage{
+    position:relative;
+    border:1px solid var(--line);border-radius:13px;padding:16px 15px;background:#fff;
+  }
+  .stage.arrowed::before{
+    content:"";position:absolute;left:-25px;top:50%;width:16px;height:2px;background:#c3cadb;
+  }
+  .stage.arrowed::after{
+    content:"";position:absolute;left:-11px;top:50%;transform:translateY(-50%);
+    border-left:8px solid #c3cadb;border-top:6px solid transparent;border-bottom:6px solid transparent;
+  }
+  @media (max-width:1040px){
+    .flow{grid-template-columns:repeat(2,1fr)}
+    .stage.arrowed::before,.stage.arrowed::after{display:none}
+  }
+  @media (max-width:560px){
+    .flow{grid-template-columns:1fr}
+  }
+  .stage .tag{
+    display:inline-block;font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+    color:var(--blue);background:var(--blue-bg);border-radius:6px;padding:3px 8px;margin-bottom:10px;
+  }
+  .stage h4{margin:0 0 6px;font-size:15px;line-height:1.25}
+  .stage p{margin:0;font-size:13.2px;color:var(--ink-soft);line-height:1.45}
+  .stage code{font-size:12px;background:#f1f3f9;border-radius:4px;padding:1px 5px;color:#3a4260}
+
+  /* ── NAGYOBB MODELL-BEILLJTŐ ──────────────────────── */
+  .zoom{
+    margin-top:18px;border:1px dashed #c7cfe4;border-radius:14px;padding:18px 20px;background:#fbfcff;
+  }
+  .zoom-title{
+    font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--ink-soft);margin:0 0 14px;
+  }
+  .zoom-flow{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+  .block{
+    border:1px solid var(--line);border-radius:10px;background:#fff;padding:10px 13px;min-width:132px;
+  }
+  .block b{display:block;font-size:14px;margin-bottom:3px}
+  .block span{font-size:12.4px;color:var(--ink-soft)}
+  .block.hot{border-color:#f0c99b;background:var(--amber-bg)}
+  .block.hot b{color:var(--amber)}
+  .arrow{color:#aeb6c8;font-weight:700;font-size:17px}
+  .note{font-size:13.4px;color:var(--ink-soft);margin:14px 0 0}
+  .note b{color:var(--ink)}
+
+  /* ── SZÁMOK ───────────────────────────────────────── */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+  @media (max-width:1040px){ .stats{grid-template-columns:repeat(2,1fr)} }
+  @media (max-width:480px){ .stats{grid-template-columns:1fr} }
+  .stat{border:1px solid var(--line);border-left:4px solid var(--blue);border-radius:12px;padding:16px 17px;background:#fff}
+  .stat .v{font-size:30px;font-weight:800;letter-spacing:-.02em;line-height:1.1}
+  .stat .l{font-size:13.4px;color:var(--ink-soft);margin-top:5px;display:block}
+  .stat.a{border-left-color:var(--amber)} .stat.a .v{color:var(--amber)}
+  .stat.g{border-left-color:var(--green)} .stat.g .v{color:var(--green)}
+  .stat.v{border-left-color:var(--violet)} .stat.v .v{color:var(--violet)}
+
+  /* ── OSZLOPDIAGRAM ────────────────────────────────── */
+  .chart{border:1px solid var(--line);border-radius:12px;padding:20px 22px 14px;background:#fff}
+  .bar-row{display:grid;grid-template-columns:150px 1fr 92px;align-items:center;gap:14px;margin-bottom:13px}
+  .bar-row:last-child{margin-bottom:0}
+  .bar-lbl{font-size:13.6px;text-align:right;color:var(--ink-soft)}
+  .bar-lbl b{color:var(--ink)}
+  .track{background:#eef1f7;border-radius:7px;height:26px;overflow:hidden}
+  .fill{height:100%;border-radius:7px}
+  .bar-val{font-size:13.6px;font-weight:700}
+  .scale{font-size:12.4px;color:var(--ink-soft);margin:0 0 14px;max-width:64ch}
+
+  /* ── ÁLLAPOT-JELÉSEK ──────────────────────────────── */
+  .pill{
+    display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;
+    letter-spacing:.05em;text-transform:uppercase;border-radius:999px;padding:4px 11px;
+    white-space:nowrap;
+  }
+  .pill.ok{background:var(--green-bg);color:var(--green)}
+  .pill.warn{background:var(--amber-bg);color:var(--amber)}
+  .pill.no{background:var(--red-bg);color:var(--red)}
+  .pill.hold{background:#eef1f7;color:#5a6478}
+
+  .rows{display:grid;gap:12px}
+  .row{
+    display:grid;grid-template-columns:112px 1fr;gap:16px;align-items:start;
+    border:1px solid var(--line);border-radius:12px;padding:15px 17px;background:#fff;
+  }
+  .row h4{margin:0 0 5px;font-size:15px}
+  .row p{margin:0;font-size:14px;color:var(--ink-soft)}
+  .row .fig{font-size:13px;color:var(--ink);margin-top:7px;font-weight:600}
+
+  /* ── KÓDBLOKK ─────────────────────────────────────── */
+  pre{
+    margin:0;background:#141726;color:#e6ecff;border-radius:11px;padding:15px 17px;
+    overflow-x:auto;font-size:13px;line-height:1.62;
+    font-family:"Cascadia Mono",Consolas,"SF Mono",Menlo,monospace;
+  }
+  pre .c{color:#8b96bd} pre .k{color:#7dd3fc}
+  .two{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+
+  /* ── ELÉRHETŐSÉGI LISTA ───────────────────────────── */
+  .kv{display:grid;grid-template-columns:auto 1fr;gap:8px 18px;font-size:14px;margin:0}
+  .kv dt{color:var(--ink-soft)}
+  .kv dd{margin:0;font-weight:600}
+
+  footer{margin-top:40px;padding-top:22px;border-top:1px solid var(--line);color:var(--ink-soft);font-size:13.4px}
+  footer p{margin:0 0 7px;max-width:78ch}
+
+  @media print{
+    body{background:#fff} header.hero{background:#141726!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .sheet{box-shadow:none} section{break-inside:avoid} .row,.card,.stat{break-inside:avoid}
+  }
+  @media (max-width:820px){
+    .bar-row{grid-template-columns:112px 1fr 74px;gap:10px}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <p class="kicker">Helyben futó hangoskönyv-gyár</p>
+    <h1>Auris <span class="thin">— a te gépeden, ahogy működik</span></h1>
+    <p class="lead">
+      Egy könyv fájlt (EPUB, PDF, DOCX, TXT, MOBI, PRC) olvas fel magyarul, a
+      gépeden, internet nélkül, ONNX Runtime-tal. Nincs felhő, nincs API-kulcs,
+      nincs adatmegyás: minden hang helyben készül.
+    </p>
+    <ul class="badges">
+      <li><b>Windows 11 ARM64</b></li>
+      <li><b>Snapdragon X Elite</b> · 12 logikai mag</li>
+      <li><b>31,6 GB RAM</b></li>
+      <li>Python <b>3.12.10 natív ARM64</b></li>
+      <li>ONNX Runtime <b>1.30.0</b></li>
+      <li>Motor: <b>Supertonic 3</b> (Ő maga választotta)</li>
+      <li>Sherpa-onnx Supertonic: <b>5,4× gyorsabb</b></li>
+      <li>Klónozó: <b>XTTSv2-ONNX</b> · magyar</li>
+    </ul>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <div class="sheet intro">
+    <h2>Három dolog, amit érdemes tudni</h2>
+    <p class="sub">A teljes kép három mondatban, mielőtt belemegyünk a részletekbe.</p>
+    <div class="cards">
+      <div class="card"><span class="num">1</span><h3>Fájlt olvas be, hangot ad</h3>
+        <p>Nincs kézi szövegtisztítás és nincs képes beszédkimenet. Az importtól az M4B-ig minden lépés automatikus, és újra futtatható.</p></div>
+      <div class="card"><span class="num">2</span><h3>Minden helyben fut</h3>
+        <p>A beszédmodell ONNX-fájlokon fut a processzoron. Nincs GPU-kérés, nincs NPU-hívás, nincs kimenő hálózati forgalom.</p></div>
+      <div class="card"><span class="num">3</span><h3>Magyarra van hangolva</h3>
+        <p>Kiejtési szótár 29 szabállyal, magyar szám- és dátum-normalizálás, magyar ASR-ellenőrzés. A WER minden hangnál mérhető.</p></div>
+    </div>
+  </div>
+
+  <!-- ══ PIPELINE ══════════════════════════════════════ -->
+  <div class="sheet" style="margin-top:26px;padding:30px 32px">
+    <h2>A folyamat, ahogy egy könyv végigmegy</h2>
+    <p class="sub">Hét lépés. Mindegyik önálló fájl, mindegyik újrafuttatható — a gyorsítótárazott hangot nem generálja újra.</p>
+
+    <div class="flow">
+      <div class="stage">
+        <span class="tag">1 · Import</span>
+        <h4>Fájl beolvasása</h4>
+        <p>EPUB, PDF, DOCX, TXT, MOBI, PRC. A beépített parserek mindegyik formátumot kezelik.</p>
+      </div>
+      <div class="stage arrowed">
+        <span class="tag">2 · Felépítés</span>
+        <h4>Fejezetek és szereplők</h4>
+        <p>A szöveget fejezetekre bontja, kiszűri a tartalmijegyzéket, és felismeri, ki beszél.</p>
+      </div>
+      <div class="stage arrowed">
+        <span class="tag">3 · Előkészítés</span>
+        <h4>Magyar szövegelés</h4>
+        <p>Számok és dátumok kimondása, 29 beépített kiejtési szabály, szereplőnként más hang.</p>
+      </div>
+      <div class="stage">
+        <span class="tag">4 · Felolvasás</span>
+        <h4>Beszédmotor</h4>
+        <p>10 lépés, egyszerre 4 mondat. Tíz beépített hang: F1–F5 női, M1–M5 férfi.</p>
+      </div>
+      <div class="stage">
+        <span class="tag">5 · Gyorsítótár</span>
+        <h4>Hang mentése</h4>
+        <p>Minden mondat külön WAV. A gyorsítótárkulcs tartalmazza a <code>variant=</code>-et, ezért a két pontossági mód nem keveredik.</p>
+      </div>
+      <div class="stage arrowed">
+        <span class="tag">6 · Ellenőrzés</span>
+        <h4>Minőségellenőrzés</h4>
+        <p>Vágás, hosszú szünet, néma rész, túl gyors vagy túl lassú mondat. Magyarul visszaír, és számolja a hibaszázalékot.</p>
+      </div>
+      <div class="stage">
+        <span class="tag">7 · Export</span>
+        <h4>Fájlok készítése</h4>
+        <p>WAV, MP3, Opus, FLAC, M4B fejezetekkel. Opcionális ASS/SRT felirat és karakterenkénti szín.</p>
+      </div>
+    </div>
+
+    <!-- modell belseje -->
+    <div class="zoom">
+      <p class="zoom-title">A 4. lépés belseje — mi történik egy mondattal a Supertonic 3-ban</p>
+      <div class="zoom-flow">
+        <div class="block"><b>Szövegkódoló</b><span>0,021 s · 1 hívás</span></div>
+        <span class="arrow">→</span>
+        <div class="block hot"><b>Vektormező-generátor</b><span>2,177 s · 10 hívás · a hang 93 %-a innen jön</span></div>
+        <span class="arrow">→</span>
+        <div class="block"><b>Időtartam-becslés</b><span>0,002 s · 1 hívás</span></div>
+        <span class="arrow">→</span>
+        <div class="block"><b>Hangszintézis (vocoder)</b><span>0,153 s · 1 hívás</span></div>
+        <span class="arrow">→</span>
+        <div class="block"><b>44,1 kHz hang</b><span>egy mondat</span></div>
+      </div>
+      <p class="note">
+        <b>A szűk keresztmetszet a vektormező-generátor, nem a vocoder.</b>
+        Ez fordítottja a korábbi feltételezésnek, és megmondja, hol érdemes
+        gyorsítani: a 10 lépés és a 4 mondatos köteg futtatása ugyanazt a
+        93 %-os részt rövidíti, két teljesen más módszerrel.
+      </p>
+    </div>
+  </div>
+
+  <!-- ══ MÉRT SZÁMOK ═════════════════════════════════ -->
+  <section class="sheet" style="padding:30px 32px">
+    <h2>A gépeden mért számok</h2>
+    <p class="sub">Ezek nem gyártói adatok, hanem ezen a Snapdragonon mért értékek. Forrás: <code>docs/meresek.md</code>, M-01 – M-40.</p>
+
+    <div class="stats">
+      <div class="stat"><div class="v">0,144</div><span class="l">RTF 4 mondatos köteggel (Auris alapmotor) — 7,0× gyorsabb a valós időnél</span></div>
+      <div class="stat a"><div class="v">0,140</div><span class="l">RTF <b>sherpa-onnx Supertonic</b> (24 mondat, M-43) — a leggyorsabb motor</span></div>
+      <div class="stat g"><div class="v">2,25×</div><span class="l">amit a kötegeles feldolgozás nyert (Auris batch4 vs serial)</span></div>
+      <div class="stat"><div class="v">756 MB</div><span class="l">csúcsmemória egy teljes könyvnél</span></div>
+      <div class="stat a"><div class="v">0,7 s</div><span class="l">sherpa-onnx modell betöltése (vs Auris 0,72 s)</span></div>
+      <div class="stat v"><div class="v">382,7 MB</div><span class="l">modellmappa fp32; INT8 változat 138,1 MB</span></div>
+      <div class="stat v"><div class="v">45,4 perc</div><span class="l">egy óra hangoskönyv <b>hangklónnal</b> (XTTSv2-ONNX int8, 1,32× valós idő)</span></div>
+      <div class="stat v"><div class="v">2,24 GB</div><span class="l">a klónozó modell teljes mérete (4 ONNX + embeddingek)</span></div>
+    </div>
+
+    <h3 style="margin:30px 0 4px;font-size:18px">Melyik motor szól magyarul a legjobban?</h3>
+    <p class="scale">Hibaszázalék: az ASR visszaírja a hangot, és összevetjük az eredeti szöveggel. <b>Kisebb = jobb.</b> A sebesség (RTF) és a minőség (WER) együtt adja a választásot. Két tengely, ezért a javaslat a 6. szakaszban összefoglaljuk.</p>
+    <div class="chart">
+      <div class="bar-row">
+        <div class="bar-lbl">Sherpa-onnx Sup.<br><b>(a leggyorsabb, M-43)</b></div>
+        <div class="track"><div class="fill" style="width:1.0%;background:#0e7490"></div></div>
+        <div class="bar-val">0,11 %</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-lbl">Supertonic 3<br><b>(az alapmotor)</b></div>
+        <div class="track"><div class="fill" style="width:100%;background:#1d4ed8"></div></div>
+        <div class="bar-val">11,52 %</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-lbl">XTTSv2-ONNX klón<br><b>(a legjobb klónozó)</b></div>
+        <div class="track"><div class="fill" style="width:1.6%;background:#9333ea"></div></div>
+        <div class="bar-val">0,18 %</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-lbl">Magyar Piper-hang</div>
+        <div class="track"><div class="fill" style="width:1.7%;background:#047857"></div></div>
+        <div class="bar-val">0,19 %</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-lbl">F5-TTS hangklón</div>
+        <div class="track"><div class="fill" style="width:1.0%;background:#6d28d9"></div></div>
+        <div class="bar-val">0,11 %</div>
+      </div>
+      <p class="scale" style="margin:14px 0 0">
+        A sherpa-onnx Supertonic WER <b>a 24 mondatos korpuszon mérve</b> (M-43),
+        a három alsó sáv <b>csak 2–3 mondaton</b> — tehát jelzés, nem végleges szám.
+        Forrása: M-43 (sherpa), M-01 (Supertonic), M-12 (F5-TTS), M-16/M-17 (Piper), M-39 (XTTSv2).
+      </p>
+    </div>
+  </section>
+
+  <!-- ══ HANGOK ÉS KLÓNOZÁS ══════════════════════════ -->
+  <section class="sheet" style="padding:30px 32px">
+    <h2>Hangok: beépített, klónozott és elérhetetlen</h2>
+    <p class="sub">A Supertonic <b>nem</b> támogat hangklónozást — tíz beépített hangot ad. A klónozás külön út, és annak megvan a maga ára.</p>
+
+    <div class="rows">
+      <div class="row">
+        <div><span class="pill ok">Leggyorsabb</span></div>
+        <div>
+          <h4>Sherpa-onnx Supertonic 3 int8 · a leggyorsabb motor</h4>
+          <p>Ugyanaz a Supertonic 3 modell, de a <b>sherpa-onnx</b> csomagolással 4 szálon — a teljes szöveg-előfeldolgozás HAZ ONNX-ben, szöveg beadása nélkül. <b>RTF 0,1401</b> a 24 mondatos magyar korpuszon = <b>5,4× gyorsabb</b> az Auris saját Supertonic serial útonél, WER 0,11 %. 44,1 kHz, <b>5 beépített hang</b> (voice.bin stílusok).</p>
+          <div class="fig">M-43. Futtató: <code>D:\VoiceAI\envs\sherpa-arm64</code> + <code>hub\scripts\sherpa_supertonic_full.py</code>. Az Auris alapúthoz nem háromosított — az is opcionális motor.</div>
+        </div>
+      </div>
+      <div class="row">
+        <div><span class="pill ok">Alapmotor</span></div>
+        <div>
+          <h4>Supertonic 3 · tíz beépített hang</h4>
+          <p>F1–F5 női, M1–M5 férfi. A szereplő hangját a leírás neme vagy a Hangstúdióban választott hang adja. 44,1 kHz, gyors, megbízható — de nem klónoz.</p>
+          <div class="fig">Nincs új függőség, nem kell hozzá semmi extra. A gyorsulás egyszerűen bekapcsolható.</div>
+        </div>
+      </div>
+      <div class="row">
+        <div><span class="pill ok">Működik</span></div>
+        <div>
+          <h4>Magyar Piper-hangok · három ONNX-hang</h4>
+          <p>anna, berta, imre — magyar, ONNX Runtime-tal fut, torch nélkül. Nem klónoz, viszont a mért hibaszázalék közel tiszta, és <b>35,3× valós idővel</b> megy: egy óra hang kb. 1,9 perc.</p>
+          <div class="fig">M-16, M-17. Blokkoló: a bemenete hangfónéma-azonosító, nem szöveg — a magyar szövegből hangfónémához alakítás még nincs megoldva ARM64-en.</div>
+        </div>
+      </div>
+      <div class="row">
+        <div><span class="pill warn">Lassú</span></div>
+        <div>
+          <h4>F5-TTS · magyar hangklón</h4>
+          <p>Zero-shot klón 6 másodperces hangmintából. A mért hiba a legjobb a felsoroltak közül, viszont <b>egy óra hangoskönyvhez 7,6 óra valós idő kell</b>. X86_64 emulációban fut, natív ARM64-en egy saját shim kell hozzá.</p>
+          <div class="fig">M-12, M-13, M-14. Jó választás rövid bemutatóhoz vagy a betöltő hang megválasztásához — nem egy teljes könyvhöz.</div>
+        </div>
+      </div>
+      <div class="row">
+        <div><span class="pill ok">Legjobb klón</span></div>
+        <div>
+          <h4>XTTSv2 Streaming ONNX · magyar klón</h4>
+          <p>Zero-shot klón magyarul, <b>tisztán ONNX Runtime + NumPy, PyTorch nélkül</b> — és közvetlenül a processzoron fut, nem emulálva. Referencia: egy 6 másodperces hangminta. Az int8 GPT-modellel <b>1,32× valós idővel</b> megy: egy óra hang kb. 45 perc.</p>
+          <div class="fig">M-39. <b>A legjobb mért klónozó:</b> a hibája az F5-TTS szintjén van (0,18 %), és <b>10–20× gyorsabb</b> annál — emuláció és shim nélkül. A modell 2,24 GB, a Hugging Face-en CC BY-NC 4.0 (nem kereskedelmi).</div>
+        </div>
+      </div>
+      <div class="row">
+        <div><span class="pill no">Lezárva</span></div>
+        <div>
+          <h4>Hexagon NPU</h4>
+          <p>A modell ONNX-ból DLC-vé konvertálása <b>működik</b>, de a DLC a DSP-n <b>soha nem futott</b>: három különböző úton is elbukott. A legveszélyesebb az ORT QNN provider, mert csendben a processzorra esik vissza, miközben NPU-t mutat.</p>
+          <div class="fig">M-21 – M-28. Nincs NPU-gyorsulási számunk, mert sosem volt NPU-időmérés. A küszöb, amit egy ilyen mérésnek meg kell haladnia: 170–183 ms.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ KÉT ÚT + BEÁLLÍTÁSOK ═════════════════════════ -->
+  <section class="sheet" style="padding:30px 32px">
+    <h2>Kétféleképpen lehet hajtani</h2>
+    <p class="sub">Ugyanaz a motor, ugyanazok a fájlok — csak másik felület.</p>
+    <div class="two">
+      <div>
+        <h3 style="font-size:17px;margin:0 0 9px">Böngészőben</h3>
+        <pre><span class="c"># a Flask szerver helyben indul</span>
+run.bat
+
+<span class="c"># fő képek</span>
+/                  <span class="c">könyvtár</span>
+/reader/&lt;id&gt;         <span class="c">olvasó</span>
+/voice-studio/&lt;id&gt;  <span class="c">hangstúdió</span>
+/settings          <span class="c">beállítások</span></pre>
+      </div>
+      <div>
+        <h3 style="font-size:17px;margin:0 0 9px">Parancssorból</h3>
+        <pre>auris <span class="k">books</span>
+auris <span class="k">import</span>  <span class="c">--file konyv.epub</span>
+auris <span class="k">generate</span> <span class="c">--book 1</span>
+auris <span class="k">qa</span>       <span class="c">--book 1</span>
+auris <span class="k">export</span>  <span class="c">--book 1 --format m4b</span>
+auris <span class="k">speak</span>   <span class="c">--text "Szia!"</span></pre>
+      </div>
+    </div>
+
+    <h3 style="margin:28px 0 10px;font-size:17px">A négy beállítás, ami számít</h3>
+    <div class="card" style="padding:0;border:0">
+      <dl class="kv">
+        <dt><code>tts_engine</code></dt><dd><b>auto</b> — a hardver dönt, mért RTF alapján; ne írd át tartósan másra</dd>
+        <dt><code>supertonic_batch</code></dt><dd><b>4</b> — egyszerre ennyi mondat. Ez adja a 2,25× gyorsulás nagyjából felét</dd>
+        <dt><code>supertonic_steps</code></dt><dd><b>10</b> — a diffúziós lépések száma. A 16 lépés lassabb és nem jobb, a 6 nem rontja a kiejtést</dd>
+        <dt><code>supertonic_variant</code></dt><dd><b>fp32</b> — az INT8 feleakkora memóriát ad, de 8 %-kal lassabb serial módban</dd>
+      </dl>
+    </div>
+  </section>
+
+  <!-- ══ HOL VAN MI ═══════════════════════════════════ -->
+  <section class="sheet" style="padding:30px 32px">
+    <h2>Hol van mi</h2>
+    <p class="sub">A repóban minden, ami az Auris magja; a mérő- és próbakörnyezetek szándékosan kívül vannak, hogy ne szemeteljenek a projektbe.</p>
+    <div class="two">
+      <div>
+        <h3 style="font-size:17px;margin:0 0 9px">A repóban</h3>
+        <dl class="kv">
+          <dt><code>reader/core/parser/</code></dt><dd>EPUB, PDF, DOCX, TXT, MOBI, PRC</dd>
+          <dt><code>reader/core/</code></dt><dd>szövegelés, hangmotor, ellenőrzés, export</dd>
+          <dt><code>reader/audio_cache/</code></dt><dd>az összes legenerált WAV</dd>
+          <dt><code>reader/models/</code></dt><dd>supertonic-3 (382,7 MB), supertonic-3-int8 (138,1 MB)</dd>
+          <dt><code>reader/docs/</code></dt><dd>dokumentáció, köztük a <b>meresek.md</b></dd>
+        </dl>
+      </div>
+      <div>
+        <h3 style="font-size:17px;margin:0 0 9px">A repón kívül</h3>
+        <dl class="kv">
+          <dt><code>C:\AI\clone-probe\</code></dt><dd>F5-TTS környezet és a mérőprogramok</dd>
+          <dt><code>D:\hu-voice-ai\models\piper\</code></dt><dd>a három magyar Piper-hang</dd>
+          <dt><code>C:\AI\venvs\foundry-dev\</code></dt><dd>QNN / NPU próbák</dd>
+          <dt><code>C:\Qualcomm\AIStack\QAIRT\</code></dt><dd>Qualcomm SDK az ONNX→DLC konverzióhoz</dd>
+        </dl>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ JAVASLAT (ÖSSZEFOGLALÓ) ══════════════════════ -->
+  <section class="sheet" style="padding:30px 32px">
+    <h2>Összefoglaló — mi a legjobb ezen a gépen</h2>
+    <p class="sub">A Snapdragonon mért értékek alapján: a leggyorsabb motor, a legjobb klónozó, és a futásre javaslat (M-43 – M-45, 2026-10-06).</p>
+    <div class="cards">
+      <div class="card"><span class="num">1</span><h3>Leggyorsabb motor</h3>
+        <p><b>Sherpa-onnx Supertonic 3 int8</b> — RTF 0,1401 (428 perc hang/óra), WER 0,11 %. <b>5,4× gyorsabb</b> az Auris saját Supertonic serial útonél. Beépített hangokon fut, nem klónoz.</p></div>
+      <div class="card"><span class="num">2</span><h3>Legjobb klónozó</h3>
+        <p><b>XTTSv2-Streaming-ONNX</b> — magyar zero-shot klón, tiszta ONNX + NumPy, 1,32× valós idő = 45,4 perc/óra, WER 0,18 %. A leggyorsabb és legjobb klónozó a három mért közül.</p></div>
+      <div class="card"><span class="num">3</span><h3>Klón-korlát a sherpa úton</h3>
+        <p>A sherpa-onnx Supertonic <b>nem támogat</b> a referenciahang-klónozást (fixed-voice, voice.bin). A custom hangklónhoz az XTTSv2 a követendő út, nem a sherpa.</p></div>
+      <div class="card"><span class="num">4</span><h3>ASR-ellenőrzés</h3>
+        <p><b>Parakeet TDT v3</b> (a 25 európai nyelvet, magyarral) a nem-Whisper ASR-jelölt, WER-ellenőrzésre; már integrált a <code>core/qa.py</code>-ba.</p></div>
+    </div>
+  </section>
+
+  <footer>
+    <p><b>Ez az oldal a valós kódból készült</b> — az összes fájlútvonal, függvény név és beállítási kulcs a repóból származik, nem emlékezetből.</p>
+    <p>A számok forrása: <code>docs/meresek.md</code> (M-01…M-45) és <code>docs/arm64-install.md</code>. Készült: 2026-10-04, frissítve 2026-10-06 (sherpa-onnx Supertonic teljes mérés, M-43; nem-Whisper ASR-landskép, M-44; klón-korlát, M-45).</p>
+  </footer>
+
+</main>
+</body>
+</html>
