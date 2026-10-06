@@ -5,10 +5,11 @@ from core import qa, qa_api
 
 
 class BackendChoiceTest(unittest.TestCase):
-    def _choose(self, requested, *, gpu, parakeet=True, language="hu"):
+    def _choose(self, requested, *, gpu, parakeet=True, whisper=True, language="hu"):
         with patch("core.settings.get", side_effect=lambda key, default=None:
                    requested if key == "asr_backend" else default), \
              patch.object(qa, "parakeet_available", return_value=parakeet), \
+             patch.object(qa, "whisper_available", return_value=whisper), \
              patch("torch.cuda.is_available", return_value=gpu):
             return qa.asr_backend_for(language)
 
@@ -25,6 +26,16 @@ class BackendChoiceTest(unittest.TestCase):
         self.assertEqual(self._choose("parakeet", gpu=True), "parakeet")
         self.assertEqual(self._choose("whisper", gpu=False), "whisper")
         self.assertEqual(self._choose("nonsense", gpu=True), "whisper")
+
+    def test_without_whisper_runtime_falls_back_to_parakeet(self):
+        # On ARM64 Windows the transformers-based Whisper backend may not be
+        # installed; every path must fall back to the ONNX Parakeet backend.
+        self.assertEqual(self._choose("auto", gpu=True, whisper=False), "parakeet")
+        self.assertEqual(self._choose("auto", gpu=False, whisper=False), "parakeet")
+        self.assertEqual(self._choose("whisper", gpu=False, whisper=False), "parakeet")
+        self.assertEqual(self._choose("hybrid", gpu=False, whisper=False), "parakeet")
+        # ...and to whatever works when even Parakeet is missing.
+        self.assertEqual(self._choose("auto", gpu=False, parakeet=False, whisper=False), "whisper")
 
 
 class ParakeetWordsTest(unittest.TestCase):
