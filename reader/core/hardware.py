@@ -38,6 +38,7 @@ ENGINE_ORDER_GPU = (
 )
 
 ENGINE_ORDER_CPU = (
+    ("supertonic_sherpa", "Supertonic 3, sherpa-onnx int8 — mért RTF 0,14 (sherpa-onnx kell)"),
     ("supertonic", "Supertonic 3, ONNX CPU — mért RTF 0,25"),
     ("piper", "Piper, ONNX CPU, magyar hangok"),
     ("omnivoice", "OmniVoice, PyTorch CPU — mérés nélkül, lassabb"),
@@ -172,6 +173,10 @@ def _model_present(engine_name: str) -> bool:
             from core.local_engines import PiperEngine
 
             return PiperEngine().model_present()
+        if engine_name == "supertonic_sherpa":
+            from core.supertonic_sherpa_engine import SherpaSupertonicEngine
+
+            return SherpaSupertonicEngine().model_present()
         if engine_name == "omnivoice":
             from core.paths import omnivoice_model
 
@@ -240,10 +245,12 @@ def _usable(engine_name: str, caps: dict) -> bool:
         if not caps.get("torch") or not caps.get("torchaudio"):
             return False
         return backend in ("cuda", "rocm", "mps", "cpu")
-    if engine_name in ("supertonic", "piper"):
+    if engine_name in ("supertonic", "supertonic_sherpa", "piper"):
         if not caps["onnxruntime"]:
             return False
         if engine_name == "piper" and not caps["piper_tts"]:
+            return False
+        if engine_name == "supertonic_sherpa" and not _module_available("sherpa_onnx"):
             return False
         return True
     return False

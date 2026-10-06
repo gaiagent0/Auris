@@ -66,6 +66,11 @@ ENGINE_INFO: dict[str, dict] = {
         "voice_design": False, "speed": True, "device": "CPU", "hungarian": "hivatalos",
         "license": "OpenRAIL-M (modell), MIT (kód)",
     },
+    "supertonic_sherpa": {
+        "label": "Supertonic 3 (sherpa-onnx int8, CPU, 44,1 kHz)", "voice_clone": False,
+        "voice_design": False, "speed": True, "device": "CPU", "hungarian": "hivatalos",
+        "license": "OpenRAIL-M (modell), MIT (kód)",
+    },
     "piper": {
         "label": "Piper (CPU, Anna/Berta/Imre)", "voice_clone": False,
         "voice_design": False, "speed": True, "device": "CPU", "hungarian": "hivatalos",
@@ -1053,3 +1058,6 @@ ENGINE_CLASSES = {
     "supertonic": SupertonicEngine,
     "moss_tts": MossTTSEngine,
 }
+# supertonic_sherpa is deliberately NOT in ENGINE_CLASSES: the sherpa module
+# itself imports LocalEngineBase from this file at module load, so importing it
+# here would be circular. The router instantiates it directly (see tts_router).
