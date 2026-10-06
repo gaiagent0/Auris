@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import logging
 import math
+import os
 import re
 import shutil
 import subprocess
@@ -107,6 +108,76 @@ def _frame_rms(audio: np.ndarray, sr: int, frame_sec: float = 0.05) -> np.ndarra
     return np.sqrt(np.mean(frames ** 2, axis=1))
 
 
+# ── Opcionális Silero VAD (sherpa-onnx) ─────────────────────────────────────
+
+SILERO_VAD_ENV = "VOICEAI_SILERO_VAD"
+SILERO_VAD_DEFAULT = r"D:\VoiceAI\vendor\sherpa-models\silero_vad.onnx"
+
+
+def _silero_vad_model() -> str:
+    """A VAD-modell helye: env-változó, alapból a VoiceAI hub."""
+    return os.environ.get(SILERO_VAD_ENV, SILERO_VAD_DEFAULT)
+
+
+def _resample_to_16k(audio: np.ndarray, sr: int) -> tuple[np.ndarray, int]:
+    """A Silero 16 kHz-en fut; gcd-s resample_poly, hiba esetén átalakítás nélkül."""
+    if int(sr) == 16000:
+        return audio.astype(np.float32), int(sr)
+    try:
+        from scipy.signal import resample_poly
+
+        g = math.gcd(int(sr), 16000)
+        return resample_poly(audio, 16000 // g, sr // g).astype(np.float32), 16000
+    except Exception:
+        return audio.astype(np.float32), int(sr)
+
+
+def vad_speech_spans(audio: np.ndarray, sr: int) -> list[tuple[float, float]] | None:
+    """Beszéd-időintervallumok (másodperc) Silero VAD-dal, sherpa-onnx-szal.
+
+    ``None``, ha a sherpa-onnx vagy a modellfájl nem elérhető — ilyenkor a
+    hívó az eredeti, RMS-keretes detektálást használja. A VAD hibája soha
+    nem dobhatja fel a QA-elemzést. A VAD-ot az API szerint
+    ``window_size`` (512) mintás ablakokban kell etetni; a teljes jel
+    egyszeri beadása csak az utolsó ablakot dolgozza fel.
+    """
+    try:
+        import sherpa_onnx
+    except Exception:
+        return None
+    model = _silero_vad_model()
+    if not model or not os.path.isfile(model):
+        return None
+    try:
+        x, sr16 = _resample_to_16k(np.asarray(audio, dtype=np.float32), int(sr))
+        cfg = sherpa_onnx.VadModelConfig()
+        cfg.silero_vad.model = model
+        cfg.silero_vad.min_silence_duration = 0.4
+        cfg.sample_rate = sr16
+        window = cfg.silero_vad.window_size
+        buffer_s = max(30.0, len(x) / max(1, sr16) + 5.0)
+        vad = sherpa_onnx.VoiceActivityDetector(cfg, buffer_size_in_seconds=buffer_s)
+        spans: list[tuple[float, float]] = []
+
+        def _drain() -> None:
+            while not vad.empty():
+                seg = vad.front
+                spans.append((seg.start / sr16, (seg.start + len(seg.samples)) / sr16))
+                vad.pop()
+
+        i = 0
+        while i + window <= len(x):
+            vad.accept_waveform(x[i:i + window])
+            i += window
+            _drain()
+        vad.flush()
+        _drain()
+        return spans
+    except Exception as exc:
+        log.debug("silero VAD nem futott: %s", exc)
+        return None
+
+
 def analyze_audio(path: str, text: str = "", *, silence_db: float = -45.0) -> dict:
     audio, sr = sf.read(path, dtype="float32", always_2d=True)
     audio = audio.mean(axis=1)
@@ -126,6 +197,21 @@ def analyze_audio(path: str, text: str = "", *, silence_db: float = -45.0) -> di
             run = run + 1 if value else 0
             best = max(best, run)
         longest_gap = best * 0.05
+    # Opcionális VAD-felülírás: ha a sherpa-onnx + Silero elérhető, a
+    # beszéd-határok (elejénél/végénél/leghosszabb szünet) pontosabbak,
+    # mint a fix 0,05 s-os RMS-keretek. VOICEAI_QA_VAD=off kikapcsolja.
+    vad_used = None
+    spans = None
+    if os.environ.get("VOICEAI_QA_VAD", "").lower() != "off":
+        spans = vad_speech_spans(audio, sr)
+        if spans:
+            vad_used = "silero"
+            leading = spans[0][0]
+            trailing = max(0.0, duration - spans[-1][1])
+            longest_gap = max(
+                (b[0] - a[1] for a, b in zip(spans, spans[1:])), default=0.0
+            )
+    has_speech = bool(spans) if vad_used else bool(speech.size)
     clipped = int(np.sum(np.abs(audio) >= 0.999))
     letters = len(re.sub(r"\W", "", str(text or "")))
     flags = []
@@ -133,7 +219,7 @@ def analyze_audio(path: str, text: str = "", *, silence_db: float = -45.0) -> di
         flags.append("clipping")
     if longest_gap >= 1.5:
         flags.append("long_pause")
-    if speech.size == 0 or rms < 10 ** (-45 / 20):
+    if not has_speech or rms < 10 ** (-45 / 20):
         flags.append("silent")
     if letters >= 8 and duration:
         per_char = duration / letters
@@ -149,6 +235,7 @@ def analyze_audio(path: str, text: str = "", *, silence_db: float = -45.0) -> di
         "trailing_silence_sec": round(trailing, 2),
         "longest_pause_sec": round(longest_gap, 2),
         "clipped_samples": clipped,
+        "vad": vad_used,
         "sec_per_char": round(duration / letters, 4) if letters else None,
         "flags": flags,
     }
