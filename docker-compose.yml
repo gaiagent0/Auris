@@ -1,9 +1,19 @@
+# Auris — Docker Compose
+#
+# Default: CPU-only image (TORCH_VARIANT=cpu) so a fresh clone builds and runs
+# on any machine, including Snapdragon X Elite / ARM64. On Snapdragon the
+# natively-installed path (reader/setup.bat + reader/run.bat) is faster — the
+# ONNX CPU engines (Supertonic, sherpa-onnx Supertonic, Piper) run natively —
+# and Docker here is a portable alternative that works anywhere.
+#
+# NVIDIA GPU build (opt-in, fast OmniVoice):  TORCH_VARIANT=cu128
+#   docker compose build --build-arg TORCH_VARIANT=cu128
 services:
   auris:
     build:
       context: .
       args:
-        TORCH_VARIANT: cu128   # "cpu" for machines without an NVIDIA GPU
+        TORCH_VARIANT: cpu   # "cpu" by default; "cu128" for an NVIDIA GPU
     image: auris:latest
     ports:
       - "127.0.0.1:7860:7860"
@@ -18,13 +28,6 @@ services:
       - ./docker-data/uploads:/app/reader/uploads
       - ./model_backup:/app/model_backup
       - huggingface:/data/huggingface
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
     restart: unless-stopped
 
 volumes:

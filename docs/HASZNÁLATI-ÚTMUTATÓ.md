@@ -129,9 +129,9 @@ Egy szöveget szintetizálja fájlba — a leggyorsabb mód a motor ellenőrzés
 | Hangforrás | Mi ez | Kimenet |
 |---|---|---|
 | **Beépített Supertonic** | F1–F5, M1–M5 | `tts_engine=auto`, beállítási mezőben |
+| **Sherpa-onnx Supertonic int8** | **a leggyorsabb motor** (RTF 0,14); a Snapdragon `auto`-javaslat; választható a `tts_engine=supertonic_sherpa` Beállításokban | modell automatikus HF-letöltés `reader/models/supertonic-sherpa-int8/` (+ `sherpa-onnx` a deps-ben) |
 | **Magyar Piper-hang** (anna, berta, imre) | külső ONNX, `D:\VoiceAI\apps\hu-voice-ai\models\piper\` | ONNX Runtime-tal fut, de a phonemizálás ARM64-en nyitott kérdés |
 | **XTTSv2-ONNX klón** | a **legjobb klónozó**: magyar zero-shot, tiszta ONNX, WER 0,18 %, 45,4 perc/óra | referencia WAV a Hangstúdióban; a modell `D:\XTTSv2-Streaming-ONNX` (CC BY-NC 4.0) |
-| **Sherpa-onnx Supertonic int8** | a **leggyorsabb motor** (RTF 0,14), de **beépített hangokon fut, nem klónoz** | `D:\VoiceAI\envs\sherpa-arm64` + `hub\scripts\sherpa_supertonic_full.py` |
 
 **Klón-korlát:** a sherpa-onnx Supertonic a referenciahang-klónozást **nem támogatja**
 (fixed-voice, voice.bin). A custom hangklónhoz az **XTTSv2-ONNX** a követendő út.

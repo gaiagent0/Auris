@@ -40,11 +40,32 @@ A natív ARM64 futás minden másik platformot előze, a mérési bizonyíték a
 Kiegészítések ebben a fork-ban:
 - **Batchelt Supertonic-generálás** — a `generate_many` azonos hang/nyelv/tempó
   mondatokot csoportosít (2,25× gyorsabb, `supertonic_batch` 1..6).
-- **Sherpa-onnx Supertonic 3 int8 motor** (`reader/core/supertonic_sherpa*.py`)
-  — a leggyorsabb útmért motor, 44,1 kHz, beépített hangokon (nem klónoz).
+- **Sherpa-onnx Supertonic 3 int8 — FIRST-CLASS motor** (`reader/core/supertonic_sherpa*.py`):
+  beillesztett a motor-választóba (`supertonic_sherpa`), a Snapdragon-ra a
+  **leggyorsabb** (`auto`-javaslat), `sherpa-onnx` a deps-ben, a modell
+  **automatikusan letölti** a HF-en `reader/models/supertonic-sherpa-int8/`-re
+  (~139 MB) az első futásnál. RtF 0,140, 44,1 kHz, beépített hangokon (nem klónoz).
 - **Silero VAD** a QA-elemzésben (`reader/core/qa.py` `vad_speech_spans`).
 - **Magyar WER/CER-ellenőrzés** a 24 mondatos korpuszon (`core/hu_wer.py`),
   magyar kiejtési szótárral.
+
+### Friss-klón Snapdragon runbook (a leggyorsabb út)
+
+```powershell
+cd /d "C:\Users\istva\Dev\portfolio\Projects\audiobook narrator"
+git clone https://github.com/gaiagent0/Auris.git
+cd Auris
+reader\setup.bat          # ARM64-nál a natív venv + minden függőség (sherpa-onnx is)
+reader\run.bat            # http://127.0.0.1:7860
+```
+
+- A `setup.bat` a Snapdragon-ra a **natív ARM64 Python 3.12**, ONNX Runtime 1.30
+  és `sherpa-onnx` (win_arm64 wheel) telepíti; a Supertonic + sherpa-Supertonic
+  modellok letöltik az első betöltéssel.
+- A leggyorsabb motor a javasolt (`auto` → `supertonic_sherpa`); a Beállításokban
+  `tts_engine=supertonic_sherpa`-ra állíthatd, ha explicit jelöltet akarod.
+- Docker: `docker compose up -d --build` **CPU-ra fut** (nem kell NVIDIA) —
+  a Snapdragonon a natív út a gyorsabb, a Docker alternatíva mindenhol.
 
 A használati útmutató: [`docs/HASZNÁLATI-ÚTMUTATÓ.md`](docs/HASZNÁLATI-ÚTMUTATÓ.md).
 Az infografika: [`docs/auris-infografika.html`](docs/auris-infografika.html).

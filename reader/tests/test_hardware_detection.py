@@ -29,6 +29,11 @@ def caps(**overrides):
     return base
 
 
+def _sherpa_available() -> bool:
+    """Whether sherpa_onnx is installed in the test venv (soft optional)."""
+    return importlib.util.find_spec("sherpa_onnx") is not None
+
+
 class Arm64DetectionTests(unittest.TestCase):
     def test_arm64_on_windows_is_not_apple_silicon(self):
         with patch.object(installer.platform, 'machine', return_value='ARM64'), \
@@ -152,7 +157,12 @@ class ResampleFallbackTests(unittest.TestCase):
 class EngineAvailabilityTests(unittest.TestCase):
     def test_arm64_recommends_the_measured_fastest_engine(self):
         result = hardware.recommend(caps())
-        self.assertEqual(result['engine'], 'supertonic')
+        # On ARM64 the measured-fastest CPU engine is the sherpa-onnx Supertonic
+        # (RTF 0.14) ahead of the vendored Supertonic (RTF 0.25). But it is a
+        # soft optional: when sherpa_onnx is not installed the recommendation
+        # falls back to the plain Supertonic.
+        expected = 'supertonic_sherpa' if _sherpa_available() else 'supertonic'
+        self.assertEqual(result['engine'], expected)
 
     def test_4b_engines_are_refused_without_a_gpu(self):
         names = [e['engine'] for e in hardware.available_engines(caps())]
@@ -164,6 +174,11 @@ class EngineAvailabilityTests(unittest.TestCase):
         self.assertNotIn('omnivoice', without)
         with_audio = [e['engine'] for e in hardware.available_engines(caps(torchaudio=True))]
         self.assertIn('omnivoice', with_audio)
+
+    def test_sherpa_engine_listed_when_sherpa_onnx_installed(self):
+        names = [e['engine'] for e in hardware.available_engines(caps())]
+        expected = 'supertonic_sherpa' if _sherpa_available() else 'supertonic'
+        self.assertIn(expected, names)
 
     def test_cuda_machine_prefers_the_gpu_engines(self):
         gpu = caps(accelerator='cuda', arm64=False, ram_gb=48.0,

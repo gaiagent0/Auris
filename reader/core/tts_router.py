@@ -5,7 +5,7 @@ from __future__ import annotations
 import threading
 import time
 
-ENGINE_NAMES = ("omnivoice", "higgs", "moss_tts", "supertonic", "piper")
+ENGINE_NAMES = ("omnivoice", "higgs", "moss_tts", "supertonic", "supertonic_sherpa", "piper")
 
 
 def selected_engine_name() -> str:
@@ -46,6 +46,10 @@ class TTSEngineRouter:
             from core.higgs_engine import HiggsTTSEngine
 
             return HiggsTTSEngine()
+        if name == "supertonic_sherpa":
+            from core.supertonic_sherpa_engine import SherpaSupertonicEngine
+
+            return SherpaSupertonicEngine()
         if name in ("moss_tts", "supertonic", "piper"):
             from core.local_engines import ENGINE_CLASSES
 

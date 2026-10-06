@@ -161,6 +161,10 @@ ARM64_SOFT_DEPS = (
 # Everything else the app needs on an ARM64 machine without a CUDA GPU.
 ARM64_BASE_DEPS = (
     "onnxruntime>=1.20,<2",
+    # Sherpa-onnx re-export of Supertonic 3 (the fastest measured engine on
+    # Snapdragon, RTF 0.14). Pure-python + onnxruntime, no torchaudio need.
+    # Installed as a soft dep so its absence only drops that one engine.
+    "sherpa-onnx",
     "huggingface_hub",
     "sentencepiece>=0.2",
     "soundfile>=0.12",

@@ -26,8 +26,18 @@ from typing import Any, Optional
 import numpy as np
 import soundfile as sf
 
-from core.local_engines import LocalEngineBase, resample
+from core.local_engines import LocalEngineBase, hf_download, resample
 from core.tts_engine import SAMPLE_RATE, _audio_duration, _write_audio_atomic
+
+# The sherpa-onnx re-exported Supertonic 3 int8 (open, CC/OpenRAIL-M). A fresh
+# ARM64 clone downloads this once; the files are already LFS-hosted on HF.
+SHERPA_SUPERTONIC_REPO = "csukuangfj2/sherpa-onnx-supertonic-3-tts-int8-2026-05-11"
+SHERPA_SUPERTONIC_DIR = "supertonic-sherpa-int8"
+SHERPA_FILES = (
+    "duration_predictor.int8.onnx", "text_encoder.int8.onnx",
+    "vector_estimator.int8.onnx", "vocoder.int8.onnx", "tts.json",
+    "unicode_indexer.bin", "voice.bin",
+)
 
 
 class SherpaSupertonicEngine(LocalEngineBase):
@@ -51,17 +61,29 @@ class SherpaSupertonicEngine(LocalEngineBase):
             "license": "OpenRAIL-M (modell), MIT (kód)",
         }
 
+    @staticmethod
+    def model_dir() -> Path:
+        """HF-downloaded sherpa model under reader/models (or VOICEAI override)."""
+        override = os.environ.get("VOICEAI_SHERTA_SUPERTONIC", "").strip()
+        if override:
+            return Path(override)
+        from core.local_engines import MODELS_DIR
+        return MODELS_DIR / SHERPA_SUPERTONIC_DIR
+
     def model_location(self) -> str:
-        return SherpaSupertonicEngine.model_dir().as_posix()
+        return self.model_dir().as_posix()
 
     def model_present(self) -> bool:
-        d = SherpaSupertonicEngine.model_dir()
-        return (d / "tts.json").is_file() and (d / "voice.bin").is_file()
+        d = self.model_dir()
+        return all((d / name).is_file() for name in SHERPA_FILES)
 
     def _load_model(self) -> None:
         import sherpa_onnx
 
-        d = SherpaSupertonicEngine.model_dir()
+        d = self.model_dir()
+        if not self.model_present():
+            self._detail = "sherpa-onnx Supertonic 3 letöltése (~0,17 GB)…"
+            hf_download(SHERPA_SUPERTONIC_REPO, d, allow_patterns=list(SHERPA_FILES))
         cfg = sherpa_onnx.OfflineTtsSupertonicModelConfig(
             duration_predictor=str(d / "duration_predictor.int8.onnx"),
             text_encoder=str(d / "text_encoder.int8.onnx"),
