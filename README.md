@@ -1,11 +1,12 @@
 # Auris
 
-[![Latest release](https://img.shields.io/github/v/release/mp3pintyo/Auris?label=verzi%C3%B3)](https://github.com/mp3pintyo/Auris/releases/latest)
+[![Latest release](https://img.shields.io/github/v/release/gaiagent0/Auris?label=verzi%C3%B3)](https://github.com/gaiagent0/Auris/releases/latest)
 
 Az Auris [eredeti projektjének](https://github.com/nikhilprasanth/Auris) magyar
-nyelvű forkja. Magyar felülettel és súgóval, helyben futó hangoskönyv-olvasóval.
+nyelvű forkja, **Snapdragon X Elite / Windows 11 ARM64-nál optimalizálva**.
+Magyar felülettel és súgóval, helyben futó hangoskönyv-olvasóval.
 
-This is the Hungarian-language fork of the [original Auris project](https://github.com/nikhilprasanth/Auris).
+This is the Hungarian-language fork of the [original Auris project](https://github.com/nikhilprasanth/Auris), **optimized and measured for Snapdragon X Elite / Windows 11 ARM64**.
 
 Current version: [`VERSION`](VERSION). See the complete bilingual
 [`CHANGELOG.md`](CHANGELOG.md) and the [`RELEASING.md`](RELEASING.md) guide for
@@ -19,6 +20,35 @@ Reading, speech generation, playback, and file import run locally after setup,
 with no hosted TTS dependency. Web-article import requires a network connection.
 Character analysis can use a local OpenAI-compatible server without a key, or
 the optional OpenAI API with a separately billed API key.
+
+## Snapdragon X Elite / Windows 11 ARM64 — optimalizálás és mérés
+
+Ez a fork a **Snapdragon X Elite (ARM64) rendszeren valósan mért és optimalizálva**.
+A natív ARM64 futás minden másik platformot előze, a mérési bizonyíték a
+[`docs/meresek.md`](docs/meresek.md) (M-01…M-45) bejegyzésekkel.
+
+| Elem | Érték (mérve) |
+|---|---|
+| Gép | Windows 11 ARM64, Snapdragon X Elite, 12 mag, 31,6 GB RAM |
+| Python | 3.12.10 natív ARM64 (nem x86_64 emuláció) |
+| ONNX Runtime | 1.30.0 |
+| Alapmotor | Supertonic 3, `supertonic_batch=4` → **2,25×** gyorsabb |
+| Sherpa-onnx Supertonic int8 | **RTF 0,140** = 428 perc hang/óra = az Auris serial 5,4×, batch 2,4× gyorsabb · WER 0,11 % |
+| Klónozó | XTTSv2-Streaming-ONNX (magyar) — int8 1,32× valós idő, WER 0,18 % |
+| Magyar ASR (QA) | Parakeet TDT v3 (`nemo-parakeet-tdt-0.6b-v3` → `istupakov/parakeet-tdt-0.6b-v3-onnx`, CC-BY-4.0) |
+
+Kiegészítések ebben a fork-ban:
+- **Batchelt Supertonic-generálás** — a `generate_many` azonos hang/nyelv/tempó
+  mondatokot csoportosít (2,25× gyorsabb, `supertonic_batch` 1..6).
+- **Sherpa-onnx Supertonic 3 int8 motor** (`reader/core/supertonic_sherpa*.py`)
+  — a leggyorsabb útmért motor, 44,1 kHz, beépített hangokon (nem klónoz).
+- **Silero VAD** a QA-elemzésben (`reader/core/qa.py` `vad_speech_spans`).
+- **Magyar WER/CER-ellenőrzés** a 24 mondatos korpuszon (`core/hu_wer.py`),
+  magyar kiejtési szótárral.
+
+A használati útmutató: [`docs/HASZNÁLATI-ÚTMUTATÓ.md`](docs/HASZNÁLATI-ÚTMUTATÓ.md).
+Az infografika: [`docs/auris-infografika.html`](docs/auris-infografika.html).
+A teljes ARM64-telepítés és mérési útmutató: [`reader/docs/arm64-install.md`](reader/docs/arm64-install.md).
 
 ## Screenshots
 
@@ -95,7 +125,7 @@ labels and the updated workflows described below and in the built-in help.
 
 ## Windows x64 alkalmazás / desktop application
 
-A [GitHub Releases](https://github.com/mp3pintyo/Auris/releases/latest) oldalról
+A [GitHub Releases](https://github.com/gaiagent0/Auris/releases/latest) oldalról
 letölthető `Auris-Setup-<verzió>-x64.exe` telepítővel **Git és külön Python-telepítés
 nélkül** használhatod az Aurist Windows 10/11 x64 rendszeren. Az Auris saját
 ablakban nyílik meg; első indításkor magyar beállítófelület tölti le a választott
@@ -123,7 +153,7 @@ The existing source-based web installation remains available below.
 ## Installation
 
 ```bash
-git clone https://github.com/mp3pintyo/Auris.git
+git clone https://github.com/gaiagent0/Auris.git
 cd Auris
 ```
 
