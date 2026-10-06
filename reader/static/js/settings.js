@@ -98,6 +98,7 @@ async function loadSettings() {
   setValue('supertonic-voice', _settings.supertonic_voice || 'F1');
   setValue('supertonic-variant', _settings.supertonic_variant || 'fp32');
   setValue('supertonic-steps', _settings.supertonic_steps ?? 10);
+  setValue('supertonic-batch', _settings.supertonic_batch ?? 4);
   setValue('moss-seed', _settings.moss_seed ?? 1234);
   setValue('moss-temperature', _settings.moss_temperature ?? 1.7);
   setValue('moss-top-p', _settings.moss_top_p ?? 0.8);
@@ -735,6 +736,7 @@ async function saveSettingsValues() {
     supertonic_voice: document.getElementById('supertonic-voice')?.value || 'F1',
     supertonic_variant: document.getElementById('supertonic-variant')?.value || 'fp32',
     supertonic_steps: parseInt(document.getElementById('supertonic-steps')?.value || '10', 10),
+    supertonic_batch: parseInt(document.getElementById('supertonic-batch')?.value || '4', 10),
     moss_seed:        parseInt(document.getElementById('moss-seed')?.value || '1234', 10),
     moss_temperature: parseFloat(document.getElementById('moss-temperature')?.value || '1.7'),
     moss_top_p:       parseFloat(document.getElementById('moss-top-p')?.value || '0.8'),
