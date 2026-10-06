@@ -3,11 +3,14 @@
 Kérdés: hogyan működik a sherpa-onnx 1.13.8 ``OfflineTts`` Supertonic
 kivételével Runtime CPU-n, natív ARM64-en (Snapdragon X Elite)?
 
-Eredmény (M-41, 2026-10-06):
-  - betöltés: ~1,7 s
-  - RTF serial 0,1497 → 400,7 perc hang/óra (sherpa-onnx batch path)
-  - Auris serial 0,7624-hez képest 5,1x, Auris batch4 0,3348-hoz képest 2,2x
-  - 2 magyar mondat WER 0,00% / CER 0,00% (M-39-as ASR checker)
+Eredmény (M-43, 2026-10-06, TELJES — 24 mondatos hu_wer korpusz):
+  - betöltés: ~0,7 s
+  - RTF serial 0,1401 = 428,4 perc hang/óra (sherpa-onnx, 44,1 kHz)
+  - RTF batch-út 0,1419 = 422,8 perc hang/óra (a sherpa OfflineTts nem
+    csoportosít; a különbség zajszintű)
+  - az Auris saját Supertonic serial (0,7624) → 5,4×, batch4 (0,3348) → 2,4×
+    gyorsabb
+  - WER 0,11 % / CER 0,03 % (24 magyar mondat, Parakeet, M-39 protokoll)
 
 Korlát 2026-10-06:
   - sherpa csomagolás: 44 100 Hz kimenet (Auris cache 24 000 Hz, ``resample``
