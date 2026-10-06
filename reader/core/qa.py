@@ -336,6 +336,24 @@ def parakeet_available() -> bool:
     return importlib.util.find_spec("onnx_asr") is not None
 
 
+def whisper_available() -> bool:
+    """Whether the transformers-based Whisper backend can load.
+
+    The Whisper Transcriber imports `torch`/`transformers`. On an ARM64
+    Windows install transformers may be absent (not part of the ARM64 dep
+    set), so `asr_backend_for` must fall back to Parakeet-hybrid-free paths.
+    """
+    import importlib.util
+
+    if not importlib.util.find_spec("transformers"):
+        return False
+    try:
+        import torch  # noqa: F401
+        return True
+    except Exception:
+        return False
+
+
 def asr_backend_for(language: str | None) -> str:
     """Effective ASR backend: ``whisper``, ``parakeet`` or ``hybrid``.
 
@@ -353,6 +371,7 @@ def asr_backend_for(language: str | None) -> str:
         requested = "auto"
     lang = str(language or "").lower()[:2]
     parakeet_ok = parakeet_available() and (not lang or lang in PARAKEET_LANGUAGES)
+    whisper_ok = whisper_available()
     if requested == "auto":
         try:
             import torch
@@ -360,9 +379,17 @@ def asr_backend_for(language: str | None) -> str:
             gpu = bool(torch.cuda.is_available())
         except Exception:
             gpu = False
+        if not whisper_ok:
+            # No transformers/torch -> Whisper cannot load at all; on a CPU
+            # machine Parakeet is the only working ONNX backend.
+            return "parakeet" if parakeet_ok else "whisper"
         return "whisper" if gpu or not parakeet_ok else "hybrid"
     if requested in ("parakeet", "hybrid") and not parakeet_ok:
         return "whisper"
+    if requested in ("whisper", "hybrid") and not whisper_ok:
+        # Whisper was chosen explicitly but its runtime is missing; prefer any
+        # working backend over failing the whole QA pass.
+        return "parakeet" if parakeet_ok else "whisper"
     return requested
 
 
