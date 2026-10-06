@@ -12,6 +12,36 @@ represent a new product generation or an incompatible change.
 
 ## [Unreleased]
 
+### Magyar
+
+#### Hozzáadva
+
+- **Sherpa-onnx Supertonic 3 int8 engine** — a leggyorsabb motoron (mért RTF 0,14
+  a Snapdragon X Elite-en 24 mondatos magyar korpuszon, WER 0,11 %): az `auto`
+  javaslat az ARM64/CPU-gépen ehhez esik, `sherpa-onnx` a deps-ben (natív
+  win_arm64 wheel), a modell automatikus letöltés a HF-en. **10 beépített
+  hangot** (F1–F5 női, M1–M5 férfi) a `supertonic_voice` beállításból a sid
+  0–9-re mappálva, hangválasztó a Beállításokban.
+- **Silero VAD** a minőségellenőrzésben (opcionális, sherpa-onnx alapú).
+- **Docker compose default CPU** (`TORCH_VARIANT=cpu`) — a friss `compose up`
+  mindenhol fut, a Snapdragonon is; a leigold NVIDIA-gpu deploy a --build-arg
+  opcióra költözött.
+- **THIRD_PARTY_NOTICES** — sherpa-onnx, sherpa-Supertonic modell, Silero VAD
+  lícenczei dokumentálva.
+
+### English
+
+- **Sherpa-onnx Supertonic 3 int8 engine** — the fastest measured engine (RTF
+  0.14 on Snapdragon X Elite over the 24-sentence Hungarian corpus, WER 0.11%);
+  the `auto` recommendation prefers it on ARM64/CPU machines, `sherpa-onnx` is
+  in the deps (native win_arm64 wheel), the model auto-downloads from HF. All
+  **ten preset voices** (F1–F5 female, M1–M5 male) map from `supertonic_voice`
+  to sid 0–9, with a voice selector in Settings.
+- **Silero VAD** in quality control (optional, sherpa-onnx based).
+- **Docker compose defaults to CPU** (`TORCH_VARIANT=cpu`) — a fresh `compose
+  up` runs anywhere, including Snapdragon; the NVIDIA-GPU deploy moved to a
+  `--build-arg` option.
+
 ## [4.4.0] - 2026-10-01
 
 ### Magyar

@@ -13,7 +13,7 @@ Current version: [`VERSION`](VERSION). See the complete bilingual
 the versioning and release process.
 
 Local-first audiobook reader for EPUB, PDF, DOCX, TXT, PRC/MOBI, and public web articles with six selectable local
-speech engines (OmniVoice, Higgs TTS 3, MOSS-TTS 1.5, MOSS-TTS-Nano, Supertonic 3 and Piper), Hungarian-first text
+speech engines (OmniVoice, Higgs TTS 3, MOSS-TTS 1.5, MOSS-TTS-Nano, Supertonic 3, Supertonic 3 sherpa-onnx int8 and Piper), Hungarian-first text
 processing, character-aware voices, per-book narrator control, and duration-based estimated word highlighting.
 
 Reading, speech generation, playback, and file import run locally after setup,
@@ -90,11 +90,13 @@ labels and the updated workflows described below and in the built-in help.
 
 ## Highlights
 
-- Six local speech engines, all with official Hungarian support: OmniVoice and
+- Seven local speech engines, all with official Hungarian support: OmniVoice and
   Higgs TTS 3 (GPU, voice cloning), MOSS-TTS 1.5 (GPU, Apache-2.0, cloning),
-  MOSS-TTS-Nano (CPU cloning), and Supertonic 3 and Piper (CPU, preset voices
-  without voice cloning). Settings shows each engine's capabilities and
-  Voice Studio adapts to them.
+  MOSS-TTS-Nano (CPU cloning), and Supertonic 3, Supertonic 3 sherpa-onnx int8
+  and Piper (CPU, preset voices without voice cloning). Settings shows each
+  engine's capabilities and Voice Studio adapts to them. On CPU/ARM64 the
+  sherpa-onnx Supertonic is the measured-fastest (RTF 0.14) and the default
+  `auto` recommendation.
 - Hungarian text processing: dates, Roman numerals, times, units, currencies,
   abbreviations and acronyms are spoken correctly; Hungarian sentence splitting,
   dialogue dashes and quotes; HuSpaCy-based character detection.
@@ -229,8 +231,10 @@ with `Ctrl+C` in that terminal.
   command line (`python auris_cli.py --help`).
 - OpenAI-compatible `POST /v1/audio/speech` for other tools, using the active
   engine and saved Hungarian voice profiles.
-- `docker compose up -d` builds and runs Auris with an NVIDIA GPU; data lives in
-  `docker-data/`. Use `TORCH_VARIANT: cpu` for machines without a GPU.
+- `docker compose up -d` builds and runs Auris with a **CPU image by default**
+  (works anywhere, including Snapdragon ARM64); data lives in `docker-data/`.
+  For an NVIDIA-GPU build (`TORCH_VARIANT=cu128`, fast OmniVoice):
+  `docker compose build --build-arg TORCH_VARIANT=cu128`.
 
 ## Model setup
 

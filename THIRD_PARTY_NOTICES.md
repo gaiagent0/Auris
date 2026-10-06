@@ -124,6 +124,22 @@ TDT 0.6B v3. The ONNX export (`istupakov/parakeet-tdt-0.6b-v3-onnx`) is
 downloaded from Hugging Face on first use; the model is licensed under
 CC-BY-4.0 by NVIDIA.
 
+## sherpa-onnx (Supertonic 3 int8 engine + Silero VAD)
+
+The optional `sherpa-onnx` package (Apache-2.0) powers the **sherpa-onnx
+Supertonic 3 int8** engine (the fastest measured engine on Snapdragon X
+Elite, RTF 0.14) and the optional Silero VAD in quality control:
+
+- K2-FSA sherpa-onnx: https://github.com/k2-fsa/sherpa-onnx (Apache-2.0)
+- sherpa-onnx Supertonic 3 int8 model (`csukuangfj2/sherpa-onnx-supertonic-3-tts-int8-2026-05-11`):
+  the ONNX graphs are a re-export of the Supertone Supertonic 3 model; the
+  model LICENSE (`MIT License, Copyright (c) 2025 Supertone Inc.`) is
+  downloaded next to the weights into `reader/models/supertonic-sherpa-int8/`.
+  Model weights are downloaded on first use, not bundled.
+- Silero VAD (`silero_vad.onnx`, MIT): the VAD model used by `core/qa.py`
+  `vad_speech_spans`; downloaded from the Silero project / sherpa-onnx.
+  https://github.com/snakers4/silero-vad (MIT)
+
 ## Piper and Hungarian Piper voices (optional)
 
 The optional Piper engine uses the `piper-tts` package (piper1-gpl,
