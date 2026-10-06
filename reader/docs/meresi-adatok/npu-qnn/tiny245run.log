@@ -1,0 +1,13 @@
+qnn-net-run pid:4948
+qnn-net-run build version: v2.45.40.260406130939
+qnn-net-run log level is : QNN_LOG_LEVEL_ERROR
+DSP_INFO UNSUPPORTED_KEY: 49
+DSP_INFO UNSUPPORTED_KEY: 50
+ <W> Initializing HtpProvider
+Processing inference input(s):
+C:\AI
+pu-work	iny	iny_x.raw
+     6.1ms [ ERROR ] Failed to create dlc handle with code 1002 for dlc file at C:\AI\npu-work\tiny\tiny245.dlc.
+Check executable cache failure
+ <W> Destroying graph env with 1 registered graph envs
+EXITCODE=28

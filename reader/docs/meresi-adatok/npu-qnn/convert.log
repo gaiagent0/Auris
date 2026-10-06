@@ -1,0 +1,47 @@
+2026-10-04 07:05:37,096 - 278 - INFO - Input shape info 
+2026-10-04 07:05:53,263 - 283 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Shape Not Supported. Expected operator version: [1, 13, 15], instead got version: [19]
+2026-10-04 07:05:53,264 - 283 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Shape Not Supported. Expected operator version: [1, 13, 15], instead got version: [19]
+2026-10-04 07:05:53,264 - 283 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Shape Not Supported. Expected operator version: [1, 13, 15], instead got version: [19]
+2026-10-04 07:05:53,278 - 283 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Reciprocal Not Supported. Expected operator version: [1, 6], instead got version: [13]
+2026-10-04 07:05:53,311 - 283 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Shape Not Supported. Expected operator version: [1, 13, 15], instead got version: [19]
+2026-10-04 07:05:53,376 - 283 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Shape Not Supported. Expected operator version: [1, 13, 15], instead got version: [19]
+2026-10-04 07:05:53,377 - 283 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Shape Not Supported. Expected operator version: [1, 13, 15], instead got version: [19]
+2026-10-04 07:05:53,433 - 283 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Equal Not Supported. Expected operator version: [1, 7, 11, 13], instead got version: [19]
+2026-10-04 07:05:53,447 - 283 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Equal Not Supported. Expected operator version: [1, 7, 11, 13], instead got version: [19]
+2026-10-04 07:05:53,466 - 283 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Equal Not Supported. Expected operator version: [1, 7, 11, 13], instead got version: [19]
+2026-10-04 07:05:53,467 - 283 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Equal Not Supported. Expected operator version: [1, 7, 11, 13], instead got version: [19]
+2026-10-04 07:05:53,467 - 283 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Shape Not Supported. Expected operator version: [1, 13, 15], instead got version: [19]
+2026-10-04 07:05:53,476 - 283 - WARNING - Only numerical type cast is supported. The cast op: /vector_estimator/vector_field/main_blocks.3/attn/Cast will be interpreted at conversion time
+2026-10-04 07:05:53,476 - 283 - WARNING - Only numerical type cast is supported. The cast op: /vector_estimator/vector_field/main_blocks.3/attn/Cast_1 will be interpreted at conversion time
+2026-10-04 07:05:53,567 - 283 - WARNING - GEMM operation is not supported in the general case, attempting to interpret as FC
+2026-10-04 07:05:53,602 - 283 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Equal Not Supported. Expected operator version: [1, 7, 11, 13], instead got version: [19]
+2026-10-04 07:05:53,791 - 283 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Shape Not Supported. Expected operator version: [1, 13, 15], instead got version: [19]
+2026-10-04 07:05:53,809 - 283 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Shape Not Supported. Expected operator version: [1, 13, 15], instead got version: [19]
+2026-10-04 07:05:53,829 - 283 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Shape Not Supported. Expected operator version: [1, 13, 15], instead got version: [19]
+2026-10-04 07:05:53,845 - 283 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Shape Not Supported. Expected operator version: [1, 13, 15], instead got version: [19]
+2026-10-04 07:05:53,866 - 283 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Shape Not Supported. Expected operator version: [1, 13, 15], instead got version: [19]
+2026-10-04 07:05:53,883 - 283 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Shape Not Supported. Expected operator version: [1, 13, 15], instead got version: [19]
+2026-10-04 07:05:53,902 - 283 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Shape Not Supported. Expected operator version: [1, 13, 15], instead got version: [19]
+2026-10-04 07:05:53,918 - 283 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Shape Not Supported. Expected operator version: [1, 13, 15], instead got version: [19]
+2026-10-04 07:05:53,941 - 283 - WARNING - GEMM operation is not supported in the general case, attempting to interpret as FC
+2026-10-04 07:05:54,789 - 283 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Shape Not Supported. Expected operator version: [1, 13, 15], instead got version: [19]
+2026-10-04 07:05:54,876 - 283 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Shape Not Supported. Expected operator version: [1, 13, 15], instead got version: [19]
+2026-10-04 07:05:55,620 - 283 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Shape Not Supported. Expected operator version: [1, 13, 15], instead got version: [19]
+2026-10-04 07:05:55,703 - 283 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Shape Not Supported. Expected operator version: [1, 13, 15], instead got version: [19]
+2026-10-04 07:05:56,432 - 283 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Shape Not Supported. Expected operator version: [1, 13, 15], instead got version: [19]
+2026-10-04 07:05:56,514 - 283 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Shape Not Supported. Expected operator version: [1, 13, 15], instead got version: [19]
+2026-10-04 07:05:57,220 - 283 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Shape Not Supported. Expected operator version: [1, 13, 15], instead got version: [19]
+2026-10-04 07:05:57,301 - 283 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Shape Not Supported. Expected operator version: [1, 13, 15], instead got version: [19]
+2026-10-04 07:05:57,905 - 283 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Shape Not Supported. Expected operator version: [1, 13, 15], instead got version: [19]
+2026-10-04 07:06:10,324 - 283 - WARNING - Op /vector_estimator/vector_field/main_blocks.1/Add with input_buf axis format NONTRIVIAL and data_axis_format NCF is no need to revert.
+2026-10-04 07:06:11,127 - 283 - WARNING - Op /vector_estimator/vector_field/main_blocks.7/Add with input_buf axis format NONTRIVIAL and data_axis_format NCF is no need to revert.
+2026-10-04 07:06:11,923 - 283 - WARNING - Op /vector_estimator/vector_field/main_blocks.13/Add with input_buf axis format NONTRIVIAL and data_axis_format NCF is no need to revert.
+2026-10-04 07:06:12,722 - 283 - WARNING - Op /vector_estimator/vector_field/main_blocks.19/Add with input_buf axis format NONTRIVIAL and data_axis_format NCF is no need to revert.
+modeltools::IrGraph::reEvalMacsParams: Re-evaluated graph statistics after IrOptimizer optimization passes:
+modeltools::IrGraph::reEvalMacsParams: Total MACs: 3815004809
+modeltools::IrGraph::reEvalMacsParams: Total Params Count: 63923520
+2026-10-04 07:06:26,203 - 278 - INFO - Skipping quantization, no input_list provided
+2026-10-04 07:06:26,203 - 278 - INFO - Saving QNN Model...
+2026-10-04 07:06:26,647 - 278 - INFO - Model CPP saved at: C:/AI/npu-work/vector_estimator.dlc 
+2026-10-04 07:06:26,648 - 278 - INFO - Model BIN saved at: C:\AI\npu-work\vector_estimator.bin 
+2026-10-04 07:06:26,713 - 278 - INFO - Conversion complete!

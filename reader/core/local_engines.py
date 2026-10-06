@@ -612,6 +612,195 @@ class SupertonicEngine(LocalEngineBase):
             )
         return self._styles[name]
 
+    def _style_batch(self, name: str, size: int):
+        """Tile one cached voice style to ``size`` rows for a batched call."""
+        base = self._style(name)
+        if size == 1:
+            return base
+        ttl = np.repeat(base.ttl[:1], size, axis=0)
+        dp = np.repeat(base.dp[:1], size, axis=0)
+        return self._helper.Style(ttl, dp)
+
+    @staticmethod
+    def _batch_size(requested) -> int:
+        # 6 is the range the settings UI offers; larger batches stopped paying
+        # off on the X Elite (measured: 4 -> 2.1x, 6 -> 2.6x, 8 -> 2.2x).
+        if requested is not None:
+            try:
+                return max(1, min(6, int(requested)))
+            except (TypeError, ValueError):
+                pass
+        try:
+            return max(1, min(6, int(_setting("supertonic_batch", 4))))
+        except (TypeError, ValueError):
+            return 4
+
+    def generate_many(self, items: list[dict], num_step: int | None = None,
+                      batch_size: int | None = None, on_item=None, on_status=None) -> list[dict]:
+        """Synthesize items, several at a time when they share voice and speed.
+
+        The denoising loop that dominates the runtime is batch 1 work in the
+        vendored helper: helper.batch() exists for exactly this and roughly
+        halves the real time factor on the X Elite (measured 2.1x at batch 4,
+        2.6x at batch 6). Items are grouped by voice/language/speed, so a
+        multi-character book still batches per character, and any group failure
+        falls back to the serial path rather than losing the segment.
+        """
+        size = self._batch_size(batch_size)
+        if size <= 1 or len(items) < 2:
+            return super().generate_many(items, num_step=num_step, batch_size=batch_size,
+                                         on_item=on_item, on_status=on_status)
+
+        results: list[dict | None] = [None] * len(items)
+        pending: list[dict] = []
+
+        def emit(index, result):
+            results[index] = result
+            if on_item is not None:
+                try:
+                    on_item(index, result)
+                except Exception as exc:
+                    log.warning("Supertonic batch on_item callback failed: %s", exc)
+
+        for index, item in enumerate(items):
+            text = item["text"]
+            instruct = item.get("instruct")
+            ref_audio = item.get("ref_audio")
+            ref_text = item.get("ref_text")
+            speed = float(item.get("speed") or 1.0)
+            language = item.get("language")
+            normalize = item.get("normalize_text")
+            if normalize is None:
+                normalize = bool(_setting("normalize_text", True))
+            key = self.cache_key(text, instruct, ref_audio, speed, ref_text=ref_text,
+                                 language=language, normalize_text=bool(normalize))
+            path = self.cache_path(key)
+            if os.path.exists(path):
+                emit(index, {"audio_path": path, "duration_sec": _audio_duration(path),
+                             "cache_hit": True, "cache_key": key})
+                continue
+            pending.append({
+                "index": index, "key": key, "path": path, "speed": speed,
+                "language": language, "instruct": instruct, "ref_audio": ref_audio,
+                "ref_text": ref_text, "normalize": bool(normalize),
+                "text": text,
+                "prepared": prepare_text(text, language, bool(normalize)),
+                "voice": choose_preset_voice(instruct, SUPERTONIC_VOICES,
+                                             self._default_voice()),
+            })
+
+        if not pending:
+            return [r for r in results if r is not None]
+
+        if not self._ready:
+            raise RuntimeError(
+                f"{self.capabilities.get('label', self.engine_name)} nincs betöltve. "
+                + (self._error or "")
+            )
+
+        groups: dict[tuple, list[dict]] = {}
+        for entry in pending:
+            key = (entry["voice"], entry["language"] or "", round(entry["speed"], 3))
+            groups.setdefault(key, []).append(entry)
+
+        for (voice, language, speed), group in groups.items():
+            if on_status is not None:
+                try:
+                    on_status(f"Supertonic batch {len(group)} mondat · {voice}")
+                except Exception:
+                    pass
+            for start in range(0, len(group), size):
+                chunk = group[start:start + size]
+                self._generate_batch(chunk, results, emit)
+
+        missing = [i for i, r in enumerate(results) if r is None]
+        if missing:
+            # Never leave a segment unresolved: redo them one by one.
+            log.warning("Supertonic batch left %d item(s); falling back to serial",
+                        len(missing))
+            for index in missing:
+                entry = pending[next(e["index"] for e in pending if e["index"] == index)]
+                emit(index, self.generate(
+                    entry["text"], instruct=entry["instruct"],
+                    ref_audio=entry["ref_audio"], ref_text=entry["ref_text"],
+                    speed=entry["speed"], language=entry["language"],
+                    normalize_text=entry["normalize"]))
+        return results
+
+    def _generate_batch(self, chunk: list[dict], results, emit) -> None:
+        """Synthesize one group of same-voice items in a single graph call."""
+        voice = chunk[0]["voice"]
+        language = str(chunk[0]["language"] or "").lower()[:2] or "na"
+        speed = chunk[0]["speed"]
+        texts = [entry["prepared"] for entry in chunk]
+        usable = [i for i, text in enumerate(texts) if text]
+        if not usable:
+            for entry in chunk:
+                audio = np.zeros(int(SAMPLE_RATE * 0.2), dtype=np.float32)
+                os.makedirs(AUDIO_CACHE_DIR, exist_ok=True)
+                _write_audio_atomic(entry["path"], audio, SAMPLE_RATE)
+                emit(entry["index"], {
+                    "audio_path": entry["path"],
+                    "duration_sec": len(audio) / SAMPLE_RATE,
+                    "cache_hit": False, "cache_key": entry["key"]})
+            return
+
+        self._generating.set()
+        try:
+            with self._lock:
+                wav, duration = self.model.batch(
+                    [texts[i] for i in usable],
+                    [language] * len(usable),
+                    self._style_batch(voice, len(usable)),
+                    self._steps(), max(0.7, min(1.6, speed)))
+        except Exception as exc:
+            log.warning("Supertonic batch of %d failed (%s); serial fallback",
+                        len(usable), exc)
+            self._generating.clear()
+            for entry in chunk:
+                if results[entry["index"]] is not None:
+                    continue
+                emit(entry["index"], self.generate(
+                    entry["text"], instruct=entry["instruct"],
+                    ref_audio=entry["ref_audio"], ref_text=entry["ref_text"],
+                    speed=entry["speed"], language=entry["language"],
+                    normalize_text=entry["normalize"]))
+            return
+        finally:
+            self._generating.clear()
+
+        sample_rate = int(self.model.sample_rate)
+        wav = np.asarray(wav)
+        durations = np.asarray(duration).reshape(-1)
+        os.makedirs(AUDIO_CACHE_DIR, exist_ok=True)
+        for row, entry_index in enumerate(usable):
+            entry = chunk[entry_index]
+            length = int(sample_rate * float(durations[row]))
+            audio = resample(wav[row, :length].reshape(-1), sample_rate)
+            if audio.size == 0:
+                raise RuntimeError(f"{self.engine_name} returned empty audio")
+            peak = float(np.max(np.abs(audio)))
+            if peak > 1.0:
+                audio = audio / peak * 0.98
+            sentences = max(1, len(split_sentences(entry["prepared"])))
+            limit = max(SILENCE_MIN_SEC, SILENCE_SEC_PER_SENTENCE * sentences)
+            if find_long_silences(audio, sample_rate=SAMPLE_RATE, min_silence_sec=limit):
+                # A broken take is rejected here rather than cached, and only
+                # this one segment is re-done serially.
+                log.warning("Supertonic batch segment %d has a long internal silence; "
+                            "regenerating alone", entry["index"])
+                emit(entry["index"], self.generate(
+                    entry["text"], instruct=entry["instruct"],
+                    ref_audio=entry["ref_audio"], ref_text=entry["ref_text"],
+                    speed=entry["speed"], language=entry["language"],
+                    normalize_text=entry["normalize"]))
+                continue
+            _write_audio_atomic(entry["path"], audio, SAMPLE_RATE)
+            emit(entry["index"], {
+                "audio_path": entry["path"],
+                "duration_sec": len(audio) / SAMPLE_RATE,
+                "cache_hit": False, "cache_key": entry["key"]})
+
     def _synthesize(self, text, instruct, ref_audio, ref_text, speed, language):
         name = choose_preset_voice(instruct, SUPERTONIC_VOICES, self._default_voice())
         lang = str(language or "").lower()[:2] or "na"

@@ -1,0 +1,171 @@
+2026-10-04 07:23:19,523 - 279 - INFO - Input shape info 
+2026-10-04 07:23:37,080 - 284 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Shape Not Supported. Expected operator version: [1, 13, 15], instead got version: [19]
+2026-10-04 07:23:37,080 - 284 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Shape Not Supported. Expected operator version: [1, 13, 15], instead got version: [19]
+2026-10-04 07:23:37,080 - 284 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Shape Not Supported. Expected operator version: [1, 13, 15], instead got version: [19]
+2026-10-04 07:23:37,084 - 284 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Reciprocal Not Supported. Expected operator version: [1, 6], instead got version: [13]
+2026-10-04 07:23:37,092 - 284 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Shape Not Supported. Expected operator version: [1, 13, 15], instead got version: [19]
+2026-10-04 07:23:37,112 - 284 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Shape Not Supported. Expected operator version: [1, 13, 15], instead got version: [19]
+2026-10-04 07:23:37,112 - 284 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Shape Not Supported. Expected operator version: [1, 13, 15], instead got version: [19]
+2026-10-04 07:23:37,125 - 284 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Equal Not Supported. Expected operator version: [1, 7, 11, 13], instead got version: [19]
+2026-10-04 07:23:37,129 - 284 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Equal Not Supported. Expected operator version: [1, 7, 11, 13], instead got version: [19]
+2026-10-04 07:23:37,133 - 284 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Equal Not Supported. Expected operator version: [1, 7, 11, 13], instead got version: [19]
+2026-10-04 07:23:37,133 - 284 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Equal Not Supported. Expected operator version: [1, 7, 11, 13], instead got version: [19]
+2026-10-04 07:23:37,133 - 284 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Shape Not Supported. Expected operator version: [1, 13, 15], instead got version: [19]
+2026-10-04 07:23:37,135 - 284 - WARNING - Only numerical type cast is supported. The cast op: /vector_estimator/vector_field/main_blocks.3/attn/Cast will be interpreted at conversion time
+2026-10-04 07:23:37,135 - 284 - WARNING - Only numerical type cast is supported. The cast op: /vector_estimator/vector_field/main_blocks.3/attn/Cast_1 will be interpreted at conversion time
+2026-10-04 07:23:37,161 - 284 - WARNING - GEMM operation is not supported in the general case, attempting to interpret as FC
+2026-10-04 07:23:37,168 - 284 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Equal Not Supported. Expected operator version: [1, 7, 11, 13], instead got version: [19]
+2026-10-04 07:23:37,217 - 284 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Shape Not Supported. Expected operator version: [1, 13, 15], instead got version: [19]
+2026-10-04 07:23:37,220 - 284 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Shape Not Supported. Expected operator version: [1, 13, 15], instead got version: [19]
+2026-10-04 07:23:37,226 - 284 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Shape Not Supported. Expected operator version: [1, 13, 15], instead got version: [19]
+2026-10-04 07:23:37,229 - 284 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Shape Not Supported. Expected operator version: [1, 13, 15], instead got version: [19]
+2026-10-04 07:23:37,233 - 284 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Shape Not Supported. Expected operator version: [1, 13, 15], instead got version: [19]
+2026-10-04 07:23:37,237 - 284 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Shape Not Supported. Expected operator version: [1, 13, 15], instead got version: [19]
+2026-10-04 07:23:37,242 - 284 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Shape Not Supported. Expected operator version: [1, 13, 15], instead got version: [19]
+2026-10-04 07:23:37,246 - 284 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Shape Not Supported. Expected operator version: [1, 13, 15], instead got version: [19]
+2026-10-04 07:23:37,251 - 284 - WARNING - GEMM operation is not supported in the general case, attempting to interpret as FC
+2026-10-04 07:23:37,485 - 284 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Shape Not Supported. Expected operator version: [1, 13, 15], instead got version: [19]
+2026-10-04 07:23:37,504 - 284 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Shape Not Supported. Expected operator version: [1, 13, 15], instead got version: [19]
+2026-10-04 07:23:37,723 - 284 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Shape Not Supported. Expected operator version: [1, 13, 15], instead got version: [19]
+2026-10-04 07:23:37,764 - 284 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Shape Not Supported. Expected operator version: [1, 13, 15], instead got version: [19]
+2026-10-04 07:23:38,005 - 284 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Shape Not Supported. Expected operator version: [1, 13, 15], instead got version: [19]
+2026-10-04 07:23:38,024 - 284 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Shape Not Supported. Expected operator version: [1, 13, 15], instead got version: [19]
+2026-10-04 07:23:38,244 - 284 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Shape Not Supported. Expected operator version: [1, 13, 15], instead got version: [19]
+2026-10-04 07:23:38,263 - 284 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Shape Not Supported. Expected operator version: [1, 13, 15], instead got version: [19]
+2026-10-04 07:23:38,449 - 284 - WARNING - WARNING_OP_VERSION_NOT_SUPPORTED: Operation Shape Not Supported. Expected operator version: [1, 13, 15], instead got version: [19]
+2026-10-04 07:23:41,360 - 284 - WARNING - Op /vector_estimator/vector_field/main_blocks.1/Add with input_buf axis format NONTRIVIAL and data_axis_format NCF is no need to revert.
+2026-10-04 07:23:41,561 - 284 - WARNING - Op /vector_estimator/vector_field/main_blocks.7/Add with input_buf axis format NONTRIVIAL and data_axis_format NCF is no need to revert.
+2026-10-04 07:23:41,770 - 284 - WARNING - Op /vector_estimator/vector_field/main_blocks.13/Add with input_buf axis format NONTRIVIAL and data_axis_format NCF is no need to revert.
+2026-10-04 07:23:41,982 - 284 - WARNING - Op /vector_estimator/vector_field/main_blocks.19/Add with input_buf axis format NONTRIVIAL and data_axis_format NCF is no need to revert.
+modeltools::IrGraph::reEvalMacsParams: Re-evaluated graph statistics after IrOptimizer optimization passes:
+modeltools::IrGraph::reEvalMacsParams: Total MACs: 3792373513
+modeltools::IrGraph::reEvalMacsParams: Total Params Count: 63837504
+     0.3ms [  INFO ] Inferences will run in sync mode
+Processing inference input(s):
+C:\AI\npu-work\inputs\calib\c0_noisy_latent.raw
+C:\AI\npu-work\inputs\calib\c0_text_emb.raw
+C:\AI\npu-work\inputs\calib\c0_style_ttl.raw
+C:\AI\npu-work\inputs\calib\c0_latent_mask.raw
+C:\AI\npu-work\inputs\calib\c0_text_mask.raw
+C:\AI\npu-work\inputs\calib\c0_current_step.raw
+C:\AI\npu-work\inputs\calib\c0_total_step.raw
+C:\AI\npu-work\inputs\calib\c1_noisy_latent.raw
+C:\AI\npu-work\inputs\calib\c1_text_emb.raw
+C:\AI\npu-work\inputs\calib\c1_style_ttl.raw
+C:\AI\npu-work\inputs\calib\c1_latent_mask.raw
+C:\AI\npu-work\inputs\calib\c1_text_mask.raw
+C:\AI\npu-work\inputs\calib\c1_current_step.raw
+C:\AI\npu-work\inputs\calib\c1_total_step.raw
+C:\AI\npu-work\inputs\calib\c2_noisy_latent.raw
+C:\AI\npu-work\inputs\calib\c2_text_emb.raw
+C:\AI\npu-work\inputs\calib\c2_style_ttl.raw
+C:\AI\npu-work\inputs\calib\c2_latent_mask.raw
+C:\AI\npu-work\inputs\calib\c2_text_mask.raw
+C:\AI\npu-work\inputs\calib\c2_current_step.raw
+C:\AI\npu-work\inputs\calib\c2_total_step.raw
+C:\AI\npu-work\inputs\calib\c3_noisy_latent.raw
+C:\AI\npu-work\inputs\calib\c3_text_emb.raw
+C:\AI\npu-work\inputs\calib\c3_style_ttl.raw
+C:\AI\npu-work\inputs\calib\c3_latent_mask.raw
+C:\AI\npu-work\inputs\calib\c3_text_mask.raw
+C:\AI\npu-work\inputs\calib\c3_current_step.raw
+C:\AI\npu-work\inputs\calib\c3_total_step.raw
+C:\AI\npu-work\inputs\calib\c4_noisy_latent.raw
+C:\AI\npu-work\inputs\calib\c4_text_emb.raw
+C:\AI\npu-work\inputs\calib\c4_style_ttl.raw
+C:\AI\npu-work\inputs\calib\c4_latent_mask.raw
+C:\AI\npu-work\inputs\calib\c4_text_mask.raw
+C:\AI\npu-work\inputs\calib\c4_current_step.raw
+C:\AI\npu-work\inputs\calib\c4_total_step.raw
+C:\AI\npu-work\inputs\calib\c5_noisy_latent.raw
+C:\AI\npu-work\inputs\calib\c5_text_emb.raw
+C:\AI\npu-work\inputs\calib\c5_style_ttl.raw
+C:\AI\npu-work\inputs\calib\c5_latent_mask.raw
+C:\AI\npu-work\inputs\calib\c5_text_mask.raw
+C:\AI\npu-work\inputs\calib\c5_current_step.raw
+C:\AI\npu-work\inputs\calib\c5_total_step.raw
+C:\AI\npu-work\inputs\calib\c6_noisy_latent.raw
+C:\AI\npu-work\inputs\calib\c6_text_emb.raw
+C:\AI\npu-work\inputs\calib\c6_style_ttl.raw
+C:\AI\npu-work\inputs\calib\c6_latent_mask.raw
+C:\AI\npu-work\inputs\calib\c6_text_mask.raw
+C:\AI\npu-work\inputs\calib\c6_current_step.raw
+C:\AI\npu-work\inputs\calib\c6_total_step.raw
+C:\AI\npu-work\inputs\calib\c7_noisy_latent.raw
+C:\AI\npu-work\inputs\calib\c7_text_emb.raw
+C:\AI\npu-work\inputs\calib\c7_style_ttl.raw
+C:\AI\npu-work\inputs\calib\c7_latent_mask.raw
+C:\AI\npu-work\inputs\calib\c7_text_mask.raw
+C:\AI\npu-work\inputs\calib\c7_current_step.raw
+C:\AI\npu-work\inputs\calib\c7_total_step.raw
+     1.0ms [  INFO ] No BackendExtensions lib provided;initializing NetRunBackend Interface
+     1.0ms [  INFO ] WindowsFileIO callback: WindowsFileIO
+     5.6ms [  INFO ] Initialized WindowsFileIO callback
+     5.1ms [  INFO ] [QNN_CPU] CpuBackend creation start
+     5.2ms [  INFO ] [QNN_CPU] CpuBackend creation end
+     6.1ms [WARNING] Unable to find a device with NetRunDeviceKeyDefault in Library NetRunBackendLibKeyDefault
+     6.1ms [WARNING] Profile Logger with name = defaultKey doesn't exist! Returning nullptr
+     5.2ms [  INFO ] [QNN_CPU] QnnContext create start
+     5.2ms [  INFO ] [QNN_CPU] QnnContext create end
+     6.5ms [  INFO ] Entering QuantizeRuntimeApp flow
+     6.5ms [WARNING] Profile Logger with name = defaultKey doesn't exist! Returning nullptr
+     7.0ms [  INFO ] [QNN_CPU] CpuGraph creation start
+     7.0ms [  INFO ] [QNN_CPU] CpuGraph creation end
+     7.1ms [  INFO ] [QNN_CPU] QnnGraph create end
+     3.2ms [WARNING] Output[0] has Datatype 0x232.
+
+     3.3ms [WARNING] Output[0] has Datatype 0x232.
+
+     3.3ms [WARNING] Output[0] has Datatype 0x232.
+
+     3.3ms [WARNING] Output[0] has Datatype 0x232.
+
+   584.4ms [  INFO ] [QNN_CPU] QnnGraph finalize start
+   596.5ms [  INFO ] [QNN_CPU] QnnGraph finalize end
+   597.7ms [  INFO ] [QNN_CPU] QnnGraph execute start
+   955.3ms [  INFO ] [QNN_CPU] QnnGraph execute end
+   949.9ms [  INFO ] cleaning up resources for input tensors
+   949.9ms [  INFO ] cleaning up resources for output tensors
+   956.2ms [  INFO ] [QNN_CPU] QnnGraph execute start
+  1308.1ms [  INFO ] [QNN_CPU] QnnGraph execute end
+  1302.6ms [  INFO ] cleaning up resources for input tensors
+  1302.6ms [  INFO ] cleaning up resources for output tensors
+  1309.1ms [  INFO ] [QNN_CPU] QnnGraph execute start
+  1660.3ms [  INFO ] [QNN_CPU] QnnGraph execute end
+  1654.8ms [  INFO ] cleaning up resources for input tensors
+  1654.8ms [  INFO ] cleaning up resources for output tensors
+  1661.2ms [  INFO ] [QNN_CPU] QnnGraph execute start
+  2009.8ms [  INFO ] [QNN_CPU] QnnGraph execute end
+  2004.3ms [  INFO ] cleaning up resources for input tensors
+  2004.3ms [  INFO ] cleaning up resources for output tensors
+  2010.7ms [  INFO ] [QNN_CPU] QnnGraph execute start
+  2358.8ms [  INFO ] [QNN_CPU] QnnGraph execute end
+  2353.3ms [  INFO ] cleaning up resources for input tensors
+  2353.3ms [  INFO ] cleaning up resources for output tensors
+  2359.7ms [  INFO ] [QNN_CPU] QnnGraph execute start
+  2710.8ms [  INFO ] [QNN_CPU] QnnGraph execute end
+  2705.3ms [  INFO ] cleaning up resources for input tensors
+  2705.3ms [  INFO ] cleaning up resources for output tensors
+  2711.6ms [  INFO ] [QNN_CPU] QnnGraph execute start
+  3061.3ms [  INFO ] [QNN_CPU] QnnGraph execute end
+  3055.8ms [  INFO ] cleaning up resources for input tensors
+  3055.8ms [  INFO ] cleaning up resources for output tensors
+  3062.1ms [  INFO ] [QNN_CPU] QnnGraph execute start
+  3411.6ms [  INFO ] [QNN_CPU] QnnGraph execute end
+  3406.1ms [  INFO ] cleaning up resources for input tensors
+  3406.1ms [  INFO ] cleaning up resources for output tensors
+modeltools::IrGraph::reEvalMacsParams: Re-evaluated graph statistics after IrOptimizer optimization passes:
+modeltools::IrGraph::reEvalMacsParams: Total MACs: 3792373513
+modeltools::IrGraph::reEvalMacsParams: Total Params Count: 63837504
+2026-10-04 07:23:49,478 - 279 - INFO - Saving QNN Model...
+2026-10-04 07:23:49,645 - 279 - INFO - Model CPP saved at: C:/AI/npu-work/ve245_int8.dlc 
+2026-10-04 07:23:49,647 - 279 - INFO - Model BIN saved at: C:\AI\npu-work\ve245_int8.bin 
+2026-10-04 07:23:49,704 - 279 - INFO - Conversion complete!
+  3640.1ms [  INFO ] Freeing graphsInfo
+  3640.1ms [WARNING] Profile Logger with name = defaultKey doesn't exist! Returning nullptr
+  3645.7ms [  INFO ] [QNN_CPU] QnnContext Free start
+  3687.1ms [  INFO ] [QNN_CPU] QnnContext Free end
+  3682.1ms [WARNING] Profile Logger with name = defaultKey doesn't exist!
+  3687.8ms [  INFO ] [QNN_CPU] QnnBackend Free start
+  3687.8ms [  INFO ] [QNN_CPU] QnnBackend Free end
+  3682.2ms [  INFO ] WindowsFileIO callback: ~WindowsFileIO

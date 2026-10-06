@@ -1,0 +1,9 @@
+qnn-net-run pid:22840
+qnn-net-run build version: v2.45.40.260406130939
+qnn-net-run log level is : QNN_LOG_LEVEL_ERROR
+Processing inference input(s):
+C:\AI
+pu-work	iny	iny_x.raw
+    17.3ms [ ERROR ] Failed to create dlc handle with code 1002 for dlc file at C:\AI\npu-work\tiny\tiny245.dlc.
+Check executable cache failure
+EXITCODE=28

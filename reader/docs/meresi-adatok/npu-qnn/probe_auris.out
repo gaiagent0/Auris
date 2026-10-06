@@ -1,0 +1,9 @@
+== NPU/HTP diagnosztika ==
+
+[OK ] NPU illesztoprogram: Snapdragon(R) X Elite - X1E78100 - Qualcomm(R) Hexagon(TM) NPU (driver 30.0.220.3000)
+[OK ] libcdsprpc.dll: driver store-bol betoltheto, de NINCS a betoltesi utvonalon
+[HIBA] onnxruntime_qnn nincs telepitve: No module named 'onnxruntime_qnn'
+
+== osszegzes ==
+NPU-n fut-e a QNN EP: NEM
+A gyorsitas merese addig nem lehet hiteles, amíg ez nincs IGEN.

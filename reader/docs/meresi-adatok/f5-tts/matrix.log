@@ -1,0 +1,96 @@
+torch 2.14.1+cpu | szálak 12
+torchaudio 2.11.0+cpu
+C:\AI\clone-probe\venv\Lib\site-packages\torch\jit\_script.py:1491: FutureWarning: `torch.jit.script` is deprecated. Please switch to `torch.compile` or `torch.export`.
+  warnings.warn(
+Download Vocos from huggingface charactr/vocos-mel-24khz
+
+vocab :  C:\AI\models\hf_cache\hub\models--sarpba--F5-TTS_V1_hun_v2\snapshots\55d37afb8111a0dfa30e8fa279dd7942fd2a9d0f\vocab.txt
+token :  custom
+model :  C:\AI\models\hf_cache\hub\models--sarpba--F5-TTS_V1_hun_v2\snapshots\55d37afb8111a0dfa30e8fa279dd7942fd2a9d0f\model_309300.safetensors 
+
+modell betöltve 3.5 s
+ref F1: 5.30 s @ 24000 Hz
+
+ref_text   Az öreg kőház udvarán csendesen gólyák bújtak a nádasban. 
+gen_text 0 A tengerparton reggel még köd lebegett a fák között.
+
+
+[F1 nfe=32 #1]  3.45 s hang /  82.11 s -> RTF 0.0420 | peak 0.592 rms 0.0673 nan=False
+
+ref_text   Az öreg kőház udvarán csendesen gólyák bújtak a nádasban. 
+gen_text 0 Ebben a könyvben egy magyar nyelvű mesét találhatsz.
+
+
+[F1 nfe=32 #2]  3.38 s hang /  81.40 s -> RTF 0.0415 | peak 0.477 rms 0.0727 nan=False
+
+ref_text   Az öreg kőház udvarán csendesen gólyák bújtak a nádasban. 
+gen_text 0 A tengerparton reggel még köd lebegett a fák között.
+
+
+[F1 nfe=16 #1]  3.45 s hang /  58.29 s -> RTF 0.0591 | peak 0.468 rms 0.0571 nan=False
+
+ref_text   Az öreg kőház udvarán csendesen gólyák bújtak a nádasban. 
+gen_text 0 Ebben a könyvben egy magyar nyelvű mesét találhatsz.
+
+
+[F1 nfe=16 #2]  3.38 s hang /  52.71 s -> RTF 0.0642 | peak 0.373 rms 0.0691 nan=False
+
+ref_text   Az öreg kőház udvarán csendesen gólyák bújtak a nádasban. 
+gen_text 0 A tengerparton reggel még köd lebegett a fák között.
+
+
+[F1 nfe= 8 #1]  3.45 s hang /  25.83 s -> RTF 0.1334 | peak 0.589 rms 0.0605 nan=False
+
+ref_text   Az öreg kőház udvarán csendesen gólyák bújtak a nádasban. 
+gen_text 0 Ebben a könyvben egy magyar nyelvű mesét találhatsz.
+
+
+[F1 nfe= 8 #2]  3.38 s hang /  25.25 s -> RTF 0.1339 | peak 0.406 rms 0.0672 nan=False
+ref M3: 4.54 s @ 24000 Hz
+
+ref_text   Az öreg kőház udvarán csendesen gólyák bújtak a nádasban. 
+gen_text 0 A tengerparton reggel még köd lebegett a fák között.
+
+
+[M3 nfe=32 #1]  3.04 s hang /  85.18 s -> RTF 0.0357 | peak 0.596 rms 0.0736 nan=False
+
+ref_text   Az öreg kőház udvarán csendesen gólyák bújtak a nádasban. 
+gen_text 0 Ebben a könyvben egy magyar nyelvű mesét találhatsz.
+
+
+[M3 nfe=32 #2]  2.99 s hang /  82.43 s -> RTF 0.0362 | peak 0.453 rms 0.0832 nan=False
+
+ref_text   Az öreg kőház udvarán csendesen gólyák bújtak a nádasban. 
+gen_text 0 A tengerparton reggel még köd lebegett a fák között.
+
+
+[M3 nfe=16 #1]  3.04 s hang /  41.71 s -> RTF 0.0729 | peak 0.599 rms 0.0748 nan=False
+
+ref_text   Az öreg kőház udvarán csendesen gólyák bújtak a nádasban. 
+gen_text 0 Ebben a könyvben egy magyar nyelvű mesét találhatsz.
+
+
+[M3 nfe=16 #2]  2.99 s hang /  40.41 s -> RTF 0.0739 | peak 0.446 rms 0.0791 nan=False
+
+ref_text   Az öreg kőház udvarán csendesen gólyák bújtak a nádasban. 
+gen_text 0 A tengerparton reggel még köd lebegett a fák között.
+
+
+[M3 nfe= 8 #1]  3.04 s hang /  19.11 s -> RTF 0.1591 | peak 0.511 rms 0.0711 nan=False
+
+ref_text   Az öreg kőház udvarán csendesen gólyák bújtak a nádasban. 
+gen_text 0 Ebben a könyvben egy magyar nyelvű mesét találhatsz.
+
+
+[M3 nfe= 8 #2]  2.99 s hang /  19.48 s -> RTF 0.1533 | peak 0.450 rms 0.0657 nan=False
+
+=== hang x nfe_step összesítés (RTF, magasabb = gyorsabb) ===
+F1 nfe=32: RTF 0.0418  (163.5 s / 6.83 s hang)
+F1 nfe=16: RTF 0.0615  (111.0 s / 6.83 s hang)
+F1 nfe= 8: RTF 0.1336  (51.1 s / 6.83 s hang)
+M3 nfe=32: RTF 0.0360  (167.6 s / 6.03 s hang)
+M3 nfe=16: RTF 0.0734  (82.1 s / 6.03 s hang)
+M3 nfe= 8: RTF 0.1562  (38.6 s / 6.03 s hang)
+
+1 óra hangra (nfe=32, F1): 2.5 perc
+EXIT=0

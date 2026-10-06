@@ -48,7 +48,8 @@ def save_settings():
         'subtitle_format', 'theme', 'font_size', 'font_family', 'line_height',
         'normalize_text', 'tts_num_step', 'tts_batch_size', 'tts_coalesce_chars',
         'audio_mastering', 'voice_design_anchor',
-        'piper_voice', 'supertonic_voice', 'supertonic_steps', 'supertonic_variant',
+        'piper_voice', 'supertonic_voice', 'supertonic_steps', 'supertonic_batch',
+        'supertonic_variant',
         'moss_seed', 'moss_temperature', 'moss_top_p', 'moss_top_k',
         'trim_segment_silence', 'export_room_tone',
         'narrator_credit', 'export_intro_template', 'export_outro_template',
@@ -160,7 +161,8 @@ def save_settings():
     for key, low, high, cast in (
         ('qa_cer_warn', 0.0, 1.0, float), ('qa_cer_fail', 0.01, 1.0, float),
         ('qa_max_takes', 0, 8, int),
-        ('supertonic_steps', 4, 32, int), ('moss_seed', -1, 2**31 - 1, int),
+        ('supertonic_steps', 4, 32, int), ('supertonic_batch', 1, 6, int),
+        ('moss_seed', -1, 2**31 - 1, int),
         ('moss_temperature', 0.1, 3.0, float), ('moss_top_p', 0.05, 1.0, float),
         ('moss_top_k', 1, 200, int),
     ):

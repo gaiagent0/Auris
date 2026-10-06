@@ -1,0 +1,36 @@
+python 3.12.10 | ARM64 | proc: ARMv8 (64-bit) Family 8 Model 1 Revision
+torch 2.14.1+cpu | szálak 12
+torchaudio -> 2.10.0+auris-compat
+C:\AI\clone-probe\venv-arm64\Lib\site-packages\torch\jit\_script.py:1491: FutureWarning: `torch.jit.script` is deprecated. Please switch to `torch.compile` or `torch.export`.
+  warnings.warn(
+Download Vocos from huggingface charactr/vocos-mel-24khz
+
+vocab :  C:\AI\models\hf_cache\hub\models--sarpba--F5-TTS_V1_hun_v2\snapshots\55d37afb8111a0dfa30e8fa279dd7942fd2a9d0f\vocab.txt
+token :  custom
+model :  C:\AI\models\hf_cache\hub\models--sarpba--F5-TTS_V1_hun_v2\snapshots\55d37afb8111a0dfa30e8fa279dd7942fd2a9d0f\model_309300.safetensors 
+
+modell betöltve 2.6 s
+ref F1: 5.30 s @ 24000 Hz
+
+ref_text   Az öreg kőház udvarán csendesen gólyák bújtak a nádasban. 
+gen_text 0 A tengerparton reggel még köd lebegett a fák között.
+
+
+[F1 nfe=32 #1]  3.45 s hang / 212.26 s -> RTF 0.0162 nan=False
+
+ref_text   Az öreg kőház udvarán csendesen gólyák bújtak a nádasban. 
+gen_text 0 Ebben a könyvben egy magyar nyelvű mesét találhatsz.
+
+
+[F1 nfe=32 #2]  3.38 s hang / 207.03 s -> RTF 0.0163 nan=False
+
+ref_text   Az öreg kőház udvarán csendesen gólyák bújtak a nádasban. 
+gen_text 0 A tengerparton reggel még köd lebegett a fák között.
+
+
+[F1 nfe= 8 #1]  3.45 s hang /  53.13 s -> RTF 0.0649 nan=False
+
+ref_text   Az öreg kőház udvarán csendesen gólyák bújtak a nádasban. 
+gen_text 0 Ebben a könyvben egy magyar nyelvű mesét találhatsz.
+
+

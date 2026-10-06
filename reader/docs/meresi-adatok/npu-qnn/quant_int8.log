@@ -1,0 +1,8 @@
+2026-10-04 07:08:09,150 - 273 - ERROR - Encountered Error: Failed to deserialize the network from 'C:/AI/npu-work/vector_estimator.dlc'.
+Traceback (most recent call last):
+  File "C:\Qualcomm\AIStack\QAIRT\2.50.40.260831/bin/arm64x-windows-msvc/qairt-quantizer", line 62, in main
+    dlc_quantizer = DLCQuantizer(input_dlc=args_dict['input_dlc'],
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Qualcomm\AIStack\QAIRT\2.50.40.260831\lib\python\qti\aisw\converters\common\dlc_quantizer.py", line 473, in __init__
+    raise Exception("Failed to deserialize the network from '{}'.".format(input_dlc))
+Exception: Failed to deserialize the network from 'C:/AI/npu-work/vector_estimator.dlc'.

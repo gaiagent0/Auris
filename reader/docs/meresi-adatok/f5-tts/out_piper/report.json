@@ -1,0 +1,62 @@
+[
+ {
+  "voice": "anna",
+  "case": 1,
+  "text": "A tengerparton reggel még köd lebegett a fák között.",
+  "wall_s": 0.159,
+  "audio_s": 3.17,
+  "speed_x": 19.923,
+  "sample_rate": 22050,
+  "wav": "C:\\AI\\clone-probe\\out_piper\\anna_01.wav"
+ },
+ {
+  "voice": "anna",
+  "case": 2,
+  "text": "Ebben a könyvben egy magyar nyelvű mesét találhatsz.",
+  "wall_s": 0.115,
+  "audio_s": 3.239,
+  "speed_x": 28.131,
+  "sample_rate": 22050,
+  "wav": "C:\\AI\\clone-probe\\out_piper\\anna_02.wav"
+ },
+ {
+  "voice": "berta",
+  "case": 1,
+  "text": "A tengerparton reggel még köd lebegett a fák között.",
+  "wall_s": 0.099,
+  "audio_s": 2.612,
+  "speed_x": 26.392,
+  "sample_rate": 22050,
+  "wav": "C:\\AI\\clone-probe\\out_piper\\berta_01.wav"
+ },
+ {
+  "voice": "berta",
+  "case": 2,
+  "text": "Ebben a könyvben egy magyar nyelvű mesét találhatsz.",
+  "wall_s": 0.094,
+  "audio_s": 2.995,
+  "speed_x": 31.989,
+  "sample_rate": 22050,
+  "wav": "C:\\AI\\clone-probe\\out_piper\\berta_02.wav"
+ },
+ {
+  "voice": "imre",
+  "case": 1,
+  "text": "A tengerparton reggel még köd lebegett a fák között.",
+  "wall_s": 0.11,
+  "audio_s": 3.146,
+  "speed_x": 28.572,
+  "sample_rate": 22050,
+  "wav": "C:\\AI\\clone-probe\\out_piper\\imre_01.wav"
+ },
+ {
+  "voice": "imre",
+  "case": 2,
+  "text": "Ebben a könyvben egy magyar nyelvű mesét találhatsz.",
+  "wall_s": 0.098,
+  "audio_s": 2.961,
+  "speed_x": 30.143,
+  "sample_rate": 22050,
+  "wav": "C:\\AI\\clone-probe\\out_piper\\imre_02.wav"
+ }
+]

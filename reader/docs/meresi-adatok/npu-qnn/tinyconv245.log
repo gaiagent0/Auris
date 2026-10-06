@@ -1,0 +1,9 @@
+2026-10-04 07:24:19,708 - 279 - INFO - Input shape info 
+modeltools::IrGraph::reEvalMacsParams: Re-evaluated graph statistics after IrOptimizer optimization passes:
+modeltools::IrGraph::reEvalMacsParams: Total MACs: 4718592
+modeltools::IrGraph::reEvalMacsParams: Total Params Count: 4640
+2026-10-04 07:24:31,790 - 279 - INFO - Skipping quantization, no input_list provided
+2026-10-04 07:24:31,790 - 279 - INFO - Saving QNN Model...
+2026-10-04 07:24:31,790 - 279 - INFO - Model CPP saved at: tiny/tiny245.dlc 
+2026-10-04 07:24:31,790 - 279 - INFO - Model BIN saved at: C:\AI\npu-work\tiny\tiny245.bin 
+2026-10-04 07:24:31,793 - 279 - INFO - Conversion complete!

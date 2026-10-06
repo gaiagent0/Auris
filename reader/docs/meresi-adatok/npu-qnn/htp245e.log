@@ -1,0 +1,18 @@
+qnn-net-run pid:29168
+qnn-net-run build version: v2.45.40.260406130939
+qnn-net-run log level is : QNN_LOG_LEVEL_ERROR
+DSP_INFO UNSUPPORTED_KEY: 49
+DSP_INFO UNSUPPORTED_KEY: 50
+ <W> Initializing HtpProvider
+Processing inference input(s):
+C:\AI\npu-work\inputs\s0_noisy_latent.raw
+C:\AI\npu-work\inputs\s0_text_emb.raw
+C:\AI\npu-work\inputs\s0_style_ttl.raw
+C:\AI\npu-work\inputs\s0_latent_mask.raw
+C:\AI\npu-work\inputs\s0_text_mask.raw
+C:\AI\npu-work\inputs\s0_current_step.raw
+C:\AI\npu-work\inputs\s0_total_step.raw
+    35.8ms [ ERROR ] Failed to create dlc handle with code 1002 for dlc file at C:\AI\npu-work\ve245_int8.dlc.
+Check executable cache failure
+ <W> Destroying graph env with 1 registered graph envs
+EXITCODE=28

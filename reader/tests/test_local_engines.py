@@ -121,5 +121,67 @@ class RouterTest(unittest.TestCase):
             self.assertEqual(tts_router.selected_engine_name(), "supertonic")
 
 
+class SupertonicBatchTest(unittest.TestCase):
+    """The batched generate_many path, without loading the 380 MB model."""
+
+    class _FakeSupertonic(le.SupertonicEngine):
+        def __init__(self):
+            # Bypass SupertonicEngine.__init__ so no model is touched.
+            le.LocalEngineBase.__init__(self)
+            self.batch_calls = []
+            self.serial_calls = []
+
+        def _load_model(self):  # pragma: no cover - never called here
+            self.model = object()
+
+        def _default_voice(self):
+            return "F1"
+
+        def _generate_batch(self, chunk, results, emit):  # pragma: no cover - replaced
+            raise AssertionError("the serial path should have been used")
+
+    def _engine(self, batch_setting):
+        engine = self._FakeSupertonic()
+        engine._ready = True
+        self._patch = patch("core.local_engines._setting",
+                            side_effect=lambda key, default=None: (
+                                batch_setting if key == "supertonic_batch" else default))
+        self._patch.start()
+        self.addCleanup(self._patch.stop)
+        return engine
+
+    def test_batch_size_falls_back_to_the_default_and_is_clamped(self):
+        engine = self._engine(None)
+        self.assertEqual(engine._batch_size(None), 4)
+        self.assertEqual(engine._batch_size(0), 1)
+        self.assertEqual(engine._batch_size(99), 6)
+
+    def test_batch_size_of_one_uses_the_serial_path(self):
+        engine = self._engine(1)
+        engine.generate = lambda *a, **kw: {"audio_path": "x", "duration_sec": 1.0}
+        items = [{"text": "Egy.", "language": "hu"}, {"text": "Ketto.", "language": "hu"}]
+        self.assertEqual(len(engine.generate_many(items)), 2)
+
+    def test_style_batch_repeats_a_cached_style(self):
+        engine = self._FakeSupertonic()
+
+        class _Style:
+            def __init__(self, ttl, dp):
+                self.ttl = ttl
+                self.dp = dp
+
+        class _Helper:
+            Style = _Style
+
+        engine._helper = _Helper()
+        engine._styles = {"F1": _Style(
+            np.zeros((1, 50, 256), dtype=np.float32),
+            np.zeros((1, 8, 16), dtype=np.float32))}
+        batched = engine._style_batch("F1", 4)
+        self.assertEqual(batched.ttl.shape, (4, 50, 256))
+        self.assertEqual(batched.dp.shape, (4, 8, 16))
+        self.assertIs(engine._style_batch("F1", 1), engine._styles["F1"])
+
+
 if __name__ == "__main__":
     unittest.main()

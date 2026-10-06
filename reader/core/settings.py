@@ -151,6 +151,10 @@ DEFAULTS: dict = {
     'piper_voice': 'anna',
     'supertonic_voice': 'F1',
     'supertonic_steps': 10,
+    # Sentences per graph call. The denoising loop is batch 1 work in the
+    # vendored helper, so grouping same-voice segments roughly halves the real
+    # time factor on the Snapdragon X Elite. 1 restores the serial path.
+    'supertonic_batch': 4,
     'moss_seed': 1234,
     'moss_temperature': 1.7,
     'moss_top_p': 0.8,

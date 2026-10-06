@@ -1,0 +1,77 @@
+{
+  "npu_driver": {
+    "ok": true,
+    "detail": "Snapdragon(R) X Elite - X1E78100 - Qualcomm(R) Hexagon(TM) NPU (driver 30.0.220.3000)"
+  },
+  "libcdsprpc": {
+    "ok": true,
+    "detail": "driver store-bol betoltheto, de NINCS a betoltesi utvonalon"
+  },
+  "qnn_ep": {
+    "ok": false,
+    "listed_providers": [
+      "QNNExecutionProvider",
+      "CPUExecutionProvider"
+    ],
+    "qnn_nodes": 0,
+    "cpu_nodes": 1
+  },
+  "cpu_baseline": [
+    {
+      "model": "fp32",
+      "batch": 1,
+      "threads": 1,
+      "min_ms": 225.41,
+      "median_ms": 226.97
+    },
+    {
+      "model": "fp32",
+      "batch": 1,
+      "threads": 12,
+      "min_ms": 106.76,
+      "median_ms": 112.09
+    },
+    {
+      "model": "fp32",
+      "batch": 4,
+      "threads": 1,
+      "min_ms": 835.1,
+      "median_ms": 836.14
+    },
+    {
+      "model": "fp32",
+      "batch": 4,
+      "threads": 12,
+      "min_ms": 182.79,
+      "median_ms": 262.91
+    },
+    {
+      "model": "int8",
+      "batch": 1,
+      "threads": 1,
+      "min_ms": 198.39,
+      "median_ms": 202.78
+    },
+    {
+      "model": "int8",
+      "batch": 1,
+      "threads": 12,
+      "min_ms": 108.33,
+      "median_ms": 133.15
+    },
+    {
+      "model": "int8",
+      "batch": 4,
+      "threads": 1,
+      "min_ms": 774.38,
+      "median_ms": 780.76
+    },
+    {
+      "model": "int8",
+      "batch": 4,
+      "threads": 12,
+      "min_ms": 202.99,
+      "median_ms": 250.24
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+07:24:11.52000 [INFO:DEBUGLOG] (<?>:0) Logging started.
+07:24:11.82000 [USER_ERROR:DL_CONTAINER] error code = 310; Failed to initialize the DLC reader
+07:24:11.82000 [ERROR:HTP_OFFLINE_PREPARE] (<?>:0) Couldn't open DLC file: C:/AI/npu-work/ve245_int8.dlc
+07:24:11.82000 [ERROR:HTP_OFFLINE_PREPARE] (<?>:0) SNPE HTP Offline Prepare: Cannot process HTP metadata for file C:/AI/npu-work/ve245_int8.dlc
+07:24:11.83000 [ERROR:HTP_OFFLINE_PREPARE] (<?>:0) SNPE HTP Offline Prepare: Htp Offline Prepare Initialization failed.
+error_code=310; error_message=Dlc read failure. Failed to initialize the DLC reader; error_component=Dl Container; line_no=101; thread_id=19532
