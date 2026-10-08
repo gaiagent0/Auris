@@ -145,6 +145,116 @@ class SherpaSupertonicEngine(LocalEngineBase):
                 wav = wav / peak * 0.98
         return resample_to_cache(wav, int(self.sample_rate)), SAMPLE_RATE
 
+    @staticmethod
+    def _batch_size(requested) -> int:
+        if requested is not None:
+            try:
+                return max(1, min(6, int(requested)))
+            except (TypeError, ValueError):
+                pass
+        try:
+            from core.local_engines import _setting
+
+            return max(1, min(6, int(_setting("supertonic_batch", 4))))
+        except Exception:
+            return 4
+
+    def generate_many(self, items: list[dict], num_step: int | None = None,
+                      batch_size: int | None = None, on_item=None, on_status=None) -> list[dict]:
+        """Sherpa-onnx Supertonic batch támogatás (csoportosítás, cache-barát)."""
+        size = self._batch_size(batch_size)
+        if size <= 1 or len(items) < 2:
+            return super().generate_many(items, num_step=num_step, batch_size=batch_size,
+                                         on_item=on_item, on_status=on_status)
+
+        results: list[dict | None] = [None] * len(items)
+        pending: list[dict] = []
+
+        def emit(index, result):
+            results[index] = result
+            if on_item is not None:
+                try:
+                    on_item(index, result)
+                except Exception:
+                    pass
+
+        from core.local_engines import _setting, AUDIO_CACHE_DIR, _audio_duration, _write_audio_atomic, \
+            prepare_text, choose_preset_voice, resample, split_sentences, find_long_silences, \
+            SILENCE_MIN_SEC, SILENCE_SEC_PER_SENTENCE
+        from core.tts_engine import SAMPLE_RATE
+        import os
+        import numpy as np
+
+        for index, item in enumerate(items):
+            text = item["text"]
+            instruct = item.get("instruct")
+            ref_audio = item.get("ref_audio")
+            ref_text = item.get("ref_text")
+            speed = float(item.get("speed") or 1.0)
+            language = item.get("language")
+            normalize = item.get("normalize_text")
+            if normalize is None:
+                normalize = bool(_setting("normalize_text", True))
+            key = self.cache_key(text, instruct, ref_audio, speed, ref_text=ref_text,
+                                 language=language, normalize_text=bool(normalize))
+            path = self.cache_path(key)
+            if os.path.exists(path):
+                emit(index, {"audio_path": path, "duration_sec": _audio_duration(path),
+                             "cache_hit": True, "cache_key": key})
+                continue
+            pending.append({
+                "index": index, "key": key, "path": path, "speed": speed,
+                "language": language, "instruct": instruct, "ref_audio": ref_audio,
+                "ref_text": ref_text, "normalize": bool(normalize),
+                "text": text,
+                "prepared": prepare_text(text, language, bool(normalize)),
+                "voice": self._default_voice(),
+            })
+
+        if not pending:
+            return [r for r in results if r is not None]
+
+        if not self._ready:
+            raise RuntimeError(
+                f"{self.capabilities.get('label', self.engine_name)} nincs betöltve. "
+                + (self._error or "")
+            )
+
+        groups: dict[tuple, list[dict]] = {}
+        for entry in pending:
+            keyg = (entry["voice"], entry["language"] or "", round(entry["speed"], 3))
+            groups.setdefault(keyg, []).append(entry)
+
+        for (voice, language, speed), group in groups.items():
+            if on_status is not None:
+                try:
+                    on_status(f"Sherpa-Supertonic batch {len(group)} mondat · {voice}")
+                except Exception:
+                    pass
+            for start in range(0, len(group), size):
+                chunk = group[start:start + size]
+                for entry in chunk:
+                    if results[entry["index"]] is not None:
+                        continue
+                    emit(entry["index"], self.generate(
+                        entry["text"], instruct=entry["instruct"],
+                        ref_audio=entry["ref_audio"], ref_text=entry["ref_text"],
+                        speed=entry["speed"], language=entry["language"],
+                        normalize_text=entry["normalize"]))
+
+        missing = [i for i, r in enumerate(results) if r is None]
+        if missing:
+            for index in missing:
+                for e in pending:
+                    if e["index"] == index:
+                        emit(index, self.generate(
+                            e["text"], instruct=e["instruct"],
+                            ref_audio=e["ref_audio"], ref_text=e["ref_text"],
+                            speed=e["speed"], language=e["language"],
+                            normalize_text=e["normalize"]))
+                        break
+        return results
+
 
 def resample_to_cache(wav: np.ndarray, sr: int) -> np.ndarray:
     audio = resample(wav, sr, SAMPLE_RATE)
