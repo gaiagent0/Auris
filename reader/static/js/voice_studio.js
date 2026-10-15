@@ -937,11 +937,12 @@ function referenceSectionHtml(character) {
     <textarea id="ref-text-${id}" class="reference-text" rows="3" placeholder="Pontosan azt írd ide, ami a hangfelvételen elhangzik.">${esc(character.ref_text)}</textarea>
     <div class="reference-actions">
       <label class="btn btn-sm btn-ghost file-picker"><span>Átirat betöltése TXT-ből</span><input type="file" accept=".txt,text/plain" data-file-action="ref-text"></label>
-      <label class="btn btn-sm btn-primary file-picker"><span>Referencia WAV kiválasztása</span><input type="file" accept=".wav,audio/wav" data-file-action="ref-audio"></label>
+      <label class="btn btn-sm btn-primary file-picker"><span>Referenciahang kiválasztása</span><input type="file" accept=".wav,audio/*" data-file-action="ref-audio"></label>
       <button type="button" class="btn btn-sm btn-ghost" data-action="record" aria-expanded="false" aria-controls="rec-${id}">${icon("mic")}<span>Felvétel mikrofonnal</span></button>
       <button id="remove-ref-${id}" class="btn btn-sm btn-ghost" type="button" data-action="remove-ref"${hasRef ? "" : " disabled"}>Referencia törlése</button>
     </div>
     <div class="recorder" id="rec-${id}" hidden></div>
+    <label class="reference-clean"><input type="checkbox" id="ref-sample-${id}" checked> A feltöltésből a legjobb klónozási szakaszt válaszd ki</label>
     <label class="reference-clean"><input type="checkbox" id="ref-clean-${id}" checked> Zajszűrés, csendvágás és hangerő-kiegyenlítés feltöltéskor</label>
     <p class="studio-note">Tiszta, egyetlen beszélőt tartalmazó, 3–10 másodperces magyar felvétel ajánlott.</p>
   </section>`;
@@ -994,12 +995,27 @@ function applyUploadedReference(refKey, data) {
   refreshCardSource(refKey);
 }
 
+/** A mintavételező jelentésének egy mondatos összefoglalója a visszajelzéshez. */
+function sampleNotice(data) {
+  const sample = data && data.sample;
+  if (!sample || !sample.sampled) return "";
+  const num = (value) => Number(value).toFixed(1).replace(".", ",");
+  const range = sample.start_sec != null && sample.end_sec != null
+    ? `, ${num(sample.start_sec)}–${num(sample.end_sec)} mp` : "";
+  return ` A mintavételező a legjobb klónozási szakaszt választotta ki (${Math.round(sample.score)}/100${range}).`;
+}
+
 async function uploadReferenceFile(refKey, file) {
   const form = new FormData();
   form.append("file", file);
   form.append("ref_text", refTextField(refKey)?.value.trim() || "");
   const clean = studioDocument?.getElementById(`ref-clean-${refKey}`);
   form.append("clean", !clean || clean.checked ? "1" : "0");
+  // A mintavételező bármilyen formátumot dekódol, és objektív szempontok
+  // szerint a legjobb 5–15 mp-es ablakot menti — így a klón a tiszta részt
+  // kapja, nem a szobazajt vagy az intro köszönését.
+  const sampler = studioDocument?.getElementById(`ref-sample-${refKey}`);
+  if (!sampler || sampler.checked) form.append("sample", "1");
   const data = await requestJson(refEndpoint(refKey), { method: "POST", body: form });
   applyUploadedReference(refKey, data);
   return data;
@@ -1009,8 +1025,8 @@ async function uploadRef(event, charId) {
   const file = event.target.files[0];
   if (!file) return;
   try {
-    await uploadReferenceFile(String(charId), file);
-    notify("A referenciahang és az átirat mentve.", "ok");
+    const data = await uploadReferenceFile(String(charId), file);
+    notify(`A referenciahang és az átirat mentve.${sampleNotice(data)}`, "ok");
   } catch (error) {
     showError("A feltöltés sikertelen", error);
   } finally {
@@ -1022,8 +1038,8 @@ async function uploadNarratorRef(event) {
   const file = event.target.files[0];
   if (!file) return;
   try {
-    await uploadReferenceFile("narrator", file);
-    notify("A narrátor referenciahangja mentve.", "ok");
+    const data = await uploadReferenceFile("narrator", file);
+    notify(`A narrátor referenciahangja mentve.${sampleNotice(data)}`, "ok");
   } catch (error) {
     showError("A feltöltés sikertelen", error);
   } finally {
@@ -1053,6 +1069,60 @@ async function removeRef(charId) {
     notify("A referenciahang törölve.", "ok");
   } catch (error) {
     showError("A referencia törlése sikertelen", error);
+  }
+}
+
+/** A már aktív narrátorhangból kiválasztja a legjobb klónozási szakaszt. */
+async function sampleNarratorRef(button) {
+  if (!narratorHasRefAudio) {
+    showError("Mintavétel", new Error("Előbb tölts fel egy narrátorhangot."));
+    return;
+  }
+  try {
+    await withBusy(button, "Elemzés…", async () => {
+      const data = await requestJson(
+        `/api/books/${BOOK_ID}/narrator-ref-sample`,
+        { method: "POST" },
+      );
+      const report = data.sample || {};
+      bumpRefVersion("narrator");
+      narratorHasRefAudio = true;
+      narratorRefAudioName = data.ref_audio_name || narratorRefAudioName;
+      clearPlayer("ref-narrator");
+      syncNarratorRefUI();
+      if (report.recommendation) notify(report.recommendation, "ok");
+      else notify("A legjobb klónozási szakasz kiválasztva.", "ok");
+    });
+  } catch (error) {
+    showError("A mintavétel sikertelen", error);
+  }
+}
+
+/** Beszédfelismeréssel feliratozza az aktív narrátorreferenciát (nem menti). */
+async function transcribeNarratorRef(button) {
+  const field = document.getElementById("narrator-ref-text");
+  const existing = (field?.value || "").trim();
+  if (existing) {
+    const ok = await confirmAction(
+      "A szövegdoboz már tartalmaz szöveget. Felülírja a felismert átirattal?",
+      { confirmLabel: "Felülírás" },
+    );
+    if (!ok) return;
+  }
+  try {
+    await withBusy(button, "Felismerés…", async () => {
+      const data = await requestJson(
+        `/api/books/${BOOK_ID}/narrator-ref-transcribe`,
+        { method: "POST" },
+      );
+      if (field) field.value = data.text || "";
+      notify(
+        "Átirat felismerve. Használat előtt hallgasd meg a referenciát, és javítsd ki a hibákat — az automata felismerés tévedhet.",
+        "ok",
+      );
+    });
+  } catch (error) {
+    showError("Az átirat felismerése sikertelen", error);
   }
 }
 
@@ -2094,6 +2164,8 @@ if (studioDocument) {
     previewNarrator,
     removeNarratorRef,
     removeRef,
+    sampleNarratorRef,
+    transcribeNarratorRef,
     saveChar,
     saveCurrentAsProfile,
     saveNarrator,

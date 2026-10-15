@@ -84,29 +84,55 @@ def align_words(text: str, asr_words: list[dict], duration: float,
     heard_keys = [_key(w.get("word", ""), language) for w in heard]
     timings: list[list[float] | None] = [None] * len(words)
     matcher = SequenceMatcher(a=shown_keys, b=heard_keys, autojunk=False)
+    matched: dict[int, int] = {}
     for block in matcher.get_matching_blocks():
         for offset in range(block.size):
             h = heard[block.b + offset]
             end = h.get("end") if h.get("end") is not None else h["start"]
             timings[block.a + offset] = [float(h["start"]), float(end)]
+            matched[block.a + offset] = block.b + offset
     # Partial matches ("tíz-tizenkét" ↔ "tíz", "-tizenkét"): prefix overlap.
-    for i, key in enumerate(shown_keys):
-        if timings[i] is not None or not key:
+    # A keresés a szó SAJÁT hiányos szakaszában marad: az előző és a következő
+    # illesztett szó hallott-indexe között. A globális keresés ugyanis egy
+    # későbbi előfordulást is találhat (pl. a fejezet eleji „sír” a 139,68 s-nál
+    # eső későbbire), és a monoton kitöltés után a teljes hátra lévő idővonal
+    # arra a pontra torlódik — minden mondat 140 s-os lesz (M-54 mérés).
+    i = 0
+    while i < len(shown_keys):
+        if timings[i] is not None or not shown_keys[i]:
+            i += 1
             continue
-        joined = ""
-        start = None
-        for h, hk in zip(heard, heard_keys):
-            if start is None and hk and key.startswith(hk):
-                start, joined = h, hk
-            elif start is not None and joined + hk == key[: len(joined + hk)]:
-                joined += hk
-            else:
-                if start is not None and joined == key:
+        j = i
+        while j < len(shown_keys) and timings[j] is None:
+            j += 1
+        lo = matched[i - 1] + 1 if i > 0 and i - 1 in matched else 0
+        hi = matched[j] - 1 if j < len(shown_keys) and j in matched else len(heard) - 1
+        for k in range(i, j):
+            key = shown_keys[k]
+            if not key:
+                continue
+            joined = ""
+            start_pos = None
+            found = None
+            for pos in range(lo, hi + 1):
+                hk = heard_keys[pos]
+                if start_pos is None:
+                    if hk and key.startswith(hk):
+                        start_pos, joined = pos, hk
+                elif joined + hk != key[: len(joined + hk)]:
+                    # megszakadt az illeszkedés — új jelölt az aktuális szó
+                    start_pos, joined = (pos, hk) if hk and key.startswith(hk) else (None, "")
+                else:
+                    joined += hk
+                if start_pos is not None and joined == key:
+                    found = pos
                     break
-                start, joined = None, ""
-            if start is not None and joined == key:
-                timings[i] = [float(start["start"]), float(h.get("end") or h["start"])]
-                break
+            if found is not None:
+                h = heard[found]
+                end = h.get("end") if h.get("end") is not None else h["start"]
+                timings[k] = [float(h["start"]), float(end)]
+                matched[k] = found
+        i = j
     return _fill_gaps(words, timings, duration)
 
 

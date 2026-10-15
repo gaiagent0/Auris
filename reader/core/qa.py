@@ -557,16 +557,21 @@ class Transcriber:
                     generate_kwargs["prompt_ids"] = ids.to(self._pipe.device)
                 except Exception:
                     pass
+            # 30 s feletti hangnál a transformers 5.x long-form generálást
+            # vár, amihez `return_timestamps` kell — enélkül a teljes fejezet
+            # VValueError-ban elbukik. A szó-időbélyegeket csak akkor kérjük,
+            # ha azt a hívó kéri (a `words` lista egyébként üres marad).
             result = self._pipe(
                 {"raw": audio, "sampling_rate": 16000},
                 generate_kwargs=generate_kwargs,
-                return_timestamps="word" if word_timestamps else False,
+                return_timestamps="word" if word_timestamps else True,
             )
         text = str(result.get("text") or "").strip()
         if prompt and text.startswith(prompt.strip()):
             text = text[len(prompt.strip()):].strip()
         words = []
-        for chunk in result.get("chunks") or []:
-            start, end = chunk.get("timestamp") or (None, None)
-            words.append({"word": str(chunk.get("text") or "").strip(), "start": start, "end": end})
+        if word_timestamps:
+            for chunk in result.get("chunks") or []:
+                start, end = chunk.get("timestamp") or (None, None)
+                words.append({"word": str(chunk.get("text") or "").strip(), "start": start, "end": end})
         return {"text": text, "words": words}

@@ -28,9 +28,12 @@ settings.save(
 )
 import app
 from core.experience_api import bp
+from core.voices_api import bp as voices_bp
 
 if "experience" not in app.app.blueprints:
     app.app.register_blueprint(bp)
+if "voices" not in app.app.blueprints:
+    app.app.register_blueprint(voices_bp)
 app.UPLOAD_DIR = str(qa / "uploads")
 
 

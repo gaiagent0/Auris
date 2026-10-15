@@ -39,6 +39,30 @@ class AlignmentTest(unittest.TestCase):
         self.assertEqual(alignment.align_words("Két szó", [], 2.0, "hu"),
                          alignment.estimate_words("Két szó", 2.0))
 
+    def test_prefix_match_stays_inside_its_own_gap(self):
+        # Regesszió a M-54-es méréshez: a fejezet eleji „sír” NE a később
+        # (139,9 s) elhangzó azonos alakú szóra ugrjon — a globális prefix-
+        # keresés a teljes hátra lévő idővonalat arra torlódta (minden mondat
+        # 140 s-os lett, majd a túlhosszú szelettől az ONNX encoder is elbukott).
+        text = "Miért sír olyasmiért, ami később újra elhangzik: sír."
+        heard = [
+            {"word": "miért", "start": 0.0, "end": 0.3},
+            {"word": "sírvas", "start": 0.3, "end": 0.8},
+            {"word": "olyasmiért,", "start": 0.8, "end": 1.4},
+            {"word": "ami", "start": 1.4, "end": 1.6},
+            {"word": "később", "start": 1.6, "end": 2.0},
+            {"word": "újra", "start": 139.0, "end": 139.4},
+            {"word": "elhangzik:", "start": 139.4, "end": 139.9},
+            {"word": "sír.", "start": 139.9, "end": 140.2},
+        ]
+        timings = alignment.align_words(text, heard, 141.0, "hu")
+        self.assertEqual(len(timings), 8)
+        self.assertLess(timings[1][0], 10.0, "a 2. szó a saját szakaszában marad")
+        starts = [t[0] for t in timings]
+        self.assertEqual(starts, sorted(starts))
+        self.assertGreaterEqual(timings[2][0], timings[1][0])
+        self.assertAlmostEqual(timings[-1][1], 140.2, places=2)
+
 
 if __name__ == "__main__":
     unittest.main()

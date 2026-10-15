@@ -290,6 +290,19 @@
     <p>So the check says there is a problem, when there is none. We found the cause. We wrote it down.</p>
   </div>
 
+  <div class="card">
+    <p><b>The whole book, checked on 2026-10-12.</b></p>
+    <p>All 15 generated chapters were listened to end to end: <b>503 minutes of audio</b>. Average <b>WER 12.9%, CER 3.4%</b> (WER 10.4 to 15.2% — a narrow spread, no chapter is broken).</p>
+    <p>The only flag on every chapter is <b>long pause</b>, the known false alarm above. No clipping, no silent chapter, no speed problem anywhere.</p>
+    <p>The recogniser needed 1749 seconds for 503 minutes of audio — <b>RTF 0.058</b>, so checking the book takes about 29 minutes. Result file: <code>qa_report.json</code>.</p>
+  </div>
+
+  <div class="card">
+    <p><b>Which recogniser? Three were compared (M-50).</b></p>
+    <p>On the same chapter: <b>Parakeet</b> 15.6% wrong words, <b>Whisper Small</b> 24.5%, the Hungarian fine-tuned <b>Whisper-HU</b> 8.5%.</p>
+    <p>So the check runs both: Parakeet first because it is fast, and the Hungarian Whisper confirms the suspicious sentences. That is the <code>hybrid</code> backend. Live-tested on 2026-10-12: the confirmation pass cut one bad segment from 15.6% to 8.5% wrong words.</p>
+  </div>
+
   <!-- ══ COMMANDS ══════════════════════════════════════ -->
   <h2><span class="num">5</span>How to run the tests</h2>
   <p>You run these in a terminal window. The first one is the most useful. It checks the small parts.</p>
@@ -351,9 +364,9 @@
   </div>
 
   <div class="limit">
-    <h3>There is no test for the NPU</h3>
-    <p>We tried three ways to run the model on the special AI chip. All three failed. The chip never ran the model.</p>
-    <p>So we cannot say if the chip would be faster. There is no number. A missing number is not the same as a slow number.</p>
+    <h3>The NPU was unlocked on 2026-10-12</h3>
+    <p>Earlier attempts looked for a <b>V81</b> driver. The Snapdragon X Elite is actually <b>HTP V73</b>, and its driver stack was on the machine all along. The ONNX Runtime QNN provider now really runs on the chip (<code>htp_arch="73"</code>).</p>
+    <p>It is measured now, and the honest answer is: for dense fp16 matmul it is <b>slower</b> than the 12-thread CPU (8.2-21.2 vs 45.4-75.8 GFLOP/s). It is not a free speedup — it needs quantized models to pay off.</p>
   </div>
 
   <!-- ══ WHERE ═════════════════════════════════════════ -->
@@ -372,7 +385,7 @@
 
   <footer>
     <p><b>Every number on this page came from a real run on this computer.</b> Nothing here is a guess.</p>
-    <p>Sources: <code>docs/meresek.md</code> and <code>docs/handoff-2026-10-03.md</code>. Made on 2026-10-04. Not committed.</p>
+    <p>Sources: <code>docs/meresek.md</code> (M-01…M-51) and <code>docs/handoff-2026-10-03.md</code>. Made on 2026-10-04, updated 2026-10-12 (NPU unlocked, M-47/M-48; whole-book check, M-51; three-way recogniser test, M-50). Not committed.</p>
   </footer>
 
 </div>

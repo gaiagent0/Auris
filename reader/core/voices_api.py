@@ -225,7 +225,13 @@ def upload_ref_audio(char_id):
     if 'file' not in request.files:
         return jsonify({'error': 'Nincs kiválasztott fájl'}), 400
     f = request.files['file']
-    if not f.filename or not f.filename.lower().endswith('.wav'):
+    name = (f.filename or '').lower()
+    # sample=1: a mintavételező maga dekódol, így bármilyen hangformátum
+    # elfogadható; a kimenet így is 24 kHz mono WAV lesz.
+    sample = request.form.get('sample') == '1'
+    if not name:
+        return jsonify({'error': 'Nincs kiválasztott fájl'}), 400
+    if not sample and not name.endswith('.wav'):
         return jsonify({'error': 'A referenciahang WAV-fájl legyen'}), 400
     ref_text = (request.form.get('ref_text') or '').strip()
     with get_conn() as conn:
@@ -237,7 +243,17 @@ def upload_ref_audio(char_id):
             return jsonify({'error': 'Nem található'}), 404
         if row['ref_audio_path']:
             application.tts.invalidate_voice_prompt(row['ref_audio_path'], row['ref_text'])
-    path = application._save_reference_upload(f, f'ref_{char_id}', clean=request.form.get('clean') == '1')
+    if sample:
+        path, report = application._sample_reference_upload(
+            f, f'ref_{char_id}', clean=request.form.get('clean') == '1')
+        if not path:
+            return jsonify({'error': report.get('error') or
+                            'Nem találtam megfelelő beszédszakaszt a felvételen',
+                            'sample': report}), 422
+    else:
+        path = application._save_reference_upload(
+            f, f'ref_{char_id}', clean=request.form.get('clean') == '1')
+        report = None
     with get_conn() as conn:
         conn.execute(
             'UPDATE characters SET ref_audio_path=?, ref_audio_name=?, ref_text=? WHERE id=?',
@@ -245,11 +261,15 @@ def upload_ref_audio(char_id):
         )
     application._delete_replaced_reference(row['ref_audio_path'], path, f'ref_{char_id}')
     application._clear_book_tts_segments(row['book_id'])
-    return jsonify({
+    result = {
         'ok': True,
         'ref_audio_name': os.path.basename(f.filename),
         'ref_text': ref_text,
-    })
+    }
+    if report is not None:
+        # a jelentésből a mentett útvonal nem kell a kliensnek
+        result['sample'] = {k: v for k, v in report.items() if k != 'stored_path'}
+    return jsonify(result)
 
 
 @bp.route('/api/characters/<int:char_id>/ref-audio', methods=['DELETE'])
@@ -277,7 +297,13 @@ def upload_narrator_ref_audio(book_id):
     if 'file' not in request.files:
         return jsonify({'error': 'Nincs kiválasztott fájl'}), 400
     f = request.files['file']
-    if not f.filename or not f.filename.lower().endswith('.wav'):
+    name = (f.filename or '').lower()
+    # sample=1: a mintavételező maga dekódol, így bármilyen hangformátum
+    # elfogadható; a kimenet így is 24 kHz mono WAV lesz.
+    sample = request.form.get('sample') == '1'
+    if not name:
+        return jsonify({'error': 'Nincs kiválasztott fájl'}), 400
+    if not sample and not name.endswith('.wav'):
         return jsonify({'error': 'A referenciahang WAV-fájl legyen'}), 400
     ref_text = (request.form.get('ref_text') or '').strip()
     with get_conn() as conn:
@@ -291,7 +317,17 @@ def upload_narrator_ref_audio(book_id):
             application.tts.invalidate_voice_prompt(
                 prev['narrator_ref_audio_path'], prev['narrator_ref_text']
             )
-    path = application._save_reference_upload(f, f'narrator_ref_{book_id}', clean=request.form.get('clean') == '1')
+    if sample:
+        path, report = application._sample_reference_upload(
+            f, f'narrator_ref_{book_id}', clean=request.form.get('clean') == '1')
+        if not path:
+            return jsonify({'error': report.get('error') or
+                            'Nem találtam megfelelő beszédszakaszt a felvételen',
+                            'sample': report}), 422
+    else:
+        path = application._save_reference_upload(
+            f, f'narrator_ref_{book_id}', clean=request.form.get('clean') == '1')
+        report = None
     with get_conn() as conn:
         conn.execute(
             'UPDATE books SET narrator_ref_audio_path=?, narrator_ref_audio_name=?, '
@@ -303,11 +339,128 @@ def upload_narrator_ref_audio(book_id):
     )
     application.tts.invalidate_voice_prompt(path, ref_text or None)
     application._clear_book_tts_segments(book_id)
-    return jsonify({
+    result = {
         'ok': True,
         'ref_audio_name': os.path.basename(f.filename),
         'ref_text': ref_text,
+    }
+    if report is not None:
+        result['sample'] = {k: v for k, v in report.items() if k != 'stored_path'}
+    return jsonify(result)
+
+
+@bp.route('/api/books/<int:book_id>/narrator-ref-sample', methods=['POST'])
+def sample_narrator_ref_audio(book_id):
+    """A már aktív narrátorhangból kiválasztja a legjobb klónozási szakaszt.
+
+    Nem új fájlt vár, hanem a könyv jelenlegi ``narrator_ref_audio_path``
+    fájlját mintavételezi a ``core.reference_sampler``-ral: objektív szempontok
+    szerint (beszédsűrűség, klip, jel-zaj arány, hangerő-stabilitás) megkeresi a
+    legjobb 5–15 másodperces ablakot, kitisztítja és menti — ugyanazzal a
+    tisztítólánccal és content-addressed névvel, mint a feltöltési út, hogy a
+    hangklón-gyorsítótár ne adja vissza a régi hangot.
+    """
+    import hashlib
+    import tempfile
+    from core import reference_sampler
+
+    with get_conn() as conn:
+        row = conn.execute(
+            'SELECT narrator_ref_audio_path, narrator_ref_audio_name, narrator_ref_text '
+            'FROM books WHERE id=?',
+            (book_id,),
+        ).fetchone()
+    if not row:
+        return jsonify({'error': 'Nem található'}), 404
+    source = row['narrator_ref_audio_path']
+    if not source or not os.path.isfile(source):
+        return jsonify({'error': 'Előbb tölts fel egy narrátorhangot.'}), 422
+    if os.path.getsize(source) == 0:
+        return jsonify({'error': 'A narrátorhang üres.'}), 422
+
+    raw = None
+    try:
+        suffix = os.path.splitext(source)[1].lower() or '.wav'
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False,
+                                         dir=application.UPLOAD_DIR,
+                                         prefix='.narrator_ref.resample.') as handle:
+            raw = handle.name
+        with open(source, 'rb') as src, open(raw, 'wb') as dst:
+            for chunk in iter(lambda: src.read(1 << 20), b''):
+                dst.write(chunk)
+        picked = raw + '.ref.wav'
+        report = reference_sampler.sample_reference(raw, picked)
+        if not report.get('sampled'):
+            return jsonify({'error': report.get('error') or
+                            'Nem találtam megfelelő beszédszakaszt a hanganyagban',
+                            'sample': report}), 422
+        digest = hashlib.sha256()
+        with open(picked, 'rb') as handle:
+            for chunk in iter(lambda: handle.read(1 << 20), b''):
+                digest.update(chunk)
+        path = os.path.join(application.UPLOAD_DIR,
+                            f'narrator_ref_{digest.hexdigest()[:16]}.wav')
+        os.replace(picked, path)
+    except Exception as exc:
+        return jsonify({'error': f'A mintavétel nem sikerült: {exc}'}), 500
+    finally:
+        for leftover in (raw, (raw + '.ref.wav') if raw else None):
+            if leftover:
+                try:
+                    os.remove(leftover)
+                except OSError:
+                    pass
+
+    ref_text = row['narrator_ref_text']
+    application.tts.invalidate_voice_prompt(source, ref_text)
+    application.tts.invalidate_voice_prompt(path, ref_text)
+    with get_conn() as conn:
+        conn.execute(
+            'UPDATE books SET narrator_ref_audio_path=?, narrator_ref_audio_name=? '
+            'WHERE id=?',
+            (path, os.path.basename(source), book_id),
+        )
+    application._delete_replaced_reference(source, path, 'narrator_ref')
+    application._clear_book_tts_segments(book_id)
+    return jsonify({
+        'ok': True,
+        'ref_audio_name': os.path.basename(source),
+        'ref_text': ref_text or '',
+        'sample': {k: v for k, v in report.items() if k != 'stored_path'},
     })
+
+
+@bp.route('/api/books/<int:book_id>/narrator-ref-transcribe', methods=['POST'])
+def transcribe_narrator_ref_audio(book_id):
+    """A aktív narrátorreferenciáról beszédfelismeréssel megírja az átiratot.
+
+    Nem ment: a felismert szöveget a kliens a szövegdobozba tölti, a mentés a
+    meglévő ``PUT /narrator`` úton történik. A modell a minőségellenőrzés
+    ``Transcriber``-ja (Snapdragonon Parakeet TDT v3, ONNX, CPU); az első
+    hívás betöltést igényelhet.
+    """
+    with get_conn() as conn:
+        row = conn.execute(
+            'SELECT narrator_ref_audio_path FROM books WHERE id=?', (book_id,)
+        ).fetchone()
+    if not row:
+        return jsonify({'error': 'Nem található'}), 404
+    path = row['narrator_ref_audio_path']
+    if not path or not os.path.isfile(path):
+        return jsonify({'error': 'Előbb tölts fel egy narrátorhangot.'}), 422
+
+    try:
+        from core.qa import Transcriber
+
+        transcriber = Transcriber.for_language('hu')
+        result = transcriber.transcribe(path, 'hu')
+    except Exception as exc:
+        return jsonify({'error': f'A beszédfelismerés nem sikerült: {exc}'}), 500
+    text = str((result or {}).get('text') or '').strip()
+    if not text:
+        return jsonify({'error': 'A felismerő nem hallott ki érthető szöveget a felvételből.'}), 422
+    return jsonify({'ok': True, 'text': text,
+                    'model': getattr(transcriber, 'model_id', '')})
 
 
 @bp.route('/api/books/<int:book_id>/narrator-ref-audio', methods=['DELETE'])

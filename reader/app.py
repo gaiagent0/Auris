@@ -115,7 +115,8 @@ _GATED_MUTATION_ENDPOINTS = {
     'import_book', 'delete_book', 'reading.update_speaker_annotation', 'reading.save_chapter_text',
     'reading.restore_chapter_text', 'voices.upload_ref_audio',
     'voices.delete_ref_audio', 'voices.upload_narrator_ref_audio',
-    'voices.delete_narrator_ref_audio', 'settings_api.save_settings', 'tts_load', 'settings_api.tts_reload',
+    'voices.delete_narrator_ref_audio', 'voices.sample_narrator_ref_audio',
+    'settings_api.save_settings', 'tts_load', 'settings_api.tts_reload',
 }
 _VOICE_MUTATION_ENDPOINTS = {'voices.update_character', 'voices.update_narrator'}
 _CONSISTENT_READ_ENDPOINTS = {'reading.get_chapter_editor', 'reading.get_chapter', 'get_segments', 'tts_generate'}
@@ -431,6 +432,58 @@ def _save_reference_upload(file_storage, prefix: str, clean: bool = False) -> st
     path = os.path.join(UPLOAD_DIR, f'{prefix}_{digest.hexdigest()[:16]}.wav')
     os.replace(tmp, path)
     return path
+
+
+def _sample_reference_upload(file_storage, prefix: str, *, min_sec: float | None = None,
+                             max_sec: float | None = None,
+                             clean: bool = True) -> tuple[str, dict]:
+    """Ment egy feltöltött hangfájlból a legjobb klónreferencia-szakaszt.
+
+    A feltöltés bármilyen formátum lehet (mp3, m4a, wav, opus, ...), mert a
+    mintavételező maga dekódolja. A kimenet mindig 24 kHz mono WAV, ahogy
+    a tisztítólánc és az XTTS elvárja.
+
+    Visszatér a mentett útvonallal és a mintavételező teljes jelentésével
+    (pontszám, fokozat, részpontok) — a felület ezt jeleníti meg, hogy a
+    felhasználó lássa, miért ez a szakasz lett a legjobb.
+    """
+    import hashlib
+    import tempfile
+    from core import reference_sampler
+
+    suffix = os.path.splitext(file_storage.filename or '')[1].lower() or '.wav'
+    raw = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False,
+                                         dir=UPLOAD_DIR,
+                                         prefix=f'.{prefix}.sample.') as handle:
+            raw = handle.name
+        file_storage.save(raw)
+        dst = raw + '.ref.wav'
+        kwargs = {}
+        if min_sec is not None:
+            kwargs['min_sec'] = min_sec
+        if max_sec is not None:
+            kwargs['max_sec'] = max_sec
+        kwargs['clean'] = clean
+        report = reference_sampler.sample_reference(raw, dst, **kwargs)
+        if not report.get('sampled'):
+            return '', report
+        digest = hashlib.sha256()
+        with open(dst, 'rb') as handle:
+            for chunk in iter(lambda: handle.read(1 << 20), b''):
+                digest.update(chunk)
+        path = os.path.join(UPLOAD_DIR, f'{prefix}_{digest.hexdigest()[:16]}.wav')
+        os.replace(dst, path)
+        report['stored_path'] = path
+        return path, report
+    finally:
+        for leftover in (raw, (raw + '.ref.wav') if raw else None):
+            if leftover:
+                try:
+                    os.remove(leftover)
+                except OSError:
+                    pass
 
 
 def _delete_replaced_reference(old_path: str | None, new_path: str | None, prefix: str):

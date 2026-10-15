@@ -54,7 +54,7 @@ def save_settings():
         'trim_segment_silence', 'export_room_tone',
         'narrator_credit', 'export_intro_template', 'export_outro_template',
         'abs_url', 'abs_api_token', 'abs_library_id', 'abs_folder_id', 'api_token',
-        'qa_cer_warn', 'qa_cer_fail', 'qa_max_takes', 'asr_model', 'asr_keep_loaded', 'asr_backend',
+        'qa_cer_warn', 'qa_cer_fail', 'qa_max_takes', 'qa_autostart', 'asr_model', 'asr_keep_loaded', 'asr_backend',
         'tts_accel', 'tts_export_workers',
         'character_detection_mode', 'llm_provider',
         'llm_base_url', 'llm_api_key', 'llm_model',
@@ -148,7 +148,7 @@ def save_settings():
         if url and not re.match(r'^https?://[^\s/]+', url):
             return jsonify({'error': 'Az Audiobookshelf címe http:// vagy https:// kezdetű legyen.'}), 400
         updates['abs_url'] = url
-    for key in ('trim_segment_silence', 'export_room_tone', 'asr_keep_loaded'):
+    for key in ('trim_segment_silence', 'export_room_tone', 'asr_keep_loaded', 'qa_autostart'):
         if key in updates:
             updates[key] = bool(updates[key])
     if 'asr_backend' in updates and updates['asr_backend'] not in ('auto', 'whisper', 'parakeet', 'hybrid'):

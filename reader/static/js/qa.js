@@ -20,6 +20,77 @@
 
   function chapterId() { return Number($("qa-chapter").value); }
 
+  // ── Beszédfelismerő mód ────────────────────────────────────────────────
+  // Az Ellenőrzés oldalról is látszik és állítható, melyik felismerő fut;
+  // a választás a következő ellenőrzéstől él (a Beállításokéval egyezik).
+  let asrState = null;
+
+  const EFFECTIVE_HINTS = {
+    whisper: (s) => `Egyetlen Whisper-modell hallgat végig: ${s.whisper_model}.`,
+    parakeet: (s) => `A Parakeet (${s.parakeet_model}) hallgat végig; nincs megerősítés.`,
+    hybrid: (s) => `A Parakeet hallgat végig, a gyanús mondatokat a Whisper (${s.whisper_model}) újrahallgatja.`,
+  };
+
+  function renderAsrBackend(state, message = "", kind = "") {
+    asrState = state;
+    const select = $("qa-asr-backend");
+    select.value = state.requested;
+    (state.options || []).forEach((option) => {
+      const el = select.querySelector(`option[value="${option.value}"]`);
+      if (!el) return;
+      el.disabled = !option.available;
+      el.textContent = option.available ? option.label : `${option.label} — nem érhető el ezen a gépen`;
+    });
+    const hint = EFFECTIVE_HINTS[state.effective];
+    const parts = [];
+    if (state.requested !== state.effective) {
+      parts.push(`A megadott mód itt nem használható, ezért ${state.effective === "hybrid" ? "a hibrid" : `a(z) ${state.effective}`} fut.`);
+    }
+    if (hint) parts.push(hint(state));
+    if (message) parts.push(message);
+    const info = $("qa-asr-backend-info");
+    info.textContent = parts.join(" ");
+    info.className = `qa-backend-info ${kind}`;
+  }
+
+  async function loadAsrBackend() {
+    try {
+      const state = await api(`/api/books/${BOOK_ID}/qa/asr-backend`);
+      renderAsrBackend(state);
+      return state;
+    } catch (error) {
+      $("qa-asr-backend-info").textContent = `A beszédfelismerő állapota nem kérhető le: ${error.message}`;
+      $("qa-asr-backend-info").className = "qa-backend-info is-error";
+      return null;
+    }
+  }
+
+  // ── Automatikus indítás ─────────────────────────────────────────────────
+  // A Beállítások `qa_autostart` kapcsolója dönti el, hogy a fejezet
+  // ellenőrzése magától elinduljon. Feltétel: legyen mentett eredménye a
+  // fejezetnek (az már nézhető), és ne fusson éppen másik ellenőrzés.
+  async function maybeAutoStart() {
+    if (!asrState || !asrState.qa_autostart) return;
+    if (segments.length || $("qa-start").disabled) return;
+    await startCheck();
+  }
+
+  async function saveAsrBackend() {
+    const chosen = $("qa-asr-backend").value;
+    try {
+      const state = await api(`/api/books/${BOOK_ID}/qa/asr-backend`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ backend: chosen }),
+      });
+      renderAsrBackend(state, "Elmentve; a következő ellenőrzés ezzel a móddal fut.", "is-ok");
+    } catch (error) {
+      await loadAsrBackend();
+      $("qa-asr-backend-info").textContent = `Nem sikerült menteni: ${error.message}`;
+      $("qa-asr-backend-info").className = "qa-backend-info is-error";
+    }
+  }
+
   function setStatus(message, kind = "") {
     const el = $("qa-status");
     el.textContent = message;
@@ -269,22 +340,39 @@
       select.appendChild(option);
     });
   }).catch(() => {});
-  $("qa-chapter").addEventListener("change", () => {
+  $("qa-chapter").addEventListener("change", async () => {
     $("qa-loudness-report").classList.add("hidden");
-    loadResults();
+    await loadResults();
+    await maybeAutoStart();
   });
   $("qa-start").addEventListener("click", startCheck);
   $("qa-loudness").addEventListener("click", loudness);
+  $("qa-asr-backend").addEventListener("change", saveAsrBackend);
+  const asrReady = loadAsrBackend();
   $("qa-list").addEventListener("click", onAction);
   document.querySelectorAll(".qa-filter button").forEach((button) => button.addEventListener("click", () => {
     filter = button.dataset.filter;
     document.querySelectorAll(".qa-filter button").forEach((b) => b.classList.toggle("is-active", b === button));
     renderList();
   }));
-  // Resume watching a running check after a reload.
-  api(`/api/jobs?book_id=${BOOK_ID}`).then((list) => {
-    const running = (list.jobs || list).find((job) => job.type === "qa_chapter" && ["pending", "running"].includes(job.state));
-    if (running) { $("qa-start").disabled = true; pollJob(running.id); }
-  }).catch(() => {});
-  loadResults();
+  // A betöltés sorrendje: hatályos beszédfelismerő-mód + mentett eredmények,
+  // majd — ha van még futó ellenőrzés, azt folytatjuk; ha nincs, és a
+  // Beállításokban be van kapcsolva, az ellenőrzés magától elindul.
+  (async () => {
+    await Promise.all([asrReady, loadResults()]);
+    let running = null;
+    try {
+      const list = await api(`/api/jobs?book_id=${BOOK_ID}`);
+      running = (list.jobs || list).find((job) => job.type === "qa_chapter" && ["pending", "running"].includes(job.state));
+    } catch (error) {
+      // A futó állapot nem derült ki: az automatikus indítás így is biztonságos,
+      // a szerver a sorába állítja az új munkát.
+    }
+    if (running) {
+      $("qa-start").disabled = true;
+      pollJob(running.id);
+      return;
+    }
+    await maybeAutoStart();
+  })();
 })();

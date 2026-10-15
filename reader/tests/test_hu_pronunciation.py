@@ -137,5 +137,72 @@ class BuiltinApiTest(unittest.TestCase):
         self.assertTrue(data["rules"][0]["overridden"])
 
 
+class ListenBeforeSaveTest(unittest.TestCase):
+    """A „Hallgasd meg, hogyan ejti" gomb a mentés előtt megszólaltatja az alakot."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        root = Path(self.tmp.name)
+        self.patches = [
+            patch.object(database, "DB_PATH", str(root / "reader.db")),
+            patch.object(settings, "SETTINGS_FILE", root / "settings.json"),
+            patch.object(application, "UPLOAD_DIR", str(root / "uploads")),
+            patch.object(application, "_startup_complete", True),
+        ]
+        for p in self.patches:
+            p.start()
+        database.init_db()
+        application.app.config["TESTING"] = True
+        self.client = application.app.test_client()
+
+    def tearDown(self):
+        for p in reversed(self.patches):
+            p.stop()
+        self.tmp.cleanup()
+
+    def test_listen_speaks_the_rule_before_it_is_saved(self):
+        with patch.object(application.tts, "status", return_value={"state": "ready"}), \
+             patch.object(
+                 application.tts, "generate", return_value={"cache_key": "abc"}
+             ) as generate:
+            response = self.client.post(
+                "/api/pronunciation/listen",
+                json={
+                    "text": "Gorcsev belépett a szobába.",
+                    "source": "Gorcsev",
+                    "replacement": "Gorcsef",
+                },
+            )
+        self.assertEqual(response.status_code, 200, response.get_json())
+        data = response.get_json()
+        self.assertEqual(data["spoken"], "Gorcsef belépett a szobába.")
+        self.assertEqual(data["audio_url"], "/api/audio/abc")
+        # A szabály még nincs mentve: a meghallgatás nem hoz létre szabályt.
+        self.assertEqual(experience.list_rules(None), [])
+        self.assertEqual(
+            generate.call_args.kwargs["text"], "Gorcsef belépett a szobába."
+        )
+
+    def test_listen_reports_a_not_ready_engine(self):
+        with patch.object(application.tts, "status", return_value={"state": "not_loaded"}):
+            response = self.client.post(
+                "/api/pronunciation/listen",
+                json={"text": "Gorcsev.", "source": "Gorcsev", "replacement": "Gorcsef"},
+            )
+        self.assertEqual(response.status_code, 503)
+        self.assertIn("beszédmotor", response.get_json()["error"])
+
+    def test_settings_page_offers_the_listen_button(self):
+        response = self.client.get("/settings")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Hallgasd meg, hogyan ejti".encode(), response.data)
+        self.assertIn(b"dictionary-listen", response.data)
+        # A gomb a szabály űrlapján, a mentés gomb mellett áll.
+        page = response.data.decode("utf-8")
+        self.assertLess(
+            page.index("dictionary-listen"), page.index("Szabály mentése")
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

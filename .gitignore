@@ -28,6 +28,12 @@ reader/data/performance/
 reader/data/reader.db-wal
 reader/data/reader.db-shm
 
+# ── Letöltött magyar szótár (adatlicenc-kérdéses, futásidőben töltjük le) ────
+# A CharsiuG2P dicts/hun.tsv fájlja nem a repóban van: az első használatkor
+# lekerül a `reader/lexicon/` pufferbe (lásd core/pronunciation_suggest.py).
+reader/lexicon/
+reader/core/data/hun.tsv
+
 # ── Python ────────────────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
