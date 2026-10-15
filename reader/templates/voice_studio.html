@@ -84,14 +84,17 @@
               <span>Átirat betöltése TXT-ből</span>
               <input id="narrator-ref-text-file" type="file" accept=".txt,text/plain" onchange="loadNarratorRefText(event)">
             </label>
+            <button id="transcribe-narrator-ref-btn" class="btn btn-sm btn-ghost" type="button" onclick="transcribeNarratorRef(this)" title="A referenciáról beszédfelismeréssel feliratozza az átiratot. Használat előtt ellenőrizd!">Átirat felismerése</button>
             <label class="btn btn-sm btn-primary file-picker">
               <span>Referencia WAV kiválasztása</span>
-              <input id="narrator-ref-file" type="file" accept=".wav,audio/wav" onchange="uploadNarratorRef(event)">
+              <input id="narrator-ref-file" type="file" accept=".wav,audio/*" onchange="uploadNarratorRef(event)">
             </label>
             <button id="narrator-record-btn" class="btn btn-sm btn-ghost" type="button" aria-expanded="false" aria-controls="rec-narrator"><span data-icon="mic"></span><span>Felvétel mikrofonnal</span></button>
+            <button id="sample-narrator-ref-btn" class="btn btn-sm btn-ghost" type="button" onclick="sampleNarratorRef(this)" title="A hanganyagból automatikusan kiválasztja a legjobb klónozási szakaszt.">Legjobb szakasz kiválasztása</button>
             <button id="remove-narrator-ref-btn" class="btn btn-sm btn-ghost" type="button" onclick="removeNarratorRef()">Referencia törlése</button>
           </div>
           <div class="recorder" id="rec-narrator" hidden></div>
+          <label class="reference-clean"><input type="checkbox" id="ref-sample-narrator" checked> A feltöltésből a legjobb klónozási szakaszt válaszd ki</label>
           <label class="reference-clean"><input type="checkbox" id="ref-clean-narrator" checked> Zajszűrés, csendvágás és hangerő-kiegyenlítés feltöltéskor</label>
           <p class="studio-note">Tiszta, egyetlen beszélőt tartalmazó, 3–10 másodperces magyar felvétel ajánlott. A pontos átirat javítja a hangklónozás minőségét.</p>
         </section>

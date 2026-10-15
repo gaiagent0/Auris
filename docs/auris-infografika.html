@@ -294,6 +294,9 @@
       <div class="stat v"><div class="v">382,7 MB</div><span class="l">modellmappa fp32; INT8 változat 138,1 MB</span></div>
       <div class="stat v"><div class="v">45,4 perc</div><span class="l">egy óra hangoskönyv <b>hangklónnal</b> (XTTSv2-ONNX int8, 1,32× valós idő)</span></div>
       <div class="stat v"><div class="v">2,24 GB</div><span class="l">a klónozó modell teljes mérete (4 ONNX + embeddingek)</span></div>
+      <div class="stat"><div class="v">12,85 %</div><span class="l">átlag WER a <b>teljes 15 fejezetes hangoskönyvön</b> (503 perc hang, M-51) — szűk eloszlás, nincs kiugró fejezet</span></div>
+      <div class="stat a"><div class="v">29 perc</div><span class="l">ennyi idő alatt hallgatja végig az ASR a 8,4 órányi hangot (RTF 0,058, 17,3× gyorsabb a valós időnél, M-51)</span></div>
+      <div class="stat g"><div class="v">8,49 %</div><span class="l">a legjobb magyar ASR-WER: <b>Whisper-HU finemodell</b> (Parakeet 15,57 %, Whisper Small 24,53 % — M-50)</span></div>
     </div>
 
     <h3 style="margin:30px 0 4px;font-size:18px">Melyik motor szól magyarul a legjobban?</h3>
@@ -314,20 +317,10 @@
         <div class="track"><div class="fill" style="width:1.6%;background:#9333ea"></div></div>
         <div class="bar-val">0,18 %</div>
       </div>
-      <div class="bar-row">
-        <div class="bar-lbl">Magyar Piper-hang</div>
-        <div class="track"><div class="fill" style="width:1.7%;background:#047857"></div></div>
-        <div class="bar-val">0,19 %</div>
-      </div>
-      <div class="bar-row">
-        <div class="bar-lbl">F5-TTS hangklón</div>
-        <div class="track"><div class="fill" style="width:1.0%;background:#6d28d9"></div></div>
-        <div class="bar-val">0,11 %</div>
-      </div>
       <p class="scale" style="margin:14px 0 0">
         A sherpa-onnx Supertonic WER <b>a 24 mondatos korpuszon mérve</b> (M-43),
-        a három alsó sáv <b>csak 2–3 mondaton</b> — tehát jelzés, nem végleges szám.
-        Forrása: M-43 (sherpa), M-01 (Supertonic), M-12 (F5-TTS), M-16/M-17 (Piper), M-39 (XTTSv2).
+        az XTTSv2 klón WER <b>a 24 mondatos korpuszon mérve</b> (M-39).
+        A Supertonic 3 WER az M-01 mérésből származik.
       </p>
     </div>
   </section>
@@ -355,35 +348,19 @@
         </div>
       </div>
       <div class="row">
-        <div><span class="pill ok">Működik</span></div>
-        <div>
-          <h4>Magyar Piper-hangok · három ONNX-hang</h4>
-          <p>anna, berta, imre — magyar, ONNX Runtime-tal fut, torch nélkül. Nem klónoz, viszont a mért hibaszázalék közel tiszta, és <b>35,3× valós idővel</b> megy: egy óra hang kb. 1,9 perc.</p>
-          <div class="fig">M-16, M-17. Blokkoló: a bemenete hangfónéma-azonosító, nem szöveg — a magyar szövegből hangfónémához alakítás még nincs megoldva ARM64-en.</div>
-        </div>
-      </div>
-      <div class="row">
-        <div><span class="pill warn">Lassú</span></div>
-        <div>
-          <h4>F5-TTS · magyar hangklón</h4>
-          <p>Zero-shot klón 6 másodperces hangmintából. A mért hiba a legjobb a felsoroltak közül, viszont <b>egy óra hangoskönyvhez 7,6 óra valós idő kell</b>. X86_64 emulációban fut, natív ARM64-en egy saját shim kell hozzá.</p>
-          <div class="fig">M-12, M-13, M-14. Jó választás rövid bemutatóhoz vagy a betöltő hang megválasztásához — nem egy teljes könyvhöz.</div>
-        </div>
-      </div>
-      <div class="row">
         <div><span class="pill ok">Legjobb klón</span></div>
         <div>
           <h4>XTTSv2 Streaming ONNX · magyar klón</h4>
           <p>Zero-shot klón magyarul, <b>tisztán ONNX Runtime + NumPy, PyTorch nélkül</b> — és közvetlenül a processzoron fut, nem emulálva. Referencia: egy 6 másodperces hangminta. Az int8 GPT-modellel <b>1,32× valós idővel</b> megy: egy óra hang kb. 45 perc.</p>
-          <div class="fig">M-39. <b>A legjobb mért klónozó:</b> a hibája az F5-TTS szintjén van (0,18 %), és <b>10–20× gyorsabb</b> annál — emuláció és shim nélkül. A modell 2,24 GB, a Hugging Face-en CC BY-NC 4.0 (nem kereskedelmi).</div>
+          <div class="fig">M-39. <b>A legjobb mért klónozó:</b> a hibája 0,18 %, és <b>10–20× gyorsabb</b> az emulált klónmotorknál. A modell 2,24 GB, a Hugging Face-en CC BY-NC 4.0 (nem kereskedelmi).</div>
         </div>
       </div>
       <div class="row">
-        <div><span class="pill no">Lezárva</span></div>
+        <div><span class="pill ok">Megnyílt</span></div>
         <div>
           <h4>Hexagon NPU</h4>
-          <p>A modell ONNX-ból DLC-vé konvertálása <b>működik</b>, de a DLC a DSP-n <b>soha nem futott</b>: három különböző úton is elbukott. A legveszélyesebb az ORT QNN provider, mert csendben a processzorra esik vissza, miközben NPU-t mutat.</p>
-          <div class="fig">M-21 – M-28. Nincs NPU-gyorsulási számunk, mert sosem volt NPU-időmérés. A küszöb, amit egy ilyen mérésnek meg kell haladnia: 170–183 ms.</div>
+          <p>A <b>tényleges NPU-futtatás megvan</b>: az ONNX Runtime QNN Execution Provider a Hexagon HTP-n fut. A korábbi kudarc oka egy <b>téves architektúra-feltevés</b> volt: az X Elite HTP-je <b>V73</b>, nem V81 — a V73 driver-stack végig a gépen volt, csak a V81 drivert kerestük. A DLC-úton (M-21…M-28) továbbra sem jutunk a DSP-re; az ORT QNN plugin-EP viszont igen.</p>
+          <div class="fig">M-47. <code>htp_arch="73"</code>, <code>disable_cpu_ep_fallback=1</code> mellett a session létrejön, minden node QNN-en fut, a HTP profil 4 HVX-szálat mutat. M-48: sűrű fp16 MatMul-on <b>az NPU lassabb</b> a 12 szálas CPU-nál (8,2 / 13,4 / 21,2 GF/s a CPU 75,8 / 57,4 / 45,4 GF/s-ával szemben) — a nyereség kvantált, konvolúciós modelleknél várható.</div>
         </div>
       </div>
     </div>
@@ -443,12 +420,13 @@ auris <span class="k">speak</span>   <span class="c">--text "Szia!"</span></pre>
         </dl>
       </div>
       <div>
-        <h3 style="font-size:17px;margin:0 0 9px">A repón kívül</h3>
+        <h3 style="font-size:17px;margin:0 0 9px">A repón kívül (Snapdragon X Elite kompatibilis)</h3>
         <dl class="kv">
-          <dt><code>C:\AI\clone-probe\</code></dt><dd>F5-TTS környezet és a mérőprogramok</dd>
-          <dt><code>D:\hu-voice-ai\models\piper\</code></dt><dd>a három magyar Piper-hang</dd>
-          <dt><code>C:\AI\venvs\foundry-dev\</code></dt><dd>QNN / NPU próbák</dd>
-          <dt><code>C:\Qualcomm\AIStack\QAIRT\</code></dt><dd>Qualcomm SDK az ONNX→DLC konverzióhoz</dd>
+          <dt><code>D:\<projekt>\vendor\XTTSv2-Streaming-ONNX\</code></dt><dd>XTTSv2-ONNX modell (2,24 GB)</dd>
+          <dt><code>D:\<projekt>\vendor\sherpa-models\</code></dt><dd>Sherpa-onnx modellek (1,67 GB)</dd>
+          <dt><code>D:\<projekt>\envs\xtts-probe\venv-arm64\</code></dt><dd>XTTSv2 natív ARM64 környezet</dd>
+          <dt><code>D:\<projekt>\envs\sherpa-arm64\</code></dt><dd>Sherpa-onnx natív ARM64 környezet</dd>
+          <dt><code>C:\Qualcomm\AIStack\QAIRT\</code></dt><dd>Qualcomm SDK (ONNX→DLC konverzióhoz; az ORT QNN EP-hez nem kell)</dd>
         </dl>
       </div>
     </div>
@@ -456,23 +434,23 @@ auris <span class="k">speak</span>   <span class="c">--text "Szia!"</span></pre>
 
   <!-- ══ JAVASLAT (ÖSSZEFOGLALÓ) ══════════════════════ -->
   <section class="sheet" style="padding:30px 32px">
-    <h2>Összefoglaló — mi a legjobb ezen a gépen</h2>
-    <p class="sub">A Snapdragonon mért értékek alapján: a leggyorsabb motor, a legjobb klónozó, és a futásre javaslat (M-43 – M-45, 2026-10-06).</p>
+    <h2>Összefoglaló — mi a legjobb ezen a gépen (Snapdragon X Elite)</h2>
+    <p class="sub">A Snapdragonon mért értékek alapján: a leggyorsabb motor, a legjobb klónozó, és a futásra javaslat (M-43 – M-45, 2026-10-06).</p>
     <div class="cards">
       <div class="card"><span class="num">1</span><h3>Leggyorsabb motor</h3>
         <p><b>Sherpa-onnx Supertonic 3 int8</b> — RTF 0,1401 (428 perc hang/óra), WER 0,11 %. <b>5,4× gyorsabb</b> az Auris saját Supertonic serial útonél. Beépített hangokon fut, nem klónoz.</p></div>
       <div class="card"><span class="num">2</span><h3>Legjobb klónozó</h3>
-        <p><b>XTTSv2-Streaming-ONNX</b> — magyar zero-shot klón, tiszta ONNX + NumPy, 1,32× valós idő = 45,4 perc/óra, WER 0,18 %. A leggyorsabb és legjobb klónozó a három mért közül.</p></div>
+        <p><b>XTTSv2-Streaming-ONNX</b> — magyar zero-shot klón, tiszta ONNX + NumPy, 1,32× valós idő = 45,4 perc/óra, WER 0,18 %. A leggyorsabb és legjobb klónozó.</p></div>
       <div class="card"><span class="num">3</span><h3>Klón-korlát a sherpa úton</h3>
         <p>A sherpa-onnx Supertonic <b>nem támogat</b> a referenciahang-klónozást (fixed-voice, voice.bin). A custom hangklónhoz az XTTSv2 a követendő út, nem a sherpa.</p></div>
       <div class="card"><span class="num">4</span><h3>ASR-ellenőrzés</h3>
-        <p><b>Parakeet TDT v3</b> (a 25 európai nyelvet, magyarral) a nem-Whisper ASR-jelölt, WER-ellenőrzésre; már integrált a <code>core/qa.py</code>-ba.</p></div>
+        <p><b>hybrid (M-50):</b> a <b>Parakeet TDT v3</b> megy elöl (gyors, RTF 0,099), a <b>magyar Whisper-finemodell</b> (<code>sarpba/whisper-hu-large-v3-turbo-finetuned</code>, WER 8,49 %) erősíti meg a gyanús mondatokat. A teljes könyv ezzel lefutott: 15/15 fejezet, átlag WER 12,85 % / CER 3,39 % (M-51). Élőben tesztelve (M-52): a megerősítés a gyanús szegmens WER-ét 15,57 %-ról 8,49 %-ra csökkenti.</p></div>
     </div>
   </section>
 
   <footer>
     <p><b>Ez az oldal a valós kódból készült</b> — az összes fájlútvonal, függvény név és beállítási kulcs a repóból származik, nem emlékezetből.</p>
-    <p>A számok forrása: <code>docs/meresek.md</code> (M-01…M-45) és <code>docs/arm64-install.md</code>. Készült: 2026-10-04, frissítve 2026-10-06 (sherpa-onnx Supertonic teljes mérés, M-43; nem-Whisper ASR-landskép, M-44; klón-korlát, M-45). Pusholva a <code>gaiagent0/Auris</code> fork-ra, 2026-10-06.</p>
+    <p>A számok forrása: <code>docs/meresek.md</code> (M-01…M-51) és <code>docs/arm64-install.md</code>. Készült: 2026-10-04, frissítve 2026-10-06 (sherpa-onnx Supertonic teljes mérés, M-43; nem-Whisper ASR-landskép, M-44; klón-korlát, M-45), majd 2026-10-12 (a QNN EP tényleg a Hexagon HTP-n fut, M-47/M-48; 3-utas ASR-összehasonlítás, M-50; teljes könyves QA, M-51; NPU + QC iparági kutatás). Pusholva a <code>gaiagent0/Auris</code> fork-ra, 2026-10-06.</p>
   </footer>
 
 </main>

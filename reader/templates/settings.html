@@ -30,7 +30,7 @@
       </div>
       <div class="settings-category" id="settings-dictionary" data-settings-category="dictionary" role="tabpanel" hidden>
         <section class="settings-section"><h2>Magyar kiejtési szótár</h2><p>Az eredeti szöveg megmarad. A felolvasás a megadott alakot használja, teljes szavakra és kifejezésekre, kis- és nagybetűt megkülönböztetve. A könyv saját szabálya elsőbbséget élvez.</p>
-          <form class="experience-form" onsubmit="event.preventDefault();savePronunciation()"><label>Érvényesség<select id="dictionary-book"><option value="">Minden könyv</option></select></label><div class="form-grid"><label>A szövegben<input id="dictionary-source" placeholder="Gorcsev" required maxlength="200"></label><label>Így olvassa<input id="dictionary-replacement" placeholder="Gorcsef" required maxlength="200"></label></div><p id="dictionary-ipa" class="muted" aria-live="polite"></p><button class="btn btn-primary" type="submit">Szabály mentése</button></form>
+          <form class="experience-form" onsubmit="event.preventDefault();savePronunciation()"><label>Érvényesség<select id="dictionary-book"><option value="">Minden könyv</option></select></label><div class="form-grid"><label>A szövegben<input id="dictionary-source" placeholder="Gorcsev" required maxlength="200"></label><label>Így olvassa<input id="dictionary-replacement" placeholder="Gorcsef" required maxlength="200"></label></div><p id="dictionary-ipa" class="muted" aria-live="polite"></p><div class="actions"><button class="btn btn-ghost" type="button" id="dictionary-listen" onclick="listenPronunciation()">Hallgasd meg, hogyan ejti</button><button class="btn btn-primary" type="submit">Szabály mentése</button></div></form><audio id="dictionary-audio" controls class="hidden"></audio>
           <p class="muted">Mentés vagy törlés után az érintett könyvek felolvasása újragenerálódik. Az exportált fájlok megmaradnak.</p><p id="dictionary-message" role="status"></p><div id="dictionary-list"></div>
           <div class="experience-form"><label>Próbamondat<textarea id="dictionary-preview-input" rows="3">Gorcsev belépett a szobába.</textarea></label><button class="btn btn-ghost" onclick="previewPronunciation()">Felolvasandó szöveg ellenőrzése</button><p id="dictionary-preview-output" aria-live="polite"></p></div>
           <h3>Ellenőrzésre javasolt szavak</h3>
@@ -525,11 +525,15 @@
   <!-- Quality control -->
   <section class="settings-section">
     <div class="settings-section-title">Minőségellenőrzés</div>
-    <p class="section-desc">Az olvasó <strong>Ellenőrzés</strong> gombjával nyíló oldal beszédfelismeréssel visszahallgatja a hangot. Magyar könyvhöz a <code>sarpba/whisper-hu-large-v3-turbo-finetuned</code> (MIT, ~1,6 GB videomemória), más nyelvhez az <code>openai/whisper-large-v3-turbo</code> modellt használja; első használatkor letöltődik.</p>
+    <p class="section-desc">Az olvasó <strong>Ellenőrzés</strong> gombjával nyíló oldal beszédfelismeréssel visszahallgatja a hangot, és összeveti az eredeti szöveggel (CER/WER). Magyar könyvnél az alapértelmezés a <strong>hibrid</strong>: a Parakeet (NVIDIA, ONNX) hallgat végig, a <code>sarpba/whisper-hu-large-v3-turbo-finetuned</code> (MIT, ~1,6 GB) pedig a gyanús mondatokat újrahallgatja. A saját modell mezőbe írt Hugging Face modell az <code>openai/whisper-large-v3-turbo</code> alapból indul; első használatkor letöltődik.</p>
     <div class="setting-row setting-grid-3">
       <label>Gyanús, ha a hibaarány eléri (%)<input type="number" id="qa-cer-warn" class="text-input" min="0" max="100" step="1"></label>
       <label>Hibás, ha a hibaarány eléri (%)<input type="number" id="qa-cer-fail" class="text-input" min="1" max="100" step="1"></label>
       <label>Legfeljebb ennyi új változat mondatonként<input type="number" id="qa-max-takes" class="text-input" min="0" max="8" step="1"></label>
+    </div>
+    <div class="setting-row">
+      <label class="checkbox-label"><input type="checkbox" id="qa-autostart">Az Ellenőrzés oldal megnyitásakor a fejezet ellenőrzése automatikusan elindul</label>
+      <span class="muted" style="font-size:.78rem">Csak akkor indul el magától, ha a fejezetnek még nincs mentett eredménye, és nem fut éppen másik ellenőrzés. A választott beszédfelismerő mód és a „Gyanús, ha…” küszöb szerint.</span>
     </div>
     <div class="setting-row">
       <label>Beszédfelismerő</label>
@@ -539,7 +543,7 @@
         <option value="hybrid">Parakeet, a gyanús mondatoknál Whisper-megerősítéssel</option>
         <option value="parakeet">Csak Parakeet (a leggyorsabb processzoron)</option>
       </select>
-      <span class="muted" style="font-size:.78rem">A Parakeet (NVIDIA, 25 európai nyelv) processzoron is gyors; az első használatkor kb. 2,4 GB-os modellt tölt le. Videokártyán a Whisper ugyanilyen gyors, és a magyar finomhangolás miatt ez az alapértelmezés.</span>
+      <span class="muted" style="font-size:.78rem">A Parakeet (NVIDIA, 25 európai nyelv) processzoron is gyors; az első használatkor kb. 2,4 GB-os modellt tölt le. <strong>Mérés ezen a gépen (M-53):</strong> a teljes könyv (8,4 óra hang) végighallgatása <strong>~32 perc</strong> Parakeettel vagy hibriddel (szegmensszintű WER 18,7 %), míg a Whisperrel <strong>~10,6 óra</strong> (WER 13,1 %). A hibriddel az egyensúly: Parakeet-sebesség, és csak a gyanús (küszöb feletti hibaarányú) mondatokat hallgatja újra a Whisper — mondatonként kb. 25 másodpercbe kerül. <strong>Küszöb-sweep (M-54):</strong> a lejjebb húzás alig javít (0,04-nél WER 9,82 % vs 0,08-nál 10,35 %), viszont a könyv ellenőrzése 33 percről 212–397 percre nő; mondatonként a Whisper önmagában rosszabb a Parakeetnél. A fenti „Gyanús, ha…” érték állítja be ezt a küszöböt.</span>
     </div>
     <div class="setting-row">
       <label>Saját beszédfelismerő modell (Hugging Face; üresen az alapértelmezett)</label>

@@ -71,6 +71,49 @@ def pronunciation():
     )
 
 
+@bp.route("/api/pronunciation/suggest", methods=["GET", "POST"])
+def suggest_pronunciation():
+    """Kiejtési szabályjavaslatok a könyv szövegéből.
+
+    GET:  ?book_id=1 — végigvizsgálja a könyvet, és kilistázza azokat a
+          szavakat, amelyekből a motor valószínűleg rossz kiejtést produkál.
+          A már megoldott esetek (beépített szabályok, mentett felhasználói
+          szabályok, számok, dátumok, római számok, kezdőbetűk, ismert
+          rövidítések) nem szerepelnek a listában.
+
+    POST: {book_id, source, replacement} — egy javaslat elfogadása, ami a
+          meglévő szabálymentő úton mentődik, és törli a könyv TTS-szegmenseit.
+    """
+    from core import pronunciation_suggest
+
+    if request.method == "POST":
+        data = body()
+        try:
+            saved = experience.save_rule(
+                book_id(data.get("book_id")),
+                data.get("source", ""),
+                data.get("replacement", ""),
+            )
+        except ValueError as exc:
+            return jsonify(error=str(exc)), 400
+        return jsonify(ok=True, rule=saved)
+
+    try:
+        target = book_id(request.args.get("book_id"))
+    except (TypeError, ValueError):
+        return jsonify(error="A könyv azonosítója kötelező."), 400
+    try:
+        items = pronunciation_suggest.suggest_for_book(target)
+    except ValueError as exc:
+        return jsonify(error=str(exc)), 400
+    return jsonify(
+        ok=True,
+        book_id=target,
+        suggestions=items,
+        has_lexicon=pronunciation_suggest.has_lexicon(),
+    )
+
+
 @bp.route("/api/pronunciation/<int:rule_id>", methods=["DELETE"])
 def delete_pronunciation(rule_id):
     experience.delete_rule(rule_id)

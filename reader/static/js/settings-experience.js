@@ -100,6 +100,42 @@ async function savePronunciation() {
     sx("dictionary-message").textContent = e.message;
   }
 }
+// A mentés előtti hallgatás: a szabályt alkalmazzuk egy mintamondatra, és
+// narrátorhangon visszajátsszuk. Ha a próbamondat nem tartalmazza az írott
+// alakot, magát a szót mondatjuk fel, hogy biztosan hallható legyen a csere.
+async function listenPronunciation() {
+  const source = sx("dictionary-source").value.trim();
+  const replacement = sx("dictionary-replacement").value.trim();
+  const message = sx("dictionary-message");
+  const button = sx("dictionary-listen");
+  const player = sx("dictionary-audio");
+  if (!source || !replacement) {
+    message.textContent = "Add meg az írott és a kiejtett alakot, mielőtt meghallgatod.";
+    return;
+  }
+  const sample = sx("dictionary-preview-input").value.trim();
+  const text = sample.toLowerCase().includes(source.toLowerCase()) ? sample : source;
+  button.disabled = true;
+  message.textContent = "Felolvasás…";
+  try {
+    const d = await sxApi("/api/pronunciation/listen", {
+      book_id: sx("dictionary-book").value || null,
+      text,
+      source,
+      replacement,
+    });
+    message.textContent = `Így hangzik: ${d.spoken}`;
+    player.src = d.audio_url;
+    player.classList.remove("hidden");
+    // Ha a böngésző az automatikus lejátszást tiltja, a látható lejátszósor
+    // gombjával indítható — a visszajelzést nem írja felül a tiltás.
+    await player.play().catch(() => {});
+  } catch (e) {
+    message.textContent = e.message;
+  } finally {
+    button.disabled = false;
+  }
+}
 sx("dictionary-list").addEventListener("click", async (e) => {
   const button = e.target.closest("[data-delete-rule]");
   if (!button) return;

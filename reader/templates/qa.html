@@ -18,7 +18,16 @@
         {% for chapter in chapters %}<option value="{{ chapter.id }}">{{ loop.index }}. {{ chapter.title }}</option>{% endfor %}
       </select>
     </label>
-    <label class="checkbox-label"><input type="checkbox" id="qa-asr" checked> Beszédfelismerés (Whisper)</label>
+    <label class="checkbox-label"><input type="checkbox" id="qa-asr" checked> Beszédfelismerés</label>
+    <label class="qa-field qa-field-backend">Beszédfelismerő mód
+      <select id="qa-asr-backend" class="select-input">
+        <option value="auto">Automatikus</option>
+        <option value="hybrid">Parakeet + Whisper-megerősítés (hibrid)</option>
+        <option value="parakeet">Csak Parakeet</option>
+        <option value="whisper">Csak Whisper</option>
+      </select>
+      <span id="qa-asr-backend-info" class="qa-backend-info" role="status" aria-live="polite"></span>
+    </label>
     <label class="checkbox-label"><input type="checkbox" id="qa-regenerate" checked> Hibás mondatok automatikus újragenerálása</label>
     <label class="qa-field">Új változat hangja
       <select id="qa-take-voice" class="select-input">

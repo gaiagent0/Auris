@@ -6,6 +6,10 @@
 .qa-intro { margin: 0; color: var(--text2); line-height: 1.55; max-width: 70ch; }
 .qa-controls { display: flex; flex-wrap: wrap; gap: 14px 20px; align-items: flex-end; margin-bottom: 12px; }
 .qa-field { display: flex; flex-direction: column; gap: 6px; font-size: .85rem; color: var(--text2); min-width: 240px; }
+.qa-field-backend { min-width: 320px; }
+.qa-backend-info { font-size: .78rem; color: var(--text2); line-height: 1.4; }
+.qa-backend-info.is-ok { color: var(--color-success); }
+.qa-backend-info.is-error { color: var(--color-danger); }
 .qa-status { min-height: 1.4em; color: var(--text2); margin: 6px 0; }
 .qa-status.is-error, .is-error { color: var(--color-danger); }
 .qa-status.is-ok { color: var(--color-success); }

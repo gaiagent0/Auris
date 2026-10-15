@@ -394,6 +394,77 @@ def chapter_qa(book_id, chapter_id):
     return jsonify(segments=items, summary=summary)
 
 
+_ASR_OPTION_LABELS = {
+    "auto": "Automatikus — videokártyán Whisper, processzoron Parakeet + Whisper",
+    "hybrid": "Parakeet, a gyanús mondatoknál Whisper-megerősítéssel",
+    "parakeet": "Csak Parakeet (a leggyorsabb processzoron)",
+    "whisper": "Whisper (magyarra finomhangolt)",
+}
+
+
+def _asr_state(book_id: int) -> dict:
+    """Requested + effective ASR backend for one book's language."""
+    from core import settings
+
+    with get_conn() as conn:
+        book = conn.execute("SELECT language FROM books WHERE id=?", (book_id,)).fetchone()
+    if not book:
+        raise ValueError("A könyv nem található.")
+    language = book["language"] if book["language"] else None
+    parakeet_ok = qa.parakeet_available()
+    whisper_ok = qa.whisper_available()
+    lang = str(language or "").lower()[:2]
+    parakeet_lang = not lang or lang in qa.PARAKEET_LANGUAGES
+
+    def option_available(value: str) -> bool:
+        if value in ("parakeet", "hybrid"):
+            return parakeet_ok and parakeet_lang and (value == "parakeet" or whisper_ok)
+        if value == "whisper":
+            return whisper_ok
+        return parakeet_ok or whisper_ok
+
+    requested = str(settings.get("asr_backend", "hybrid") or "hybrid")
+    if requested not in qa.ASR_BACKENDS:
+        requested = "auto"
+    return {
+        "requested": requested,
+        "effective": qa.asr_backend_for(language),
+        "language": language,
+        "whisper_model": qa.asr_model_for(language),
+        "parakeet_model": qa.PARAKEET_MODEL,
+        "qa_autostart": bool(settings.get("qa_autostart", True)),
+        "qa_cer_warn": float(settings.get("qa_cer_warn", qa.DEFAULT_CER_WARN)),
+        "qa_cer_fail": float(settings.get("qa_cer_fail", qa.DEFAULT_CER_FAIL)),
+        "options": [{"value": value, "label": _ASR_OPTION_LABELS[value],
+                     "available": option_available(value)}
+                    for value in qa.ASR_BACKENDS],
+    }
+
+
+@bp.route("/api/books/<int:book_id>/qa/asr-backend", methods=["GET", "POST"])
+def qa_asr_backend(book_id):
+    """Which speech recognizer the next check uses, and switching it.
+
+    GET reports the saved choice, the backend that will really run for this
+    book's language and which choices this machine can offer; POST saves the
+    choice so the next check (and the settings page) agree on it.
+    """
+    from core import settings
+
+    try:
+        state = _asr_state(book_id)
+    except ValueError as exc:
+        return jsonify(error=str(exc)), 404
+    if request.method == "POST":
+        body = request.get_json(silent=True) or {}
+        backend = str(body.get("backend", "") or "").strip().lower()
+        if backend not in qa.ASR_BACKENDS:
+            return jsonify(error="Ismeretlen beszédfelismerő mód."), 400
+        settings.save({"asr_backend": backend})
+        state = _asr_state(book_id)
+    return jsonify(state)
+
+
 def _segment_by_index(application, book_id, chapter_id, index):
     segs = application._get_chapter_segments(chapter_id, book_id)
     for seg in segs:
