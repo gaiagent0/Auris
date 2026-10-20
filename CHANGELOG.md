@@ -28,6 +28,25 @@ represent a new product generation or an incompatible change.
   opcióra költözött.
 - **THIRD_PARTY_NOTICES** — sherpa-onnx, sherpa-Supertonic modell, Silero VAD
   lícenczei dokumentálva.
+- **Motorajánló és -váltó API** (`/api/engine/suggest`, `/api/engine/switch`) —
+  a Beállítások motorválasztója csak a gépen tényleg futtatható motorokat
+  kínálja; a XTTSv2-ONNX klónozó megjelenése a szöveg-előkészítés
+  függőségeitől (librosa, pypinyin) függ, a hiányuk magyar üzenettel jelezve.
+
+#### Módosítva
+
+- **Docker CPU-only** — a `Dockerfile` alapból CPU-kép (nincs TORCH_VARIANT
+  build-arg, nincs NVIDIA Container Toolkit-függés); a compose ARM64-re céloz.
+
+#### Eltávolítva
+
+- **CUDA/VRAM-motorok és -gyorsítások** — OmniVoice, Higgs TTS 3, MOSS-TTS 1.5,
+  MOSS-TTS-Nano, a `tts_accel` CUDA-gráf út, a Triton/ROCm/MPS gyorsítási
+  módok, a párhuzamos GPU export-útvonalak és az `install_accel.bat` együtt
+  eltávolítva. A motorkészlet ONNX-only: Supertonic 3 (sherpa-onnx int8 is),
+  XTTSv2-ONNX klónozás és Piper — minden CPU-n, mért RTF-fel.
+- **Elavult tesztek** — a törölt motorok 10 tesztfájlja; a megmaradt tesztek a
+  ONNX-only valóságra frissítve (639 teszt, 0 bukás).
 
 ### English
 
@@ -41,6 +60,26 @@ represent a new product generation or an incompatible change.
 - **Docker compose defaults to CPU** (`TORCH_VARIANT=cpu`) — a fresh `compose
   up` runs anywhere, including Snapdragon; the NVIDIA-GPU deploy moved to a
   `--build-arg` option.
+- **Engine recommendation and switching API** (`/api/engine/suggest`,
+  `/api/engine/switch`) — the Settings engine picker only offers engines that
+  actually run on this machine; the XTTSv2-ONNX cloning engine appears when
+  its text pipeline (librosa, pypinyin) is installed, with a Hungarian message
+  naming any missing dependency.
+
+#### Changed
+
+- **Docker is CPU-only** — the `Dockerfile` builds a CPU image by default (no
+  TORCH_VARIANT build arg, no NVIDIA Container Toolkit dependency); the compose
+  file targets ARM64.
+
+#### Removed
+- **CUDA/VRAM engines and accelerations** — OmniVoice, Higgs TTS 3, MOSS-TTS
+  1.5, MOSS-TTS-Nano, the `tts_accel` CUDA-graph path, the Triton/ROCm/MPS
+  acceleration modes, the parallel GPU export lanes and `install_accel.bat`
+  are gone. The engine set is ONNX-only: Supertonic 3 (also sherpa-onnx int8),
+  XTTSv2-ONNX cloning and Piper — all on the CPU with measured RTF.
+- **Stale tests** — the 10 test files of the removed engines; the remaining
+  tests were updated for the ONNX-only reality (639 tests, 0 failures).
 
 ## [4.4.0] - 2026-10-01
 

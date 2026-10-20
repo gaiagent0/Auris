@@ -1,42 +1,37 @@
-# Auris Windows x64
+# Auris Windows ARM64 (Snapdragon X Elite)
 
-Az asztali kiadás Windows 10/11 x64 rendszeren használható. A telepítő saját
-Python-környezetet, CPU-s AI-függőségeket és FFmpeg/ffprobe programokat tartalmaz.
-A használathoz nem kell Git, Python-telepítés vagy parancssor.
+Az asztali kiadás **Windows 11 ARM64 (Snapdragon X Elite)** rendszeren
+használható. A telepítő saját Python-környezetet, CPU-s AI-függőségeket és
+FFmpeg/ffprobe programokat tartalmaz. A használathoz nem kell Git,
+Python-telepítés vagy parancssor.
 
 ## Telepítés és első indítás
 
-1. A [GitHub Releases](https://github.com/mp3pintyo/Auris/releases/latest) oldalról
-   töltsd le az `Auris-Setup-<verzió>-x64.exe` fájlt és indítsd el.
-2. Kövesd a magyar telepítő lépéseit. Alapértelmezett programhely:
-   `%LOCALAPPDATA%\Programs\Auris`. Rendszergazdai jogosultság nem szükséges.
-3. Indítsd az Aurist az asztali vagy Start menüben létrehozott ikonnal.
-4. Az első indításkor válaszd a **Gyors indulás** (Supertonic 3, CPU) vagy a
-   **Saját hangok és hangklónozás** (OmniVoice) lehetőséget, majd kattints a
-   **Letöltés és beállítás** gombra. Az állapot és az aktuális fájl letöltése
-   az ablakban követhető.
-5. Kész beállítás után nyisd meg a könyvtárat. NVIDIA-gyorsítás telepítése
-   esetén az **Auris újraindítása** gombbal aktiváld az új környezetet.
+1. Indítsd el az Aurist. Kövesd a magyar telepítő lépéseit. Alapértelmezett
+   programhely: `%LOCALAPPDATA%\Programs\Auris`. Rendszergazdai jogosultság
+   nem szükséges.
+2. Indítsd az Aurist az asztali vagy Start menüben létrehozott ikonnal.
+3. Az első indításkor válaszd a **Gyors indulás** (Supertonic 3, kb. 0,4 GB)
+   vagy a **Saját hangok és hangklónozás** (XTTSv2-ONNX, a telepítéssel
+   együtt jár) lehetőséget, majd kattints a **Letöltés és beállítás** gombra.
+   Az állapot és az aktuális fájl letöltése az ablakban követhető.
+4. Kész beállítás után nyisd meg a könyvtárat.
 
-A Supertonic modell körülbelül 0,4 GB, az OmniVoice több GB. NVIDIA-gyorsítás
-esetén további több GB-os letöltés szükséges. A modellek első letöltéséhez és
-a hiányzó Microsoft WebView2 beállításához internet kell. A már telepített
-motorok helyi felolvasása internet nélkül is működik; webes cikkimport és
-külső API-k használata továbbra is hálózati kapcsolatot igényel.
+A Supertonic modell letöltéséhez és a hiányzó Microsoft WebView2
+beállításához internet kell. A már telepített motorok helyi felolvasása
+internet nélkül is működik; webes cikkimport és külső API-k használata
+továbbra is hálózati kapcsolatot igényel.
 
-## NVIDIA és más hardver
+## Hardver: minden motor CPU-n fut
 
-A Supertonic CPU-n fut. Az OmniVoice CPU-val is használható, lassabban.
-A kezdeti beállítás felismeri az NVIDIA-kártyát. Ha az illesztőprogram CUDA
-12.8-at vagy újabb verziót támogat, az OmniVoice mellett bekapcsolható a
-**NVIDIA-gyorsítás telepítése**. Ez az Auris saját felhasználói környezetébe
-telepíti a PyTorch CUDA-komponenseket; az NVIDIA-illesztőprogramot nem módosítja.
-Más hardveren az első asztali kiadás CPU-val indul. A forrásból indított
-webes Auris meglévő hardvertámogatása változatlan.
+Az Auris kizárólag Snapdragon X Elite / Windows ARM64 rendszerre készült;
+minden beszédmotor ONNX Runtime-on, a processzoron fut, videokártya vagy
+külön illesztőprogram nem kell. A mért sebességek: a sherpa-Supertonic RTF
+0,14 (az auto-ajánlott motor), a Supertonic 0,25, a klónozó XTTSv2-ONNX 0,58.
 
-Más motort később a **Beállítások** oldalon választhatsz. Az OmniVoice-hoz
-a Beállítások modellletöltése is használható. Az asztali kezdeti beállítás
-újra megnyitható a Súgó asztali telepítésről szóló részéből.
+Más motort később a **Beállítások** oldalon választhatsz; a motorválasztó
+alatt látszik, melyik motor futtatható ezen a gépen. Az asztali kezdeti
+beállítás újra megnyitható a Súgó asztali telepítésről szóló részéből.
 
 ## Könyvek, modellek és frissítés
 
@@ -70,22 +65,25 @@ folytathatod. Egy adatmappához egyszerre egy asztali példány indulhat.
 - Ha az ablak nem indul, futtasd újra a telepítőt internetkapcsolattal a
   hiányzó WebView2 beállításához. Ellenőrizd a `logs/desktop.log` és
   `logs/launcher.log` fájlokat.
-- NVIDIA-telepítési hibánál a `logs/gpu-install.log` tartalmazza a részleteket.
-  A Gyors indulás választásával CPU-n is használhatod az Aurist.
+- Ha a klónozó motor nem jelenik meg vagy nem tölt be, ellenőrizd, hogy a
+  `vendor/XTTSv2-Streaming-ONNX/xtts_onnx` könyvtár megvan-e, és telepítve
+  vannak-e a `librosa` és `pypinyin` csomagok. A Beállítások motorválasztója
+  jelzi, melyik motor futtatható ezen a gépen.
 - OCR-hez a Tesseract és a magyar nyelvi adat, speciális könyvformátumokhoz
   a Calibre továbbra is opcionális, külön telepítendő eszköz. Az FFmpeg és
   ffprobe az asztali csomag része.
 
 ## Fejlesztői build és ellenőrzés
 
-A build a projekt tesztelt Windows x64 Python 3.11 virtuális környezetéből
-csak a szükséges csomagokat másolja át; könyveket, beállításokat, hangmintákat
-és TTS-modellsúlyokat nem csomagol. A meglévő magyar és angol NLP-modell
-belekerülhet a függőségekkel együtt. A csomagolt CPython 3.11.9 önálló, izolált
-futtatókörnyezet. A CPU-s Torch/torchaudio 2.11.0, a WebView-alapú ablakhoz
-pywebview 6.2.0 kerül bele. A build letölti a hivatalos Python-csomagot,
-a Microsoft WebView2 bootstrappert és az FFmpeg Windows-buildjét. A
-teljes függőséglista a release `runtime-manifest.json` mellékletében van.
+A build a projekt tesztelt virtuális környezetéből csak a szükséges
+csomagokat másolja át; könyveket, beállításokat, hangmintákat és
+TTS-modellsúlyokat nem csomagol. A meglévő magyar NLP-modell
+belekerülhet a függőségekkel együtt. A csomagolt CPython önálló, izolált
+futtatókörnyezet (ARM64 célra a beágyazott Python-csomagnak illeszkednie
+kell a gazdaarchitektúrához). A WebView-alapú ablakhoz pywebview 6.2.0
+kerül bele. A build letölti a hivatalos Python-csomagot, a Microsoft
+WebView2 bootstrappert és az FFmpeg Windows-buildjét. A teljes
+függőséglista a release `runtime-manifest.json` mellékletében van.
 
 ```powershell
 reader\.venv\Scripts\python.exe scripts\windows\build.py

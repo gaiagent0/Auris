@@ -12,8 +12,8 @@ Current version: [`VERSION`](VERSION). See the complete bilingual
 [`CHANGELOG.md`](CHANGELOG.md) and the [`RELEASING.md`](RELEASING.md) guide for
 the versioning and release process.
 
-Local-first audiobook reader for EPUB, PDF, DOCX, TXT, PRC/MOBI, and public web articles with six selectable local
-speech engines (OmniVoice, Higgs TTS 3, MOSS-TTS 1.5, MOSS-TTS-Nano, Supertonic 3, Supertonic 3 sherpa-onnx int8 and Piper), Hungarian-first text
+Local-first audiobook reader for EPUB, PDF, DOCX, TXT, PRC/MOBI, and public web articles with four selectable local
+speech engines (Supertonic 3, Supertonic 3 sherpa-onnx int8, XTTSv2-ONNX voice cloning and Piper — all ONNX Runtime on the CPU), Hungarian-first text
 processing, character-aware voices, per-book narrator control, and duration-based estimated word highlighting.
 
 Reading, speech generation, playback, and file import run locally after setup,
@@ -90,13 +90,13 @@ labels and the updated workflows described below and in the built-in help.
 
 ## Highlights
 
-- Seven local speech engines, all with official Hungarian support: OmniVoice and
-  Higgs TTS 3 (GPU, voice cloning), MOSS-TTS 1.5 (GPU, Apache-2.0, cloning),
-  MOSS-TTS-Nano (CPU cloning), and Supertonic 3, Supertonic 3 sherpa-onnx int8
-  and Piper (CPU, preset voices without voice cloning). Settings shows each
-  engine's capabilities and Voice Studio adapts to them. On CPU/ARM64 the
-  sherpa-onnx Supertonic is the measured-fastest (RTF 0.14) and the default
-  `auto` recommendation.
+- Four local speech engines, all running on ONNX Runtime on the CPU: Supertonic 3
+  and Supertonic 3 sherpa-onnx int8 (preset Hungarian voices), XTTSv2-ONNX int8
+  (voice cloning from a reference recording) and Piper (preset Hungarian
+  voices). Settings shows each engine's capabilities and Voice Studio adapts to
+  them. The sherpa-onnx Supertonic is the measured-fastest (RTF 0.14) and the
+  default `auto` recommendation; the cloning engine appears whenever its text
+  pipeline (librosa, pypinyin) is installed.
 - Hungarian text processing: dates, Roman numerals, times, units, currencies,
   abbreviations and acronyms are spoken correctly; Hungarian sentence splitting,
   dialogue dashes and quotes; HuSpaCy-based character detection.
@@ -108,8 +108,6 @@ labels and the updated workflows described below and in the built-in help.
   distribution MP3 with sample, DAW stems; Opus/FLAC; credits and background music.
 - Reference clean-up for voice cloning, takes in another saved voice, and
   per-sentence sound effects.
-- Optional Triton kernels (Windows and Linux, Python 3.11) for about 25% faster
-  OmniVoice generation on NVIDIA GPUs.
 - Installable, phone-friendly interface with offline playback of cached audio,
   live updates over one server-event stream, a chapter timeline and keyboard
   shortcuts (J/L seek, [ ] speed).
@@ -146,32 +144,30 @@ labels and the updated workflows described below and in the built-in help.
 - Inspect generated audio-cache usage and remove old files that no book references.
 - Run from a project-local `.venv` created by the installer.
 
-## Windows x64 alkalmazás / desktop application
+## Windows ARM64 alkalmazás / desktop application
 
-A [GitHub Releases](https://github.com/gaiagent0/Auris/releases/latest) oldalról
-letölthető `Auris-Setup-<verzió>-x64.exe` telepítővel **Git és külön Python-telepítés
-nélkül** használhatod az Aurist Windows 10/11 x64 rendszeren. Az Auris saját
-ablakban nyílik meg; első indításkor magyar beállítófelület tölti le a választott
-Supertonic CPU- vagy OmniVoice-modellt. A megfelelő NVIDIA-kártyához az
-OmniVoice GPU-gyorsítása is automatikusan telepíthető. Az első modellletöltéshez
-internet kell; a már telepített motorok felolvasása helyben fut.
+Az Auris **Snapdragon X Elite / Windows 11 ARM64** rendszerre készült asztali
+alkalmazás: saját ablakban nyílik meg, első indításkor magyar beállítófelület
+kínálja a **Supertonic 3** (gyors indulás, modellletöltés) vagy a **XTTSv2-ONNX**
+(klónozó, a telepítéssel együtt érkezik) motort. Az első modellletöltéshez
+internet kell; a felolvasás ezután teljesen helyben fut.
 
-A könyvek és modellek a `%LOCALAPPDATA%\Auris` mappában maradnak meg frissítés
-után is. A Python-környezet, a CPU-függőségek és az FFmpeg/ffprobe a csomag része.
-[Telepítés, frissítés és hibaelhárítás](docs/windows-desktop.md).
+A könyvek és modellek a `%LOCALAPPDATA%\Auris` mappában (vagy az
+`AURIS_DATA_DIR` környezeti változóval megadott helyen) maradnak meg frissítés
+után is. [Telepítés, frissítés és hibaelhárítás](docs/windows-desktop.md).
 
-The Windows x64 installer bundles Python, CPU dependencies and FFmpeg/ffprobe.
-No Git or separate Python installation is required. First-run setup downloads
-the selected voice model and can install an optional NVIDIA runtime for
-OmniVoice. User data and downloaded models survive application updates.
-The existing source-based web installation remains available below.
+The desktop build targets Windows 11 ARM64 (Snapdragon X Elite). First-run
+setup offers the fast Supertonic 3 engine or the bundled XTTSv2-ONNX cloning
+engine; everything runs locally on the CPU afterwards. User data and downloaded
+models survive application updates. The source-based web installation remains
+available below.
 
 ## Requirements (source-based web installation)
 
-- Python 3.10 or later
+- Windows 11 ARM64 (Snapdragon X Elite) or Linux ARM64/x64
+- Python 3.12 or later
 - `ffmpeg` on `PATH` for MP3, M4B, and export mastering
-- OmniVoice model files stored locally
-- Optional NVIDIA GPU for faster inference
+- `onnxruntime` (the engines are CPU-only ONNX models; no GPU required)
 
 ## Installation
 
@@ -196,7 +192,7 @@ Or directly:
 python reader/setup.py
 ```
 
-The installer detects CUDA or CPU, creates `reader/.venv`, installs PyTorch, OmniVoice, spaCy, and the reader dependencies, then downloads the `en_core_web_sm` spaCy model when network access is available.
+The installer creates `reader/.venv`, installs the ONNX engine set (Supertonic 3, sherpa-onnx, XTTSv2-ONNX pipeline, Piper), optional CPU PyTorch for the Whisper QA backend, spaCy, and the reader dependencies, then downloads the Hungarian spaCy model when network access is available.
 
 ## Start after installation
 
@@ -231,42 +227,24 @@ with `Ctrl+C` in that terminal.
   command line (`python auris_cli.py --help`).
 - OpenAI-compatible `POST /v1/audio/speech` for other tools, using the active
   engine and saved Hungarian voice profiles.
-- `docker compose up -d` builds and runs Auris with a **CPU image by default**
-  (works anywhere, including Snapdragon ARM64); data lives in `docker-data/`.
-  For an NVIDIA-GPU build (`TORCH_VARIANT=cu128`, fast OmniVoice):
-  `docker compose build --build-arg TORCH_VARIANT=cu128`.
+- `docker compose up -d` builds and runs Auris as a **CPU image** (works
+  anywhere, including Snapdragon ARM64); data lives in `docker-data/`.
 
 ## Model setup
 
-The OmniVoice weights are not bundled with this repository.
+Every engine runs locally through ONNX Runtime; there is no hosted dependency.
 
-You can either:
-
-- Download them from the Settings page using the built-in Hugging Face downloader.
-- Point Settings at an existing local OmniVoice model directory.
-
-The model directory must contain the files OmniVoice expects, such as `config.json` and model weights.
-
-### Higgs TTS 3
-
-Select **Higgs TTS 3 — 4B** in Settings to try the Boson AI model. Auris uses
-the Transformers-compatible
-`multimodalart/higgs-audio-v3-tts-4b-transformers` adapter and downloads its
-model files into the HuggingFace cache on first load. You can also point the
-Higgs section at a compatible local snapshot.
-
-Higgs and OmniVoice keep separate settings and run with separate Transformers
-versions. The installer puts Higgs' Transformers 5.13 runtime in
-`reader/.higgs_runtime`; OmniVoice remains on its compatible 5.3 release.
-
-Higgs supports Hungarian, transcript-assisted zero-shot voice cloning, and
-inline emotion, style, prosody, pause, and sound-effect controls. Auris maps its
-existing scene speed and expression tags to those controls.
-
-Higgs has its own research/non-commercial license with a creator-use grant.
-Audiobooks and similar creator media require prominent Boson AI Higgs Audio
-attribution, and voice cloning requires the speaker's consent. Review the
-[official model card](https://huggingface.co/bosonai/higgs-tts-3-4b) before use.
+- **Supertonic 3** — downloaded automatically from Hugging Face on first use
+  (`supertone-oss-archive/supertonic-3`, OpenRAIL-M license).
+- **Supertonic 3 sherpa-onnx int8** — downloaded automatically on first use
+  (~139 MB); the measured-fastest engine on Snapdragon.
+- **XTTSv2-ONNX** — the cloning engine ships with the install; the setup wizard
+  verifies `vendor/XTTSv2-Streaming-ONNX/xtts_onnx` is present. Cloning needs a
+  reference recording uploaded in Voice Studio. XTTSv2 weights follow the Coqui
+  Public Model License (non-commercial); review the
+  [model card](https://huggingface.co/coqui/XTTS-v2) before use.
+- **Piper** — preset Hungarian voices; the `piper-tts` package can be installed
+  from Settings.
 
 ## Usage
 
@@ -391,53 +369,29 @@ does not run a word-alignment model. The remaining-time display is marked
 support improves headset/media-button control where available, but background
 playback on every mobile platform is not guaranteed.
 
-On RTX 3090-class GPUs, leave **Settings → Parallel export workers** on
-**Auto** or select **2**. Multi-chapter export then loads a second OmniVoice model
-temporarily and runs two CUDA streams. If VRAM is insufficient or either
-worker fails, Auris automatically continues on the primary model.
+## Inference and benchmarks
 
-## Inference acceleration and benchmarking
+One resident engine runs at a time on the Snapdragon; parallel export workers
+and GPU runtimes were removed together with the CUDA engine stack. Engine
+selection follows measured real-time factors (see
+[`docs/meresek.md`](docs/meresek.md)):
 
-For reproducible OmniVoice performance measurements, run from the repository root:
+| Engine | Measured RTF | Note |
+| --- | ---: | --- |
+| Supertonic 3 sherpa-onnx int8 | 0.14 | default `auto` recommendation |
+| Supertonic 3 (batched) | 0.25 | faster than real time |
+| XTTSv2-ONNX int8 | 0.58 | the only voice-cloning engine |
 
-```powershell
-reader\.venv\Scripts\python.exe scripts\benchmark_tts.py --output reader/data/performance/run.json
-```
+## Voice cloning caveats
 
-The benchmark generates real Hungarian audio without audio-cache hits, records
-first-call latency separately from five warm runs, and saves JSON plus WAV samples.
-Use `--ref-audio reference.wav --ref-text transcript.txt` for voice cloning.
-It does not save changes to application settings.
+XTTSv2 clones a voice from a short reference recording, but quality depends on
+the reference. Best results:
 
-Acceleration **Auto** selects CUDA Graph on NVIDIA and optimized PyTorch on
-AMD ROCm, Apple MPS and CPU. **Off** still uses the available GPU. Triton/hybrid
-is an explicit experimental NVIDIA option. Variable-length audio no longer enables
-cuDNN's costly convolution algorithm search. See the built-in **Documentation →
-Performance** and [measurement report](docs/performance/2026-09-10-tts.md).
-
-AMD users must first install the GPU/OS/Python-compatible torch and torchaudio
-pair from [AMD's ROCm instructions](https://rocm.docs.amd.com/projects/radeon-ryzen/en/latest/).
-The installer preserves a working ROCm runtime; it does not choose AMD wheels
-automatically. NVIDIA/Windows was measured locally; the updated ROCm/MPS paths
-still require physical-device validation. These acceleration modes apply to
-OmniVoice, not the separate Higgs engine.
-
-## Voice design caveats
-
-OmniVoice does not produce clean output for every voice-design combination. The upstream docs note that some attribute mixes are unreliable, especially without reference audio.
-
-The most fragile cases are youth voices with extreme pitch settings. For example, combinations like `male, teenager, very high pitch, american accent` can degrade into squeaks, bursts, or static instead of intelligible speech.
-
-Auris now tries to stabilize some known-bad combinations during preview and playback by relaxing them to a nearby voice design, but this is still a model limitation, not something the UI can fully solve.
-
-Best results:
-
-- Prefer `young adult` over `teenager` when you do not have reference audio.
-- Avoid `very high pitch` and `very low pitch` on `child` and `teenager` voices.
-- Upload a clean WAV reference when you need a specific youthful voice.
-- Preview before saving.
-
-Reference: `https://github.com/k2-fsa/OmniVoice/blob/master/docs/voice-design.md`
+- Use 10–30 seconds of clean, single-speaker speech with no background music.
+- Keep the reference and the book language Hungarian.
+- Preview the voice in Voice Studio before generating chapters.
+- Voice cloning requires the speaker's consent; the weights are
+  non-commercial (CPML license).
 
 ## Offline installs
 
@@ -489,7 +443,8 @@ Auris/
 
 ## Main dependencies
 
-- OmniVoice
+- onnxruntime (all speech engines)
+- sherpa-onnx (fastest Supertonic build)
 - Flask
 - ebooklib
 - PyMuPDF
@@ -498,7 +453,7 @@ Auris/
 - spaCy
 - pydub
 - soundfile
-- PyTorch
+- huggingface_hub (model downloads)
 
 ## Roadmap
 
@@ -521,5 +476,5 @@ This would fix the main remaining gap: narration sentences that carry emotional 
 ## License
 
 The Auris source is MIT. See [LICENSE](LICENSE). Models retain their own
-licenses; in particular, Higgs TTS 3 is not distributed under the Auris MIT
-license.
+licenses: Supertonic 3 is OpenRAIL-M, XTTSv2 weights are CPML
+(non-commercial), Piper voices are MIT and the Parakeet ASR model is CC-BY-4.0.
