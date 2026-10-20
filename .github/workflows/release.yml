@@ -4,6 +4,11 @@ on:
   push:
     tags:
       - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Kiadandó tag (pl. v5.0.0)"
+        required: true
 
 permissions:
   contents: write
@@ -11,6 +16,8 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
     steps:
       - name: Forrás letöltése
         uses: actions/checkout@v4
@@ -26,7 +33,7 @@ jobs:
         run: python -m unittest discover -s reader/tests -p "test_release_tool.py"
 
       - name: Tag és változásnapló ellenőrzése
-        run: python scripts/release.py check --tag "$GITHUB_REF_NAME"
+        run: python scripts/release.py check --tag "$RELEASE_TAG"
 
       - name: Main ághoz tartozás ellenőrzése
         run: |
@@ -34,16 +41,16 @@ jobs:
           git merge-base --is-ancestor "$GITHUB_SHA" origin/main
 
       - name: Kiadási jegyzet összeállítása
-        run: python scripts/release.py notes --version "${GITHUB_REF_NAME#v}" > release-notes.md
+        run: python scripts/release.py notes --version "${RELEASE_TAG#v}" > release-notes.md
 
       - name: GitHub Release létrehozása
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            echo "A $GITHUB_REF_NAME kiadás már létezik."
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "A $RELEASE_TAG kiadás már létezik."
           else
-            gh release create "$GITHUB_REF_NAME" \
+            gh release create "$RELEASE_TAG" \
               --verify-tag \
               --title "Auris ${GITHUB_REF_NAME#v}" \
               --notes-file release-notes.md
