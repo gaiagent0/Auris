@@ -52,6 +52,6 @@ jobs:
           else
             gh release create "$RELEASE_TAG" \
               --verify-tag \
-              --title "Auris ${GITHUB_REF_NAME#v}" \
+              --title "Auris ${RELEASE_TAG#v}" \
               --notes-file release-notes.md
           fi
