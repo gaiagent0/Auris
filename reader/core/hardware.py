@@ -1,10 +1,9 @@
 """Hardware detection and automatic TTS engine recommendation.
 
-Picks the best available local speech engine for the machine the app runs on:
-NVIDIA/AMD/Apple GPUs, ONNX-CPU machines (including ARM64 such as Snapdragon
-X), and x64 emulated on ARM. Detection is read-only and cheap; it never loads a
-model. A recommendation only overrides the stored setting when the user has not
-picked an engine themselves, so an explicit choice always wins.
+Snapdragon X Elite (Windows ARM64) only. Picks the best local ONNX speech
+engine for this machine; detection is read-only and cheap and never loads a
+model. A recommendation only overrides the stored setting when the user has
+not picked an engine themselves, so an explicit choice always wins.
 """
 
 from __future__ import annotations
@@ -12,36 +11,28 @@ from __future__ import annotations
 import importlib.util
 import os
 import platform
-import shutil
 import subprocess
 import sys
 from pathlib import Path
 
-# Ordered best-first per accelerator class. Ranked by measured real-time factor
-# where a measurement exists, so the recommendation follows evidence rather
-# than the order engines were added in.
+# Ordered best-first. Ranked by measured real-time factor, so the
+# recommendation follows evidence rather than the order engines were added in.
 #
-# On this class of machine (CPU-only), the measured values on a Snapdragon X
-# Elite, 2026-10-02, 268-character Hungarian paragraph, median of three runs:
-#   supertonic  RTF 0.24-0.26   (faster than real time)
-#   piper       not measured here; ONNX CPU
-#   omnivoice   needs torchaudio, which has no win_arm64 wheel
+# Measured on the Snapdragon X Elite, 2026-10-02, 268-character Hungarian
+# paragraph, median of three runs:
+#   supertonic_sherpa  RTF 0.14   (sherpa-onnx int8, fastest)
+#   supertonic         RTF 0.24-0.26   (faster than real time)
+#   xtts_onnx          RTF 0.58x — the only engine that CLONES a voice
+#   piper              ONNX CPU, magyar hangok
+#   omnivoice          needs torchaudio, which has no win_arm64 wheel — removed
 # MOSS-TTS-Nano was removed: it ran, but its Hungarian was not intelligible.
 # Its 0.1B size is the cause — measured 1.7x slower per character than English
 # with degraded spectra, and no objective metric detects wrong pronunciation.
-ENGINE_ORDER_GPU = (
-    ("higgs", "Higgs TTS 3 — 4B, GPU"),
-    ("moss_tts", "MOSS-TTS 1.5 — 4B, ~14 GB VRAM"),
-    ("omnivoice", "OmniVoice, PyTorch GPU"),
-    ("supertonic", "Supertonic 3, ONNX CPU"),
-    ("piper", "Piper, ONNX CPU"),
-)
-
-ENGINE_ORDER_CPU = (
+ENGINE_ORDER = (
     ("supertonic_sherpa", "Supertonic 3, sherpa-onnx int8 — mért RTF 0,14 (sherpa-onnx kell)"),
     ("supertonic", "Supertonic 3, ONNX CPU — mért RTF 0,25"),
+    ("xtts_onnx", "XTTSv2-ONNX int8 — HANGKLÓNOZÁS, mért 0,58x (lassabb, de klónoz)"),
     ("piper", "Piper, ONNX CPU, magyar hangok"),
-    ("omnivoice", "OmniVoice, PyTorch CPU — mérés nélkül, lassabb"),
 )
 
 
@@ -120,24 +111,17 @@ def _module_available(name: str) -> bool:
 
 
 def _torch_backend() -> dict | None:
-    """Describe the installed torch runtime, or None when torch is absent."""
+    """Describe the installed torch runtime, or None when torch is absent.
+
+    On this machine torch is always the CPU build — it only matters for the
+    Whisper QA backend, never for synthesis.
+    """
     if not _module_available("torch"):
         return None
     try:
         import torch
 
-        backend = "cpu"
-        detail = "CPU"
-        if torch.version.cuda:
-            backend = "cuda"
-            detail = f"NVIDIA, {torch.cuda.device_count()} GPU"
-        elif getattr(torch.version, "hip", None):
-            backend = "rocm"
-            detail = "AMD ROCm"
-        elif torch.backends.mps.is_available():
-            backend = "mps"
-            detail = "Apple Silicon MPS"
-        return {"backend": backend, "detail": detail, "version": torch.__version__}
+        return {"backend": "cpu", "detail": "CPU (PyTorch)", "version": torch.__version__}
     except Exception as exc:  # a broken torch must not break detection
         return {"backend": "error", "detail": str(exc)[:120], "version": "?"}
 
@@ -151,15 +135,6 @@ def _onnx_available() -> bool:
         return "CPUExecutionProvider" in ort.get_available_providers()
     except Exception:
         return False
-
-
-def _nvidia_present() -> bool:
-    if platform.system() == "Windows":
-        return any(
-            (Path("C:/Windows/System32") / f"nvcuda.dll").exists()
-            for _ in (0,)
-        ) or shutil.which("nvidia-smi") is not None
-    return shutil.which("nvidia-smi") is not None
 
 
 def _model_present(engine_name: str) -> bool:
@@ -177,14 +152,12 @@ def _model_present(engine_name: str) -> bool:
             from core.supertonic_sherpa_engine import SherpaSupertonicEngine
 
             return SherpaSupertonicEngine().model_present()
-        if engine_name == "omnivoice":
-            from core.paths import omnivoice_model
+        if engine_name == "xtts_onnx":
+            from core.xtts_onnx_engine import XttsOnnxEngine
 
-            path = Path(omnivoice_model())
-            return path.exists() and (path / "config.json").exists()
+            return XttsOnnxEngine().model_present()
     except Exception:
         return False
-    # The 4B engines download several GB on first use; do not stat them here.
     return False
 
 
@@ -198,22 +171,10 @@ def detect() -> dict:
 
     accelerator = "cpu"
     accelerator_detail = "Nincs gyorsító"
-    if backend and backend["backend"] == "cuda":
-        accelerator = "cuda"
-        accelerator_detail = backend["detail"]
-    elif backend and backend["backend"] == "rocm":
-        accelerator = "rocm"
-        accelerator_detail = backend["detail"]
-    elif backend and backend["backend"] == "mps":
-        accelerator = "mps"
-        accelerator_detail = backend["detail"]
-    elif _nvidia_present():
-        accelerator = "cuda-driver-only"
-        accelerator_detail = "NVIDIA-illesztőprogram, de nincs torch CUDA build"
-    elif arm:
+    if arm:
         accelerator = "arm64"
         accelerator_detail = ("ARM64 x64-emuláció alatt" if emulated
-                             else "ARM64 natív (Adreno GPU/NPU nem támogatott)")
+                             else "ARM64 natív (Snapdragon X, Adreno GPU/NPU)")
 
     return {
         "platform": f"{platform.system()} {platform.machine()}",
@@ -233,18 +194,7 @@ def detect() -> dict:
 
 
 def _usable(engine_name: str, caps: dict) -> bool:
-    """Whether an engine can actually run on this machine."""
-    backend = (caps.get("torch") or {}).get("backend", "cpu")
-    if engine_name in ("higgs", "moss_tts"):
-        # Both are 4B and documented as GPU-only; 32 GB of RAM is not a
-        # substitute for the ~14 GB of VRAM their adapters require.
-        return backend in ("cuda", "rocm") and caps["ram_gb"] >= 24
-    if engine_name == "omnivoice":
-        # omnivoice/__init__.py and models/omnivoice.py import torchaudio, so
-        # without it the engine cannot even be imported.
-        if not caps.get("torch") or not caps.get("torchaudio"):
-            return False
-        return backend in ("cuda", "rocm", "mps", "cpu")
+    """Whether an engine can actually run on this machine (ONNX CPU only)."""
     if engine_name in ("supertonic", "supertonic_sherpa", "piper"):
         if not caps["onnxruntime"]:
             return False
@@ -253,13 +203,19 @@ def _usable(engine_name: str, caps: dict) -> bool:
         if engine_name == "supertonic_sherpa" and not _module_available("sherpa_onnx"):
             return False
         return True
+    if engine_name == "xtts_onnx":
+        # A klónozó XTTS ONNX-on fut, de a szöveg-előkészítéshez a pipeline
+        # librosa-t és pypinyin-t is kér (a spacy helyett stub van).
+        if not caps["onnxruntime"]:
+            return False
+        return all(_module_available(m) for m in ("librosa", "pypinyin"))
     return False
 
 
 def available_engines(caps: dict | None = None) -> list[dict]:
     """Every engine this machine can run, best first, with the reason why."""
     caps = caps or detect()
-    order = ENGINE_ORDER_CPU if caps["accelerator"] in ("arm64", "cpu") else ENGINE_ORDER_GPU
+    order = ENGINE_ORDER
     out = []
     for name, requirement in order:
         if _usable(name, caps):
@@ -285,7 +241,7 @@ def recommend(caps: dict | None = None) -> dict:
         return {
             "engine": None,
             "reason": "Nincs futtatható helyi motor: telepítsd az onnxruntime-ot "
-                      "vagy a PyTorch CUDA buildet.",
+                      "(pip install onnxruntime).",
             "hardware": caps,
         }
     chosen = usable[0]

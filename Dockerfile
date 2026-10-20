@@ -1,13 +1,11 @@
-# Auris in a container (NVIDIA GPU via the NVIDIA Container Toolkit, or CPU).
+# Auris in a container — CPU-only ONNX engines (no GPU runtime needed).
 #   docker compose up -d          # then open http://localhost:7860
-# Build-time choice of PyTorch: --build-arg TORCH_VARIANT=cpu for CPU-only.
+# The image targets ARM64 hosts (Snapdragon X Elite); build on ARM64.
 FROM python:3.11-slim
 
-ARG TORCH_VARIANT=cu128
 ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    AURIS_TORCH_VARIANT=${TORCH_VARIANT} \
     AURIS_HOST=0.0.0.0 \
     AURIS_PORT=7860 \
     AURIS_ALLOWED_HOSTS=localhost,127.0.0.1 \

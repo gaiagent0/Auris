@@ -23,7 +23,7 @@
     </nav>
     <div class="settings-panels">
       <div class="settings-category" id="settings-setup" data-settings-category="setup" role="tabpanel" hidden>
-        <section class="settings-section setup-steps"><h2>Kezdj egy magyar próbahanggal</h2><p>Az elsődleges beszédmotor az OmniVoice. A minőségprofil a generálás részletességét állítja; a tényleges sebesség a gépedtől és a szövegtől függ.</p>
+        <section class="settings-section setup-steps"><h2>Kezdj egy magyar próbahanggal</h2><p>Az elsődleges beszédmotorok mind helyben, a Snapdragon processzoron futnak (Supertonic 3, XTTSv2-ONNX klónozással). A minőségprofil a generálás részletességét állítja; a tényleges sebesség a szövegtől függ.</p>
           <div id="setup-hardware" role="status">Gép ellenőrzése…</div>
           <div class="experience-form"><label>Minőségprofil<select id="setup-profile"><option value="fast">Gyors — 8 lépés</option><option value="balanced" selected>Kiegyensúlyozott — 16 lépés</option><option value="detailed">Részletes — 32 lépés</option></select></label><div class="actions"><button class="btn btn-primary" type="button" onclick="applySetupProfile(false)">Profil alkalmazása</button><button class="btn btn-ghost" type="button" onclick="showSettingsCategory('speech')">Modell beállítása / letöltése</button></div><p>Ha még nincs modell, a beszédmotor beállításainál válaszd a letöltést. Meglévő modell esetén az útvonalat ellenőrizd, majd töltsd be a motort.</p><div class="actions"><button class="btn btn-ghost" type="button" onclick="loadSetupEngine()">Beszédmotor betöltése</button><button class="btn btn-ghost" type="button" id="setup-preview" onclick="previewSetupVoice()">Magyar próbahang</button><button class="btn btn-primary" type="button" onclick="applySetupProfile(true)">Beállítás befejezése</button></div></div><p id="setup-message" class="experience-message" role="status" aria-live="polite"></p><audio id="setup-audio" controls class="hidden"></audio>
         </section>
@@ -64,14 +64,11 @@
     <div class="setting-row">
       <label>Kiválasztott motor</label>
       <select id="tts-engine" class="select-input" onchange="toggleEngineSettings(this.value)">
-        <optgroup label="GPU, hangklónozással">
-          <option value="omnivoice">OmniVoice</option>
-          <option value="higgs">Higgs TTS 3 — 4B</option>
-          <option value="moss_tts">MOSS-TTS 1.5 — 4B</option>
-        </optgroup>
-        <optgroup label="CPU, grafikus kártya nélkül is">
+        <optgroup label="Snapdragon X Elite (mind ONNX, CPU-n fut)">
+          <option value="auto">Automatikus — a gép ajánlja (a leggyorsabb: Sherpa-Supertonic)</option>
           <option value="supertonic_sherpa">Supertonic 3 sherpa-onnx int8 (a leggyorsabb, klónozás nélkül)</option>
           <option value="supertonic">Supertonic 3 (beépített hangok, klónozás nélkül)</option>
+          <option value="xtts_onnx">XTTSv2-ONNX int8 (HANGKLÓNOZÁS referenciából, lassabb)</option>
           <option value="piper">Piper — Anna, Berta, Imre (klónozás nélkül)</option>
         </optgroup>
       </select>
@@ -81,160 +78,6 @@
     <div class="setting-row" style="margin-top:12px">
       <button class="btn btn-ghost btn-sm" onclick="reloadTTS().catch(e => { document.getElementById('tts-reload-hint').textContent = e.message; })">Beszédmotor újratöltése</button>
       <span id="tts-reload-hint" class="status-hint"></span>
-    </div>
-  </section>
-
-  <!-- OmniVoice Model -->
-  <section class="settings-section engine-settings omnivoice-settings">
-    <div class="settings-section-title">OmniVoice modell</div>
-
-    <div class="setting-row">
-      <label>Modell forrása</label>
-      <div class="radio-group">
-        <label><input type="radio" name="model_source" value="local" id="src-local">Helyi mappa</label>
-        <label><input type="radio" name="model_source" value="download" id="src-download">Letöltés a HuggingFace-ről</label>
-      </div>
-    </div>
-
-    <div id="panel-local" class="sub-panel">
-      <div class="setting-row">
-        <label>Modellmappa útvonala</label>
-        <div class="input-group">
-          <input type="text" id="model-path" class="text-input" placeholder="/path/to/OmniVoice">
-          <button class="btn btn-ghost btn-sm" onclick="checkPath()">Ellenőrzés</button>
-        </div>
-        <span id="path-status" class="status-hint"></span>
-      </div>
-    </div>
-
-    <div id="panel-download" class="sub-panel hidden">
-      <div class="setting-row">
-        <label>HuggingFace-modelltár</label>
-        <input type="text" id="model-repo" class="text-input" value="k2-fsa/OmniVoice">
-      </div>
-      <div class="setting-row">
-        <label>Letöltési mappa</label>
-        <input type="text" id="dl-dest" class="text-input" placeholder="Absolute path to save model files">
-      </div>
-      <div class="setting-row">
-        <label>HuggingFace-tükör címe<span class="muted">(nem kötelező)</span></label>
-        <input type="text" id="hf-endpoint" class="text-input" placeholder="e.g. https://hf-mirror.com">
-      </div>
-      <div class="setting-row">
-        <button class="btn btn-primary" id="dl-btn" onclick="startDownload()">Letöltés indítása</button>
-      </div>
-      <div id="dl-progress-wrap" class="progress-wrap hidden">
-        <div class="progress-bar-outer"><div class="progress-bar-inner" id="dl-bar"></div></div>
-        <div id="dl-msg" class="progress-msg"></div>
-      </div>
-    </div>
-
-  </section>
-
-  <!-- Higgs TTS -->
-  <section class="settings-section engine-settings higgs-settings hidden">
-    <div class="settings-section-title">Higgs TTS 3 — 4B</div>
-    <p class="section-desc">A helyi generálás a Transformers-kompatibilis <code>multimodalart/higgs-audio-v3-tts-4b-transformers</code> adaptert és a hivatalos <code>bosonai/higgs-tts-3-4b</code> modellsúlyait használja.</p>
-    <div class="setting-row">
-      <label>Modell forrása</label>
-      <div class="radio-group">
-        <label><input type="radio" name="higgs_model_source" value="download" id="higgs-src-download">HuggingFace-gyorsítótár</label>
-        <label><input type="radio" name="higgs_model_source" value="local" id="higgs-src-local">Helyi modellmásolat</label>
-      </div>
-    </div>
-    <div id="higgs-panel-download" class="sub-panel">
-      <div class="setting-row">
-        <label>Transformers-modelltár</label>
-        <input type="text" id="higgs-model-repo" class="text-input"
-               value="multimodalart/higgs-audio-v3-tts-4b-transformers">
-        <span class="muted" style="font-size:.78rem">Az első betöltéskor a HuggingFace-gyorsítótárba töltődik le.</span>
-      </div>
-    </div>
-    <div id="higgs-panel-local" class="sub-panel hidden">
-      <div class="setting-row">
-        <label>Helyi modellmappa</label>
-        <div class="input-group">
-          <input type="text" id="higgs-model-path" class="text-input" placeholder="/path/to/higgs-transformers-snapshot">
-          <button class="btn btn-ghost btn-sm" onclick="checkHiggsPath()">Ellenőrzés</button>
-        </div>
-        <span id="higgs-path-status" class="status-hint"></span>
-      </div>
-    </div>
-
-    <div class="setting-row">
-      <label>Változatosság (temperature)</label>
-      <input type="number" id="higgs-temperature" class="text-input" min="0" max="2" step="0.05">
-    </div>
-    <div class="setting-row">
-      <label>Top P</label>
-      <input type="number" id="higgs-top-p" class="text-input" min="0" max="1" step="0.01">
-    </div>
-    <div class="setting-row">
-      <label>Top K</label>
-      <input type="number" id="higgs-top-k" class="text-input" min="0" max="200" step="1">
-    </div>
-    <div class="setting-row">
-      <label>Legfeljebb ennyi új token</label>
-      <input type="number" id="higgs-max-new-tokens" class="text-input" min="128" max="4096" step="32">
-    </div>
-    <div class="setting-row">
-      <label>Véletlenmag (seed)</label>
-      <input type="number" id="higgs-seed" class="text-input" min="-1" step="1">
-      <span class="muted" style="font-size:.78rem"><code>-1</code>= véletlen; összehasonlításhoz használj rögzített értéket.</span>
-    </div>
-    <div class="setting-row">
-      <label>Szövegelőkészítés módja</label>
-      <select id="higgs-prompt-mode" class="select-input" onchange="toggleHiggsPromptMode(this.value)">
-        <option value="raw">Nyers — magyarhoz ajánlott</option>
-        <option value="expressive">Kifejező — automatikus Auris-vezérlés</option>
-      </select>
-      <span class="muted" style="font-size:.78rem">A Nyers mód tiszta szöveget küld. A Kifejező mód számnormalizálást, hangmagasságot/suttogást, jelenetsebességet és kifejezési címkéket alkalmaz.</span>
-    </div>
-    <div class="setting-row higgs-expressive-control">
-      <label>Alapérzelem</label>
-      <select id="higgs-default-emotion" class="select-input">
-        <option value="none">Nincs</option>
-        <option value="contentment">Elégedettség</option>
-        <option value="affection">Szeretet</option>
-        <option value="contemplation">Elgondolkodás</option>
-        <option value="amusement">Derű</option>
-        <option value="enthusiasm">Lelkesedés</option>
-        <option value="awe">Ámulat</option>
-        <option value="anger">Harag</option>
-        <option value="fear">Félelem</option>
-        <option value="sadness">Szomorúság</option>
-      </select>
-    </div>
-    <div class="setting-row higgs-expressive-control">
-      <label>Alapstílus</label>
-      <select id="higgs-default-style" class="select-input">
-        <option value="none">Nincs</option>
-        <option value="whispering">Suttogás</option>
-        <option value="shouting">Kiabálás</option>
-        <option value="singing">Éneklés</option>
-      </select>
-    </div>
-    <div class="setting-row higgs-expressive-control">
-      <label>Kifejezőerő</label>
-      <select id="higgs-default-expressive" class="select-input">
-        <option value="none">Modell alapértéke</option>
-        <option value="expressive_low">Alacsony</option>
-        <option value="expressive_high">Magas</option>
-      </select>
-      <span class="muted" style="font-size:.78rem">Az Auris a jelenetsebességet, suttogást, hangmagasságot, szüneteket és nem verbális jelzéseket is Higgs-vezérlőkre képezi.</span>
-    </div>
-    <div class="status-block">
-      <strong>Licenc:</strong> Kutatási/nem kereskedelmi használat, valamint alkotói felhasználás hangoskönyvekhez és hasonló tartalomhoz, jól látható Boson AI Higgs Audio megjelöléssel. A hangklónozáshoz a beszélő hozzájárulása szükséges.</div>
-  </section>
-
-  <!-- MOSS-TTS 1.5 -->
-  <section class="settings-section engine-settings moss_tts-settings hidden">
-    <div class="settings-section-title">MOSS-TTS 1.5 — 4B</div>
-    <p class="section-desc">Az OpenMOSS Apache-2.0 licencű, 31 nyelvű modellje (a magyar hivatalosan támogatott), hosszú szövegre tervezve. Első betöltéskor a modell és a hangkodek letöltődik a Hugging Face gyorsítótárba (<strong>~17,6 GB</strong>), és kb. 14 GB videomemóriát használ. Hangot csak klónozással ad: feltöltött referenciahang nélkül egy automatikusan készített magyar mintahangot (Supertonic vagy Piper) klónoz. Tempóállítást nem támogat.</p>
-    <div class="setting-row setting-grid-3">
-      <label>Hőmérséklet<input type="number" id="moss-temperature" class="text-input" min="0.1" max="3" step="0.1"></label>
-      <label>Top-p<input type="number" id="moss-top-p" class="text-input" min="0.05" max="1" step="0.05"></label>
-      <label>Top-k<input type="number" id="moss-top-k" class="text-input" min="1" max="200" step="1"></label>
     </div>
   </section>
 
@@ -404,7 +247,7 @@
       <label>Hang leírása a modell számára</label>
       <input type="text" id="narrator-instruct" class="text-input"
              placeholder="female, middle-aged, moderate pitch, american accent">
-      <span class="muted" style="font-size:.78rem">Az OmniVoice hangtervezési attribútumokat használ. A Higgs a hangazonosságot referenciahangból veszi, a suttogást és hangmagasságot vezérlőkkel kezeli.</span>
+      <span class="muted" style="font-size:.78rem">A leírás neme, hangmagassága és kora a beépített hangok választását vezérli; XTTS-klónozáskor a feltöltött referenciahang határozza meg a hangot.</span>
     </div>
     <div class="setting-row">
       <label class="narrator-mode-row">
@@ -430,62 +273,13 @@
     </div>
   </section>
 
-  <!-- Export Defaults -->
-  <section class="settings-section engine-settings omnivoice-settings">
-    <div class="settings-section-title">OmniVoice generálás és export</div>
-    <div class="setting-row">
-      <label>Beszéd részletessége (diffúziós lépések)</label>
-      <select id="tts-num-step" class="select-input">
-        <option value="8">8 — gyors</option>
-        <option value="16">16 — kiegyensúlyozott, ajánlott</option>
-        <option value="24">24 — részletesebb</option>
-        <option value="32">32 — legrészletesebb, lassabb</option>
-      </select>
-      <span class="muted" style="font-size:.78rem">A lejátszásra és exportra is érvényes. Kevesebb lépés gyorsabb generálást adhat. Változtatáskor új hangcache készül; a régi fájlok megmaradnak.</span>
-    </div>
-    <div class="setting-row">
-      <label>GPU kötegméret</label>
-      <select id="tts-batch-size" class="select-input">
-        <option value="0">Automatikus — videomemória alapján</option>
-        <option value="8">8</option>
-        <option value="8">12</option>
-        <option value="16">16</option>
-        <option value="24">24</option>
-        <option value="32">32</option>
-        <option value="40">40</option>
-      </select>
-      <span class="muted" style="font-size:.78rem">Ennyi <em>önálló szövegegység</em> kerül egy generálási kötegbe. Túl nagy értéknél csökkenhet a sebesség vagy elfogyhat a memória. A tényleges felhasználást a terminálban ellenőrizheted:<code>GPU generate done: batch=… peak_alloc=…</code> A GPU terheléséhez az nvidia-smi vagy a Feladatkezelő CUDA nézetét figyeld.</span>
-    </div>
+  <!-- Generálás és export -->
+  <section class="settings-section">
+    <div class="settings-section-title">Generálás és export</div>
     <div class="setting-row">
       <label>Pontos mondathatárok</label>
       <input type="hidden" id="tts-coalesce-chars" value="0">
-      <span class="muted" style="font-size:.78rem">Bekapcsolva. Minden szövegegység önálló hangot kap; a GPU kötegelt generálás aktív marad.</span>
-    </div>
-    <div class="setting-row">
-      <label>GPU-gyorsítás</label>
-      <select id="tts-accel" class="select-input">
-        <option value="auto">Automatikus</option>
-        <option value="eager">Optimalizált PyTorch</option>
-        <option value="cuda_graph">CUDA Graph — NVIDIA (Windows / Linux)</option>
-        <option value="hybrid">Hibrid — Triton + CUDA Graph (NVIDIA, a leggyorsabb)</option>
-        <option value="triton">Csak Triton</option>
-        <option value="off">Alap PyTorch — extra optimalizálás nélkül</option>
-      </select>
-      <span class="muted" style="font-size:.78rem" id="tts-accel-hint">Az automatikus mód NVIDIA-n CUDA Graphot, AMD ROCm-on és Apple MPS-en optimalizált PyTorch-ot választ. Az alap PyTorch mód is használja az elérhető GPU-t. A CUDA Graph első futása és az új szöveghosszak előkészítése többletidőt igényel; a gyorsulás a szövegtől és a kötegmérettől függ. A Triton/hibrid mód NVIDIA-n Windowson és Linuxon is működik; egyszeri telepítést igényel (lent), RTX 3090-en kb. 20–25%-kal gyorsabb azonos kiejtési pontossággal. AMD-n megfelelő ROCm PyTorch szükséges; Macen az MPS automatikusan működik. Módosítás után használd a <strong>Beszédmotor újratöltése</strong> gombot. Részletek: <a href="/docs#performance">Teljesítmény és mérés</a>.</span>
-      <div id="tts-accel-status" class="muted" style="font-size:.78rem;margin-top:.35rem"></div>
-      <div id="triton-install-row" class="hidden" style="margin-top:.45rem">
-        <button type="button" class="btn btn-sm" id="triton-install-btn">Triton-gyorsítás telepítése</button>
-        <span id="triton-install-hint" class="status-hint"></span>
-      </div>
-    </div>
-    <div class="setting-row">
-      <label>Párhuzamos exportmunkások</label>
-      <select id="tts-export-workers" class="select-input">
-        <option value="0">Automatikus — 20 GB felett 2 munkás</option>
-        <option value="1">1 — egy modell</option>
-        <option value="2">2 — két modell / két CUDA-folyam</option>
-      </select>
-      <span class="muted" style="font-size:.78rem">Csak export közben tölt be második OmniVoice-modellt. Ha nincs elég memória vagy egy munkás hibázik, egy munkással folytatja.</span>
+      <span class="muted" style="font-size:.78rem">Bekapcsolva. Minden szövegegység önálló hangot kap; a motorok a kötegezést a memóriájukhoz igazítják.</span>
     </div>
   </section>
 
@@ -538,7 +332,7 @@
     <div class="setting-row">
       <label>Beszédfelismerő</label>
       <select id="asr-backend" class="select-input">
-        <option value="auto">Automatikus — videokártyán Whisper, processzoron Parakeet + Whisper</option>
+        <option value="auto">Automatikus — hibrid (Parakeet + Whisper megerősítés)</option>
         <option value="whisper">Whisper (magyarra finomhangolt)</option>
         <option value="hybrid">Parakeet, a gyanús mondatoknál Whisper-megerősítéssel</option>
         <option value="parakeet">Csak Parakeet (a leggyorsabb processzoron)</option>
@@ -571,11 +365,6 @@
       <label class="checkbox-label">
         <input type="checkbox" id="export-room-tone">Szobazaj a szünetekben (ACX)</label>
       <span class="muted" style="font-size:.78rem">A teljes csend helyett nagyon halk (−68 dB) szobazaj kerül a szünetekbe, a fájl elejére 0,6 s, a végére 2 s. Hangoskönyv-kiadók technikai követelményeihez hasznos.</span>
-    </div>
-    <div class="setting-row">
-      <label class="checkbox-label">
-        <input type="checkbox" id="voice-design-anchor">Leírt hangok rögzítése referenciaklippel</label>
-      <span class="muted" style="font-size:.78rem">OmniVoice: a leírásból (nem, életkor, hangmagasság) készült hang egyszer egy magyar mintamondatot mond el, és a könyv minden szakasza ezt a klipet klónozza. Így a szereplő hangszíne nem változik szakaszról szakaszra, és az export két GPU-sávot is használhat. Feltöltött referenciahang esetén nincs hatása.</span>
     </div>
     <div class="setting-row">
       <label>Hangformátum</label>

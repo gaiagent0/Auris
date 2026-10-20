@@ -2,7 +2,7 @@
 Text enrichment engine.
 
 Splits chapter text into TTS-ready segments, attributes dialogue to characters,
-injects OmniVoice non-verbal tags, adjusts speed for scene tone, and avoids
+keeps legacy non-verbal tags, adjusts speed for scene tone, and avoids
 common sentence-boundary mistakes such as "Mr." or "Dr." being treated as a
 full stop.
 """
@@ -1131,7 +1131,7 @@ def _split_single_narrator_segments(
 
     Speaker turns do not need separate model conditioning in this mode.  Keep
     dialogue/narration and whisper boundaries for prosody, while combining
-    adjacent compatible text up to OmniVoice's useful long-form range.
+    adjacent compatible text up to the engines' useful long-form range.
     """
     max_words = max(30, int(max_words))
     return [
@@ -1258,7 +1258,7 @@ def _should_allow_confirmation_tag(text: str, is_dialogue: bool) -> bool:
 def _select_expression_tag(sentence: str, context: str, is_dialogue: bool) -> str | None:
     tag_text = _explicit_tag_text(sentence)
 
-    # OmniVoice question/surprise tags are literal non-verbal vocalizations
+    # Question/surprise tags are literal non-verbal vocalizations
     # ("oh", "ah", and similar), not silent prosody controls.  Punctuation must
     # therefore never add them automatically.  Keep only sound tags supported
     # by explicit sentence-local wording, such as laughter or a sigh.

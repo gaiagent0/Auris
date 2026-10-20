@@ -1,4 +1,9 @@
-"""Build a self-contained Windows x64 installer from the tested project venv.
+"""Build a self-contained Windows desktop installer from the tested project venv.
+
+The application targets Windows 11 ARM64 (Snapdragon X Elite): every speech
+engine runs on ONNX Runtime on the CPU, so no GPU runtime is bundled. The
+embedded CPython package must match the host architecture — build on the ARM64
+machine (native ARM64 runtime); an x64 runtime only runs under emulation.
 
 Run from repo root: reader\\.venv\\Scripts\\python.exe scripts\\windows\\build.py
 Runtime package copies are limited to declared dependencies; no library/settings/model data is copied.
@@ -35,6 +40,14 @@ def run(*args, **kwargs):
     subprocess.run(list(map(str, args)), check=True, **kwargs)
 
 
+def _dist_present(name: str) -> bool:
+    try:
+        metadata.distribution(name)
+        return True
+    except metadata.PackageNotFoundError:
+        return False
+
+
 def download(url: str, name: str) -> Path:
     CACHE.mkdir(parents=True, exist_ok=True)
     target = CACHE / name
@@ -57,10 +70,15 @@ def clean_owned(path: Path):
 def dependency_closure():
     from packaging.requirements import Requirement
     from packaging.utils import canonicalize_name
-    roots = ['omnivoice', 'flask', 'ebooklib', 'pymupdf', 'pillow', 'python-docx', 'spacy',
+    # Torch is walked so its Python dependencies survive the CPU-wheel swap
+    # (prepare_runtime installs the torch wheels with --no-deps); the torch
+    # distributions themselves are dropped from the copy set below.
+    roots = ['torch', 'flask', 'ebooklib', 'pymupdf', 'pillow', 'python-docx', 'spacy',
              'trafilatura', 'pyphen', 'num2words', 'onnxruntime', 'onnx-asr', 'sentencepiece',
+             'huggingface_hub', 'tqdm', 'librosa', 'pypinyin', 'numpy', 'scipy',
              'pip', 'setuptools', 'wheel']
-    for optional in ['en-core-web-sm', 'hu-core-news-md', 'wetext']:
+    roots = [name for name in roots if _dist_present(name)]
+    for optional in ['en-core-web-sm', 'hu-core-news-md', 'wetext', 'sherpa-onnx']:
         try:
             metadata.distribution(optional)
             roots.append(optional)
@@ -183,8 +201,6 @@ def prepare_app():
                         ignore=shutil.ignore_patterns('__pycache__', '*.pyc'), dirs_exist_ok=True)
     for name in ['app.py', 'desktop.py', 'auris_cli.py', 'requirements.txt']:
         shutil.copy2(ROOT / 'reader' / name, reader)
-    shutil.copytree(ROOT / 'reader' / '.higgs_runtime', reader / '.higgs_runtime',
-                    ignore=shutil.ignore_patterns('__pycache__', '*.pyc'), dirs_exist_ok=True)
     for name in ['LICENSE', 'THIRD_PARTY_NOTICES.md', 'VERSION']:
         shutil.copy2(ROOT / name, PACKAGE)
     shutil.copy2(ROOT / 'docs' / 'windows-desktop.md', PACKAGE / 'Windows-utmutato.md')

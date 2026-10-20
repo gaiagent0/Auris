@@ -39,23 +39,16 @@ def save_settings():
     previous = app_settings.load()
     allowed = {
         'tts_engine',
-        'model_source', 'model_path', 'model_repo', 'hf_endpoint',
-        'higgs_model_source', 'higgs_model_path', 'higgs_model_repo',
-        'higgs_temperature', 'higgs_top_p', 'higgs_top_k',
-        'higgs_max_new_tokens', 'higgs_seed', 'higgs_default_emotion',
-        'higgs_default_style', 'higgs_default_expressive', 'higgs_prompt_mode',
         'narrator_instruct', 'single_narrator_mode', 'default_speed', 'audio_format',
         'subtitle_format', 'theme', 'font_size', 'font_family', 'line_height',
         'normalize_text', 'tts_num_step', 'tts_batch_size', 'tts_coalesce_chars',
-        'audio_mastering', 'voice_design_anchor',
+        'audio_mastering',
         'piper_voice', 'supertonic_voice', 'supertonic_steps', 'supertonic_batch',
         'supertonic_variant',
-        'moss_seed', 'moss_temperature', 'moss_top_p', 'moss_top_k',
         'trim_segment_silence', 'export_room_tone',
         'narrator_credit', 'export_intro_template', 'export_outro_template',
         'abs_url', 'abs_api_token', 'abs_library_id', 'abs_folder_id', 'api_token',
         'qa_cer_warn', 'qa_cer_fail', 'qa_max_takes', 'qa_autostart', 'asr_model', 'asr_keep_loaded', 'asr_backend',
-        'tts_accel', 'tts_export_workers',
         'character_detection_mode', 'llm_provider',
         'llm_base_url', 'llm_api_key', 'llm_model',
         'openai_api_key', 'openai_model',
@@ -65,20 +58,11 @@ def save_settings():
     updates = security.drop_masked_secrets(
         {k: v for k, v in body.items() if k in allowed}
     )
-    for repo_key in ('model_repo', 'higgs_model_repo'):
-        if repo_key in updates and not security.valid_hf_repo(updates[repo_key]):
-            return jsonify({'error': 'Érvénytelen Hugging Face repó-azonosító.'}), 400
     if 'tts_engine' in updates:
         from core.tts_router import ENGINE_NAMES
         engine = str(updates['tts_engine'] or 'auto').strip().lower()
         # 'auto' keeps the hardware-detected engine; an explicit name always wins.
         updates['tts_engine'] = engine if engine in (*ENGINE_NAMES, 'auto') else 'auto'
-    if 'higgs_model_source' in updates:
-        source = str(updates['higgs_model_source'] or 'download').strip().lower()
-        updates['higgs_model_source'] = source if source in ('local', 'download') else 'download'
-    if 'higgs_prompt_mode' in updates:
-        mode = str(updates['higgs_prompt_mode'] or 'raw').strip().lower()
-        updates['higgs_prompt_mode'] = mode if mode in ('raw', 'expressive') else 'raw'
     if 'character_detection_mode' in updates:
         mode = str(updates['character_detection_mode'] or 'legacy').strip().lower()
         updates['character_detection_mode'] = (
@@ -106,31 +90,10 @@ def save_settings():
                 updates[key] = max(low, min(int(updates[key]), high))
             except (TypeError, ValueError):
                 updates[key] = default
-    for key, default, low, high in (
-        ('higgs_temperature', 0.8, 0.0, 2.0),
-        ('higgs_top_p', 0.95, 0.0, 1.0),
-    ):
-        if key in updates:
-            try:
-                updates[key] = max(low, min(float(updates[key]), high))
-            except (TypeError, ValueError):
-                updates[key] = default
-    for key, default, low, high in (
-        ('higgs_top_k', 50, 0, 200),
-        ('higgs_max_new_tokens', 1024, 128, 4096),
-        ('higgs_seed', -1, -1, 2147483647),
-    ):
-        if key in updates:
-            try:
-                updates[key] = max(low, min(int(updates[key]), high))
-            except (TypeError, ValueError):
-                updates[key] = default
     if 'normalize_text' in updates:
         updates['normalize_text'] = bool(updates['normalize_text'])
     if 'audio_mastering' in updates:
         updates['audio_mastering'] = bool(updates['audio_mastering'])
-    if 'voice_design_anchor' in updates:
-        updates['voice_design_anchor'] = bool(updates['voice_design_anchor'])
     from core.local_engines import PIPER_VOICES, SUPERTONIC_VARIANT_DIRS, SUPERTONIC_VOICES
     if 'piper_voice' in updates and updates['piper_voice'] not in PIPER_VOICES:
         updates['piper_voice'] = 'anna'
@@ -162,9 +125,6 @@ def save_settings():
         ('qa_cer_warn', 0.0, 1.0, float), ('qa_cer_fail', 0.01, 1.0, float),
         ('qa_max_takes', 0, 8, int),
         ('supertonic_steps', 4, 32, int), ('supertonic_batch', 1, 6, int),
-        ('moss_seed', -1, 2**31 - 1, int),
-        ('moss_temperature', 0.1, 3.0, float), ('moss_top_p', 0.05, 1.0, float),
-        ('moss_top_k', 1, 200, int),
     ):
         if key in updates:
             try:
@@ -182,7 +142,7 @@ def save_settings():
         updates['tts_num_step'] = step
     if 'tts_batch_size' in updates:
         try:
-            # 0 = auto (VRAM-based). Positive = fixed batch size.
+            # 0 = the engine picks its default. Positive = fixed batch size.
             updates['tts_batch_size'] = max(0, min(int(updates['tts_batch_size']), 48))
         except (TypeError, ValueError):
             updates['tts_batch_size'] = 0
@@ -190,23 +150,7 @@ def save_settings():
         # Kept in the settings schema for backward compatibility, but exact
         # spoken boundaries require this optimization to stay disabled.
         updates['tts_coalesce_chars'] = 0
-    if 'tts_accel' in updates:
-        mode = str(updates['tts_accel'] or 'auto').strip().lower()
-        if mode not in ('off', 'auto', 'eager', 'cuda_graph', 'triton', 'hybrid'):
-            mode = 'auto'
-        updates['tts_accel'] = mode
-    if 'tts_export_workers' in updates:
-        try:
-            updates['tts_export_workers'] = max(
-                0, min(int(updates['tts_export_workers']), 2)
-            )
-        except (TypeError, ValueError):
-            updates['tts_export_workers'] = 0
     result = app_settings.save(updates)
-
-    # Accel mode change requires model reload to re-wrap forward().
-    if 'tts_accel' in updates and updates['tts_accel'] != previous.get('tts_accel'):
-        pass  # user can hit Reload TTS; do not force mid-request
 
     # Engine/model selection is applied on explicit Reload TTS. Keeping the
     # currently resident model alive makes Save Settings safe during playback.
@@ -216,22 +160,18 @@ def save_settings():
     # records, or playback would silently continue serving audio made with the
     # old settings. The engine-level cache keys still keep the distinct WAVs
     # separate; this clears only the database pointers used by playback.
-    higgs_audio_keys = {
-        'tts_engine', 'higgs_model_source', 'higgs_model_path',
-        'higgs_model_repo', 'higgs_temperature', 'higgs_top_p', 'higgs_top_k',
-        'higgs_max_new_tokens', 'higgs_seed', 'higgs_default_emotion',
-        'higgs_default_style', 'higgs_default_expressive', 'higgs_prompt_mode',
-    }
-    omnivoice_audio_keys = {
+    # Any setting that changes synthesized audio must clear the persisted
+    # segment pointers, or playback would keep serving audio made with the
+    # old settings (the engine-level cache keys still keep the WAVs apart).
+    audio_affecting_keys = {
+        'tts_engine',
         'tts_num_step',
         'normalize_text',
-        'voice_design_anchor',
         'piper_voice', 'supertonic_voice', 'supertonic_steps', 'supertonic_variant',
-        'moss_seed', 'moss_temperature', 'moss_top_p', 'moss_top_k',
     }
     if any(
         key in updates and updates[key] != previous.get(key)
-        for key in higgs_audio_keys | omnivoice_audio_keys
+        for key in audio_affecting_keys
     ):
         with get_conn() as conn:
             conn.execute('DELETE FROM tts_segments')
@@ -313,15 +253,6 @@ def engine_install():
     return jsonify({'ok': True, 'message': 'Telepítve. Mentsd a beállítást, majd töltsd újra a beszédmotort.'})
 
 
-@bp.route('/api/settings/triton-install', methods=['POST'])
-def triton_install():
-    """Add the optional Triton kernels (NVIDIA) to the Auris environment."""
-    from core import tts_accel
-
-    result = tts_accel.install_triton()
-    return jsonify(result), (200 if result['ok'] else 500)
-
-
 @bp.route('/api/settings/spacy-install', methods=['POST'])
 def spacy_install():
     body = request.get_json(silent=True) or {}
@@ -333,33 +264,9 @@ def spacy_install():
     return jsonify(result)
 
 
-@bp.route('/api/settings/model-download', methods=['POST'])
-def start_download():
-    body = request.get_json(force=True) or {}
-    repo_id = body.get('repo_id', app_settings.get('model_repo', 'k2-fsa/OmniVoice'))
-    dest = body.get('dest', app_settings.get('model_path'))
-    hf_endpoint = body.get('hf_endpoint', app_settings.get('hf_endpoint', ''))
-    if not security.valid_hf_repo(repo_id):
-        return jsonify({'error': 'Érvénytelen Hugging Face repó-azonosító.'}), 400
-    app_settings.start_model_download(repo_id, dest, hf_endpoint)
-    return jsonify({'ok': True, 'dest': dest})
-
-
-@bp.route('/api/settings/model-download/progress')
-def download_progress():
-    return jsonify(app_settings.download_state())
-
-
 @bp.route('/api/settings/tts-reload', methods=['POST'])
 def tts_reload():
     application.tts.reload()
     return jsonify({'ok': True})
 
 
-@bp.route('/api/settings/check-model-path', methods=['POST'])
-def check_model_path():
-    body = request.get_json(force=True) or {}
-    path = body.get('path', '')
-    exists = os.path.isdir(path)
-    has_config = os.path.exists(os.path.join(path, 'config.json'))
-    return jsonify({'exists': exists, 'has_config': has_config, 'path': path})

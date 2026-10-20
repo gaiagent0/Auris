@@ -42,7 +42,7 @@
     card.querySelector('[data-field="speed"]').disabled = !speedSupported;
     if (!speedSupported) {
       const help = document.createElement('p');
-      help.textContent = 'A Higgs nyers módja nem alkalmaz tempóvezérlést. Ehhez válts kifejező módra vagy OmniVoice-ra a Beállításokban.';
+      help.textContent = 'Ez a beszédmotor nem alkalmaz tempóvezérlést. Válts másik motorra a Beállításokban.';
       card.querySelector('details').append(help);
     }
     card.querySelector('[data-field="pause_ms"]').value = block.pause_ms ?? '';

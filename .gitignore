@@ -8,11 +8,12 @@ model_backup/
 # ── Offline wheels (too large for git) ────────────────────────────────────────
 wheels/
 
-# ── OmniVoice library source (nested git repo — install via setup.py) ─────────
+# ── OmniVoice library source (nested git repo — removed with the CUDA stack) ──
 OmniVoice/
 source/
 
 # ── Runtime-generated directories ─────────────────────────────────────────────
+reader/output/
 reader/audio_cache/
 reader/exports/
 reader/uploads/
@@ -77,3 +78,5 @@ videos/
 # ARM64 TTS quality measurement artefacts
 reader/quality_out/
 reader/quality_report.py
+reader/docs/meresi-adatok/npu-qnn/inputs/
+reader/docs/meresi-adatok/npu-qnn/out_*/

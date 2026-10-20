@@ -476,21 +476,11 @@ def setup_status():
     import app as application
 
     config = settings.load()
-    hardware = {"device": "CPU", "vram_gb": 0}
-    try:
-        import torch
+    # Snapdragon X Elite: ONNX runs on the CPU; there is no VRAM to report.
+    from core.hardware import detect as detect_hardware
 
-        if torch.cuda.is_available():
-            hardware = {
-                "device": torch.cuda.get_device_name(),
-                "vram_gb": round(
-                    torch.cuda.get_device_properties(0).total_memory / 1024**3, 1
-                ),
-            }
-        elif getattr(torch.backends, "mps", None) and torch.backends.mps.is_available():
-            hardware = {"device": "Apple Metal (MPS)", "vram_gb": 0}
-    except Exception:
-        pass
+    caps = detect_hardware()
+    hardware = {"device": caps.get("accelerator_detail", "CPU"), "vram_gb": 0}
     return jsonify(
         **hardware,
         tts=application.tts.status(),

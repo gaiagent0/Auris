@@ -327,7 +327,7 @@ def _startup():
             except Exception:
                 log.exception('Unable to prune old jobs')
             # Old persisted prompts may contain [surprise-oh]/[question-oh],
-            # which ask OmniVoice to vocalize an "oh" before the sentence.
+            # legacy non-verbal tags that the current policy treats as text.
             expression_policy_changed = (
                 app_settings.migrate_tts_expression_policy_version()
             )
@@ -1735,8 +1735,6 @@ def _engine_supports_speed() -> bool:
     engine = app_settings.get('tts_engine', 'auto')
     if engine == 'auto':
         engine = selected_engine_name()
-    if engine == 'higgs':
-        return app_settings.get('higgs_prompt_mode', 'raw') != 'raw'
     return bool(ENGINE_INFO.get(engine, {}).get('speed', True))
 
 
@@ -2282,8 +2280,9 @@ def _ensure_audio_for_chapter(
 ):
     """Generate TTS for any segment in segs that has no audio yet, updating DB and segs in-place.
 
-    Pending segments are batched through OmniVoice so full-book export uses the GPU
-    efficiently. Quality is controlled by settings ``tts_num_step``.
+    Pending segments are batched through the active ONNX engine so a full-book
+    export runs in few synthesis calls. Quality is controlled by the settings
+    ``tts_num_step`` where the engine honours it.
     Progress is updated after every finished segment (including mid-batch).
     """
     _check_job_cancelled(job)
@@ -2448,16 +2447,12 @@ def _ensure_audio_for_chapter(
 
 
 def _start_export_pool(job: dict) -> TTSExportPool:
-    try:
-        requested = int(app_settings.get('tts_export_workers', 0) or 0)
-    except (TypeError, ValueError):
-        requested = 0
-    pool = TTSExportPool(tts, requested_workers=requested)
-    if requested != 1:
-        job['message'] = 'Második GPU-feldolgozó betöltése…'
+    # One resident engine on Snapdragon: parallel replicas were a CUDA/VRAM
+    # feature and the ONNX engines are CPU-bound here.
+    pool = TTSExportPool(tts, requested_workers=1)
     workers = pool.start()
     job['workers'] = workers
-    log.info('Export TTS worker count=%d (requested=%d)', workers, requested)
+    log.info('Export TTS worker count=%d', workers)
     return pool
 
 
@@ -2742,11 +2737,13 @@ from core.production_api import bp as production_blueprint
 from core.events_api import bp as events_blueprint
 from core.pwa_api import bp as pwa_blueprint
 from core.settings_api import bp as settings_blueprint
+from core.engine_api import bp as engine_blueprint
 from core.export_api import bp as export_blueprint
 from core.voices_api import bp as voices_blueprint
 from core.reading_api import bp as reading_blueprint
 app.register_blueprint(experience_blueprint)
 app.register_blueprint(settings_blueprint)
+app.register_blueprint(engine_blueprint)
 app.register_blueprint(export_blueprint)
 app.register_blueprint(voices_blueprint)
 app.register_blueprint(reading_blueprint)

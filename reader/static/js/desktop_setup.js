@@ -1,18 +1,11 @@
 (() => {
   const form = document.querySelector('#setup-form');
   const start = document.querySelector('#start');
-  const gpu = document.querySelector('#gpu');
   const progress = document.querySelector('#setup-progress');
   const error = document.querySelector('#setup-error');
   const done = document.querySelector('#setup-done');
   const restart = document.querySelector('#restart');
   let polling = false;
-  form.addEventListener('change', () => {
-    if (gpu) {
-      gpu.disabled = form.elements.engine.value !== 'omnivoice';
-      if (gpu.disabled) gpu.checked = false;
-    }
-  });
   async function request(url, body) {
     const response = await fetch(url, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
     const result = await response.json();
@@ -52,7 +45,7 @@
   form.addEventListener('submit', async event => {
     event.preventDefault(); error.hidden = true; done.hidden = true; start.disabled = true;
     try {
-      await request('/api/desktop/setup', {engine: form.elements.engine.value, gpu: Boolean(gpu && gpu.checked)});
+      await request('/api/desktop/setup', {engine: form.elements.engine.value});
       poll();
     } catch (e) { showError(e.message); }
   });

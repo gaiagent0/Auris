@@ -1,11 +1,16 @@
-"""Runtime selector that keeps every TTS engine lifecycle separate."""
+"""Runtime selector that keeps every TTS engine lifecycle separate.
+
+Snapdragon X Elite (Windows ARM64) only: every selectable engine runs on the
+CPU through ONNX Runtime. CUDA/torch engines (OmniVoice, Higgs, MOSS) were
+removed; an explicit user choice can only name an engine from ENGINE_NAMES.
+"""
 
 from __future__ import annotations
 
 import threading
 import time
 
-ENGINE_NAMES = ("omnivoice", "higgs", "moss_tts", "supertonic", "supertonic_sherpa", "piper")
+ENGINE_NAMES = ("supertonic_sherpa", "supertonic", "xtts_onnx", "piper")
 
 
 def selected_engine_name() -> str:
@@ -25,14 +30,14 @@ def selected_engine_name() -> str:
 
 
 def recommended_engine_name() -> str:
-    """Best engine for this machine, falling back to the historical default."""
+    """Best engine for this machine, falling back to the fastest measured one."""
     try:
         from core.hardware import recommend
 
         name = recommend().get("engine")
     except Exception:
-        return "omnivoice"
-    return name if name in ENGINE_NAMES else "omnivoice"
+        return "supertonic_sherpa"
+    return name if name in ENGINE_NAMES else "supertonic_sherpa"
 
 
 class TTSEngineRouter:
@@ -42,23 +47,18 @@ class TTSEngineRouter:
 
     @staticmethod
     def _create(name: str):
-        if name == "higgs":
-            from core.higgs_engine import HiggsTTSEngine
-
-            return HiggsTTSEngine()
         if name == "supertonic_sherpa":
             from core.supertonic_sherpa_engine import SherpaSupertonicEngine
 
             return SherpaSupertonicEngine()
-        if name in ("moss_tts", "supertonic", "piper"):
-            from core.local_engines import ENGINE_CLASSES
+        if name == "xtts_onnx":
+            from core.xtts_onnx_engine import XttsOnnxEngine
 
-            return ENGINE_CLASSES[name]()
-        from core.tts_engine import TTSEngine
+            return XttsOnnxEngine()
+        from core.local_engines import ENGINE_CLASSES
 
-        engine = TTSEngine()
-        engine.engine_name = "omnivoice"
-        return engine
+        # "supertonic" and "piper" (and any future ONNX engine) live here.
+        return ENGINE_CLASSES[name]()
 
     @property
     def engine_name(self) -> str:
@@ -87,7 +87,7 @@ class TTSEngineRouter:
         self._engine.load_async()
 
     def unload(self) -> None:
-        """Stop the active engine and release its VRAM before local LLM work."""
+        """Stop the active engine and release its memory before local LLM work."""
         with self._lock:
             cancel = getattr(self._engine, "cancel", None)
             if callable(cancel):
@@ -98,7 +98,7 @@ class TTSEngineRouter:
             self._engine.unload()
 
     def wait_until_unloaded(self, timeout: float = 600) -> bool:
-        """Wait for an in-flight load to notice cancellation and release VRAM."""
+        """Wait for an in-flight load to notice cancellation and release memory."""
         deadline = time.monotonic() + max(0.0, timeout)
         while time.monotonic() < deadline:
             with self._lock:

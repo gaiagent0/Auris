@@ -1,6 +1,8 @@
-"""Additional local TTS engines: Piper, Supertonic 3 and MOSS-TTS.
+"""Snapdragon X Elite ONNX TTS engines: Supertonic 3, Piper.
 
-Every engine exposes the same interface as ``TTSEngine``/``HiggsTTSEngine``
+(Sherpa-Supertonic lives in core/supertonic_sherpa_engine.py and the
+XTTSv2-ONNX clone engine in core/xtts_onnx_engine.py.)
+Every engine exposes the same interface
 (status, load/unload, generate, generate_many, generate_preview), writes
 24 kHz mono WAV files into the shared audio cache, and reports its
 capabilities so the UI can hide controls an engine cannot honour.
@@ -46,20 +48,11 @@ VENDOR_DIR = Path(__file__).resolve().parent / "vendor"
 
 # Capability matrix shown in Settings and used to adapt Voice Studio/reader.
 ENGINE_INFO: dict[str, dict] = {
-    "omnivoice": {
-        "label": "OmniVoice", "voice_clone": True, "voice_design": True,
-        "speed": True, "device": "GPU/CPU", "hungarian": "hivatalos",
-        "license": "kód Apache-2.0, súlyok CC-BY-NC", "takes": True,
-    },
-    "higgs": {
-        "label": "Higgs TTS 3 — 4B", "voice_clone": True, "voice_design": False,
-        "speed": True, "device": "GPU", "hungarian": "hivatalos",
-        "license": "Boson kutatási licenc", "takes": True,
-    },
-    "moss_tts": {
-        "label": "MOSS-TTS 1.5 (4B)", "voice_clone": True, "voice_design": False,
-        "speed": False, "device": "GPU (~14 GB VRAM)", "hungarian": "hivatalos",
-        "license": "Apache-2.0", "takes": True,
+    "xtts_onnx": {
+        "label": "XTTSv2-ONNX int8 (CPU, klónozás, 24 kHz)", "voice_clone": True,
+        "voice_design": False, "speed": True, "device": "CPU (natív ARM64)",
+        "hungarian": "jó (mért CER 2,73%)", "license": "CPML (modell), MIT (kód)",
+        "takes": True,
     },
     "supertonic": {
         "label": "Supertonic 3 (CPU, előre beállított hangok)", "voice_clone": False,
@@ -157,7 +150,7 @@ def resample(audio: np.ndarray, sr: int, target: int = SAMPLE_RATE) -> np.ndarra
 
 
 def prepare_text(text: str, language: str | None, normalize_text: bool) -> str:
-    """Strip OmniVoice expression tags and apply Auris normalization."""
+    """Strip legacy expression tags and apply Auris normalization."""
     cleaned = _TAG_RE.sub(" ", str(text or ""))
     cleaned = re.sub(r"\s{2,}", " ", cleaned).strip()
     if normalize_text:
@@ -277,9 +270,6 @@ class LocalEngineBase:
 
     def cancel(self) -> bool:
         return False
-
-    def set_dedicated_cuda_stream(self, enabled: bool) -> None:
-        return
 
     def invalidate_voice_prompt(self, ref_audio=None, ref_text=None) -> None:
         return
@@ -818,12 +808,9 @@ class SupertonicEngine(LocalEngineBase):
 
 
 # ════════════════════════════════════════════════════════════════════════════
-# MOSS-TTS-Nano — CPU voice cloning
+# Pause and sentence utilities shared by the ONNX engines and the QA pass
 # ════════════════════════════════════════════════════════════════════════════
 
-NANO_REFERENCE_TEXT = (
-    "Jó napot kívánok. Ez egy nyugodt, tiszta hangminta, természetes magyar hangsúllyal."
-)
 # A pause is only a defect when it is out of proportion to the text. Hungarian
 # narration pauses 0.6-1.2 s between sentences, so a fixed 1 s threshold flags
 # perfectly normal reading; measured speech duty is roughly 5 s per sentence.
@@ -875,188 +862,9 @@ def split_sentences(text: str) -> list[str]:
     return [part for part in parts if part]
 
 
-def fallback_key(instruct) -> str:
-    gender = _gender_of(instruct) or "female"
-    return f"{gender}|{choose_preset_voice(instruct, SUPERTONIC_VOICES, 'F1')}"
-
-
-def fallback_reference(instruct) -> str:
-    """MOSS engines only clone; without a recording they clone a preset voice.
-
-    The Hungarian reference sentence is spoken by Supertonic (matching the
-    gender of the description), or Piper when Supertonic is unavailable, and
-    cached in the audio cache.
-    """
-    folder = Path(AUDIO_CACHE_DIR) / "voice_refs"
-    folder.mkdir(parents=True, exist_ok=True)
-    key = hashlib.md5(fallback_key(instruct).encode("utf-8")).hexdigest()[:16]
-    path = folder / f"moss_ref_{key}.wav"
-    if path.is_file():
-        return str(path)
-    errors = []
-    for factory in (SupertonicEngine, PiperEngine):
-        helper = factory()
-        try:
-            helper.load_sync()
-            raw, sr = helper._synthesize(
-                prepare_text(NANO_REFERENCE_TEXT, "hu", False), instruct, None, None, 1.0, "hu"
-            )
-            _write_audio_atomic(str(path), resample(raw, sr), SAMPLE_RATE)
-            return str(path)
-        except Exception as exc:
-            errors.append(f"{factory.engine_name}: {exc}")
-        finally:
-            helper.unload()
-    raise RuntimeError(
-        "Ez a motor csak hangklónozással működik. Tölts fel referenciahangot a "
-        "Hangstúdióban. (Automatikus mintahang nem készült: " + "; ".join(errors) + ")"
-    )
-
-
-# ════════════════════════════════════════════════════════════════════════════
-
-MOSS_TTS_REPO = "OpenMOSS-Team/MOSS-TTS-Local-Transformer-v1.5"
-MOSS_CODEC_REPO = "OpenMOSS-Team/MOSS-Audio-Tokenizer-v2"
-# The worker runs the repositories' remote code; pin the reviewed revisions so
-# a later upstream push cannot change the executed code.
-MOSS_TTS_REVISION = "be7766a6735b98bd793f7c79fb720b4d0f5d13b8"
-MOSS_CODEC_REVISION = "f6e20e543b33d2c252a7ef71bdf8aa71e5ff9169"
-
-
-class MossTTSEngine(LocalEngineBase):
-    """Runs the 4B model in ``moss_worker.py`` so VRAM is freed by exiting."""
-
-    engine_name = "moss_tts"
-
-    def __init__(self):
-        super().__init__()
-        self._worker = None
-        self._stdin_lock = threading.Lock()
-
-    def model_location(self) -> str:
-        return MOSS_TTS_REPO
-
-    def _load_model(self) -> None:
-        import subprocess
-
-        worker_path = Path(__file__).with_name("moss_worker.py")
-        self._detail = "MOSS-TTS betöltése (első indításkor ~17,6 GB letöltés)…"
-        from core.desktop_support import python_command
-        self._worker = subprocess.Popen(
-            [*python_command(), "-u", str(worker_path)], stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE, stderr=None, text=True, encoding="utf-8",
-        )
-        response = self._rpc({
-            "model": MOSS_TTS_REPO, "revision": MOSS_TTS_REVISION,
-            "codec": MOSS_CODEC_REPO, "codec_revision": MOSS_CODEC_REVISION,
-        })
-        if not response.get("ok"):
-            raise RuntimeError(response.get("error") or "MOSS-TTS worker failed to start")
-        self.model = self._worker
-        self._sample_rate = int(response.get("sample_rate", 48000))
-        self._detail = f"{response.get('device', 'cuda')} · {response.get('dtype', 'bf16')}"
-
-    def _rpc(self, payload: dict) -> dict:
-        import json
-
-        worker = self._worker
-        if worker is None or worker.stdin is None or worker.stdout is None:
-            raise RuntimeError("A MOSS-TTS worker nem fut.")
-        with self._stdin_lock:
-            worker.stdin.write(json.dumps(payload, ensure_ascii=True) + "\n")
-            worker.stdin.flush()
-        while True:
-            line = worker.stdout.readline()
-            if not line:
-                raise RuntimeError(f"A MOSS-TTS worker leállt (kód {worker.poll()}).")
-            line = line.strip()
-            if line.startswith("{") and '"ok"' in line:
-                try:
-                    return json.loads(line)
-                except ValueError:
-                    pass
-            log.info("MOSS worker: %s", line)
-
-    def _release(self) -> None:
-        worker, self._worker = self._worker, None
-        self.model = None
-        if worker is not None and worker.poll() is None:
-            try:
-                if worker.stdin:
-                    worker.stdin.write('{"command": "shutdown"}\n')
-                    worker.stdin.flush()
-                worker.wait(timeout=10)
-            except Exception:
-                worker.terminate()
-
-    def cancel(self) -> bool:
-        worker = self._worker
-        if worker is None or worker.poll() is not None or not self._generating.is_set():
-            return False
-        worker.terminate()
-        self._worker = None
-        self._ready = False
-        self.load_async()
-        return True
-
-    def voice_identity(self, instruct, ref_audio, ref_text, language) -> str:
-        if ref_audio:
-            try:
-                st = os.stat(ref_audio)
-                ident = f"{os.path.abspath(ref_audio)}|{st.st_mtime_ns}|{st.st_size}"
-            except OSError:
-                ident = str(ref_audio)
-            return f"ref={ident}|text={ref_text or ''}"
-        return "fallback=" + fallback_key(instruct)
-
-    def settings_identity(self) -> str:
-        return (f"model={self.model_location()}|t={_setting('moss_temperature', 1.7)}|"
-                f"p={_setting('moss_top_p', 0.8)}|k={_setting('moss_top_k', 25)}|"
-                f"seed={_setting('moss_seed', 1234)}")
-
-    def _synthesize(self, text, instruct, ref_audio, ref_text, speed, language):
-        reference = ref_audio if ref_audio and os.path.exists(ref_audio) else \
-            fallback_reference(instruct)
-        handle, output = tempfile.mkstemp(suffix=".wav", prefix="auris-moss-")
-        os.close(handle)
-        try:
-            response = self._rpc({
-                "command": "generate", "text": text, "language": _moss_language(language),
-                "reference_audio": reference,
-                "reference_text": (ref_text or None) if ref_audio else NANO_REFERENCE_TEXT,
-                "output_path": output,
-                "temperature": float(_setting("moss_temperature", 1.7)),
-                "top_p": float(_setting("moss_top_p", 0.8)),
-                "top_k": int(_setting("moss_top_k", 25)),
-                "seed": int(_setting("moss_seed", 1234)) + 7919 * getattr(self, "_take", 0),
-            })
-            if not response.get("ok"):
-                raise RuntimeError(response.get("error") or "MOSS-TTS generation failed")
-            audio, sr = sf.read(output, dtype="float32")
-            return audio, int(sr)
-        finally:
-            try:
-                os.remove(output)
-            except OSError:
-                pass
-
-
-_MOSS_LANGUAGES = {
-    "hu": "Hungarian", "en": "English", "de": "German", "fr": "French", "es": "Spanish",
-    "it": "Italian", "pt": "Portuguese", "ru": "Russian", "pl": "Polish", "cs": "Czech",
-    "nl": "Dutch", "fi": "Finnish", "ro": "Romanian", "zh": "Chinese", "ja": "Japanese",
-    "ko": "Korean",
-}
-
-
-def _moss_language(language: str | None) -> str | None:
-    return _MOSS_LANGUAGES.get(str(language or "").lower()[:2])
-
-
 ENGINE_CLASSES = {
     "piper": PiperEngine,
     "supertonic": SupertonicEngine,
-    "moss_tts": MossTTSEngine,
 }
 # supertonic_sherpa is deliberately NOT in ENGINE_CLASSES: the sherpa module
 # itself imports LocalEngineBase from this file at module load, so importing it

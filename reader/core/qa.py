@@ -357,9 +357,10 @@ def whisper_available() -> bool:
 def asr_backend_for(language: str | None) -> str:
     """Effective ASR backend: ``whisper``, ``parakeet`` or ``hybrid``.
 
-    ``auto`` keeps Whisper on a CUDA GPU (fast and already measured) and uses
-    Parakeet on CPU, where Whisper large-v3-turbo is several times slower;
-    ``hybrid`` re-checks only the suspicious sentences with Whisper.
+    ``auto`` on Snapdragon X Elite: the ONNX backends run on the CPU, so no
+    CUDA path exists — hybrid (Parakeet ONNX primary, Whisper only re-checks
+    the suspicious sentences) when both runtimes are installed, otherwise
+    whichever single backend can load at all.
     """
     try:
         from core import settings
@@ -373,17 +374,11 @@ def asr_backend_for(language: str | None) -> str:
     parakeet_ok = parakeet_available() and (not lang or lang in PARAKEET_LANGUAGES)
     whisper_ok = whisper_available()
     if requested == "auto":
-        try:
-            import torch
-
-            gpu = bool(torch.cuda.is_available())
-        except Exception:
-            gpu = False
         if not whisper_ok:
-            # No transformers/torch -> Whisper cannot load at all; on a CPU
-            # machine Parakeet is the only working ONNX backend.
+            # No transformers/torch -> Whisper cannot load at all; on this
+            # machine Parakeet is the working ONNX backend.
             return "parakeet" if parakeet_ok else "whisper"
-        return "whisper" if gpu or not parakeet_ok else "hybrid"
+        return "hybrid" if parakeet_ok else "whisper"
     if requested in ("parakeet", "hybrid") and not parakeet_ok:
         return "whisper"
     if requested in ("whisper", "hybrid") and not whisper_ok:
@@ -514,11 +509,7 @@ class Transcriber:
         try:
             import gc
 
-            import torch
-
             gc.collect()
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
         except Exception:
             pass
 
@@ -526,8 +517,10 @@ class Transcriber:
         import torch
         from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
 
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-        dtype = torch.float16 if device == "cuda" else torch.float32
+        # Snapdragon build: Whisper runs on the CPU (float32); the CUDA branch
+        # was removed together with the GPU-only engines.
+        device = "cpu"
+        dtype = torch.float32
         model = AutoModelForSpeechSeq2Seq.from_pretrained(self.model_id, dtype=dtype).to(device)
         processor = AutoProcessor.from_pretrained(self.model_id)
         self._pipe = pipeline(

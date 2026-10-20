@@ -7,7 +7,7 @@
       <div class="docs-toc-label">Tartalom</div>
       <nav class="docs-toc">
         <a href="#overview" class="active">Áttekintés</a>
-        <a href="#windows-desktop">Windows x64 alkalmazás</a>
+        <a href="#windows-desktop">Windows ARM64 alkalmazás</a>
         <a href="#auris">Auris funkciók</a>
         <a href="#workflow">Munkafolyamat</a>
         <a href="#production">Produkció és felület</a>
@@ -17,9 +17,9 @@
         <a href="#hungarian-text">Magyar szövegfeldolgozás</a>
         <a href="#import-tools">OCR és Calibre</a>
         <a href="#voices">Hangok és klónozás</a>
-        <a href="#omnivoice">OmniVoice</a>
-        <a href="#higgs">Higgs TTS 3</a>
-        <a href="#more-engines">MOSS, Supertonic, Piper</a>
+        <a href="#supertonic">Supertonic 3</a>
+        <a href="#xtts-clone">XTTSv2-ONNX klónozás</a>
+        <a href="#more-engines">Motor-összehasonlító, Piper</a>
         <a href="#engine-lifecycle">Motor és beállítások</a>
         <a href="#quality">Minőségellenőrzés</a>
         <a href="#export">Export és gyorsítótár</a>
@@ -34,8 +34,8 @@
       <div class="docs-side-note">
         <span class="docs-side-note-mark">i</span>
         <div>
-          <strong>Hat választható TTS motor</strong>
-          <span>Az Auris egyszerre egy motort tart aktívan. A közös könyv- és hangadatokat mindegyik használja.</span>
+          <strong>Négy választható TTS motor</strong>
+          <span>Az Auris egyszerre egy motort tart aktívan. Minden motor ONNX-en, CPU-n fut. A közös könyv- és hangadatokat mindegyik használja.</span>
         </div>
       </div>
     </div>
@@ -47,7 +47,8 @@
         <h1>Auris dokumentáció</h1>
         <p>
           Helyi könyvolvasás, többszereplős felolvasás és audiobook-export
-          hat választható beszédmotorral. Ez az oldal a jelenleg
+          négy választható beszédmotorral — mindegyik ONNX-en, CPU-n fut,
+          videokártya nélkül. Ez az oldal a jelenleg
           implementált Auris-funkciókat és a motorok eltéréseit írja le.
         </p>
       </div>
@@ -57,7 +58,7 @@
     <section class="benchmark-lead docs-engine-intro" aria-labelledby="engine-title">
       <div class="benchmark-lead-intro">
         <span class="docs-kicker">TTS motorválasztás</span>
-        <h2 id="engine-title">Közös Auris, hat választható beszédmotor</h2>
+        <h2 id="engine-title">Közös Auris, négy választható beszédmotor</h2>
         <p>
           A könyvtár, a fejezetek, a szereplők, a Voice Studio, a lejátszás,
           a könyvjelzők és az export közös. A modellbetöltés és a generálási
@@ -66,22 +67,22 @@
       </div>
       <div class="results-comparison docs-engine-cards">
         <article>
-          <span class="result-label">OmniVoice</span>
-          <h3>Rugalmas voice design és gyors batch export</h3>
-          <p>Hangklónozás, leírásból tervezett vagy automatikus hang, 600+ nyelv, optimalizált tömeges feldolgozás.</p>
-          <a href="#omnivoice">OmniVoice tudnivalók →</a>
+          <span class="result-label">Supertonic 3 · sherpa-onnx int8</span>
+          <h3>Gyors, beépített magyar hangok</h3>
+          <p>Két változat ugyanazzal a modellel: az ONNX CPU kiadás és a mért RTF 0,14-es sherpa-onnx int8 gyorsítás. 10 beépített hang, klónozás nélkül.</p>
+          <a href="#supertonic">Supertonic tudnivalók →</a>
         </article>
         <article>
-          <span class="result-label">Higgs TTS 3 — 4B</span>
-          <h3>Erős magyar kiejtés és expresszív vezérlés</h3>
-          <p>100+ nyelv, zero-shot hangklónozás, érzelem-, stílus-, prozódia-, szünet- és hangeffekt-tokenek.</p>
-          <a href="#higgs">Higgs tudnivalók →</a>
+          <span class="result-label">XTTSv2-ONNX int8</span>
+          <h3>Hangklónozás CPU-n</h3>
+          <p>Referenciahangból másolja a hangot, magyarul is. A klónmodell a telepítéssel együtt érkezik; mért RTF 0,58, WER 0,18%.</p>
+          <a href="#xtts-clone">Klónozás tudnivalók →</a>
         </article>
         <article>
-          <span class="result-label">MOSS-TTS 1.5 · Nano · Supertonic 3 · Piper</span>
-          <h3>Nyílt licencű és processzoron futó magyar motorok</h3>
-          <p>Hosszú szövegre tervezett Apache-2.0 modell, grafikus kártya nélküli hangklónozás, és két klónozás nélküli, beépített hangú gyors motor.</p>
-          <a href="#more-engines">További motorok →</a>
+          <span class="result-label">Piper</span>
+          <h3>Könnyű, gyors tartalék motor</h3>
+          <p>Kis magyar hangcsomag (Anna, Berta, Imre), külön telepítendő GPL csomag. Klónozás nélküli, beépített hangú motor.</p>
+          <a href="#more-engines">Motor-összehasonlító →</a>
         </article>
       </div>
       <div class="docs-callout">
@@ -96,17 +97,16 @@
     <section class="docs-section" id="windows-desktop">
       <div class="docs-section-heading">
         <span class="docs-section-index">W</span>
-        <div><h2>Windows x64: telepítés és első indítás</h2><p>Asztali alkalmazás Git és külön Python-telepítés nélkül.</p></div>
+        <div><h2>Windows ARM64: telepítés és első indítás</h2><p>Asztali alkalmazás Snapdragon X Elite / Windows 11 ARM64 rendszerre, Git és külön Python-telepítés nélkül.</p></div>
       </div>
       <div class="docs-prose">
-      <p>A <a href="https://github.com/mp3pintyo/Auris/releases/latest" target="_blank" rel="noopener noreferrer">GitHub Release</a> oldalról töltsd le az <code>Auris-Setup-&lt;verzió&gt;-x64.exe</code> telepítőt. Windows 10/11 x64 rendszeren használható; saját Python-környezetet és FFmpeg/ffprobe programokat tartalmaz. Git és külön Python-telepítés nem szükséges.</p>
+      <p>Az Auris <strong>Windows 11 ARM64 (Snapdragon X Elite)</strong> rendszerre készült asztali alkalmazás; saját Python-környezetet és FFmpeg/ffprobe programokat tartalmaz. Git és külön Python-telepítés nem szükséges.</p>
       <ol class="docs-steps">
-        <li>Indítsd a telepítőt, majd nyisd meg az Aurist az asztali vagy Start menüben létrehozott ikonnal.</li>
-        <li>Az első ablakban válaszd a <strong>Gyors indulás</strong> (Supertonic 3, CPU, kb. 0,4 GB) vagy a <strong>Saját hangok és hangklónozás</strong> (OmniVoice, több GB) lehetőséget.</li>
-        <li>Kattints a <strong>Letöltés és beállítás</strong> gombra. Az első modellletöltéshez internetkapcsolat és elegendő szabad tárhely kell; az állapot az ablakban követhető.</li>
-        <li>Kész beállítás után nyisd meg a könyvtárat. Az OmniVoice-hoz választható NVIDIA-gyorsítás telepítése után az <strong>Auris újraindítása</strong> gomb aktiválja a GPU-környezetet.</li>
+        <li>Indítsd az Aurist az ikonról. Az első ablakban válaszd a <strong>Gyors indulás</strong> (Supertonic 3, kb. 0,4 GB) vagy a <strong>Saját hangok és hangklónozás</strong> (XTTSv2-ONNX, a telepítéssel együtt jár) lehetőséget.</li>
+        <li>Kattints a <strong>Letöltés és beállítás</strong> gombra. A Supertonic modellletöltéséhez internetkapcsolat és elegendő szabad tárhely kell; az állapot az ablakban követhető. A klónozó motor ellenőrzése néhány másodperc.</li>
+        <li>Kész beállítás után nyisd meg a könyvtárat. Később a Beállításokban bármikor válthatsz motort.</li>
       </ol>
-      <p>A kezdeti beállítás felismeri az NVIDIA-kártyát. A GPU-telepítéshez CUDA 12.8-at vagy újabb verziót támogató illesztőprogram szükséges; a gyorsítás további több GB-os letöltés. Az illesztőprogramot külön kell frissíteni. A Supertonic CPU-n fut, az OmniVoice CPU-val lassabban is használható. A hiányzó Microsoft WebView2 alkalmazásablakot a telepítő internetkapcsolattal állítja be.</p>
+      <p>Minden motor ONNX-en, a Snapdragon CPU-ján fut — külön illesztőprogram vagy gyorsítókörnyezet nem kell. A motorok közötti eltéréseket lásd a <a href="#supertonic">motorok</a> szakaszban. A hiányzó Microsoft WebView2 alkalmazásablakot a telepítő internetkapcsolattal állítja be.</p>
       <h3>Adatmegőrzés és frissítés</h3>
       <p>A programfájlok alaphelye <code>%LOCALAPPDATA%\Programs\Auris</code>. A könyvek, beállítások, modellek és exportok a külön <code>%LOCALAPPDATA%\Auris</code> mappában maradnak. Frissítéshez zárd be az Aurist és futtasd az új telepítőt; a felhasználói adatok megmaradnak. Az eltávolító is megtartja ezt az adatmappát. A forrásból indított webes Auris továbbra is használható, külön könyvtárral; könyveidet Auris ZIP-mentéssel viheted át.</p>
       <p>Az ablak bezárása leállítja a helyi szervert és a háttérfeladatokat. Megszakadt modellletöltésnél újraindíthatod a beállítást. Hiba esetén a <code>%LOCALAPPDATA%\Auris\logs</code> mappában keresd a naplókat. OCR-hez a Tesseract és a magyar nyelvi adat, speciális könyvformátumokhoz a Calibre továbbra is opcionális, külön telepítendő eszköz.</p>
@@ -470,7 +470,7 @@
       <p>A megmaradt szövegegységek beszélőjelölései követik a szöveget. Az átírt vagy törölt egység jelölését újra ellenőrizni kell a <strong>Beszélők javítása</strong> módban. A könyvjelzőket és az olvasási helyet a program a megmaradt szöveghez, átírásnál a környező részekhez igazítja. Folyamatban lévő generálás, export vagy elemzés alatt a mentés várakozást kér.</p>
       <h3>Opcionális finomhangolás</h3>
       <p>Minden blokk alatt külön nyitható a <strong>Felolvasás finomhangolása</strong>. A tempó 0,5–2×, a blokk utáni szünet 0–5000 ms lehet. Üres mezőnél automatikus érték érvényes; a 0 ms kifejezetten kikapcsolja a hozzáadott szünetet. A modell által a hangon belül létrehozott csendet ez nem távolítja el. A szünetek a lejátszás és az export közös idővonalába kerülnek.</p>
-      <p>Az <strong>Előnézet narrátorhanggal</strong> legfeljebb 1500 karakteres blokkot olvas fel, a beállított záró szünettel. Ehhez a hangmodellnek betöltve kell lennie. A szereplőhangokat a rendes lejátszásban ellenőrizd. A tempó modellutasítás: OmniVoice alatt működik, Higgs alatt a kifejező mód alkalmazza; a Higgs nyers módjában a tempómező nem használható. A pontos megszólalás a modelltől függ.</p>
+      <p>Az <strong>Előnézet narrátorhanggal</strong> legfeljebb 1500 karakteres blokkot olvas fel, a beállított záró szünettel. Ehhez a hangmodellnek betöltve kell lennie. A szereplőhangokat a rendes lejátszásban ellenőrizd. A tempó minden motoron a motor támogatásától függ; a pontos megszólalás a modelltől függ, ezért előbb mindig preview-val ellenőrizd.</p>
       <p>A szerkezeti és időzítési beállítások külön adatok, nem a felolvasandó szövegbe írt vezérlőkódok. Ebben a változatban nincs automatikus LLM-alapú rendezés vagy új, blokkonkénti hangulat- és hangsúlyszerkesztő.</p>
     </section>
 
@@ -647,12 +647,11 @@ ffprobe -version</code></pre>
       </div>
       <div class="settings-guide-wrap">
         <table class="settings-guide">
-          <thead><tr><th>Lehetőség</th><th>OmniVoice</th><th>Higgs TTS 3</th></tr></thead>
+          <thead><tr><th>Lehetőség</th><th>XTTSv2-ONNX (klónozó)</th><th>Supertonic / Piper</th></tr></thead>
           <tbody>
-            <tr><td><strong>Referenciahang + átirat</strong></td><td>Elsődleges, stabil voice clone mód.</td><td>Zero-shot voice clone; az átirat lényegesen javítja a hűséget. Az ideális kliphossz eltér az OmniVoice-tól: 5–30 mp.</td></tr>
-            <tr><td><strong>Üres referenciaszöveg</strong></td><td>Whisperrel automatikusan átírhatja, lassabb és pontatlanabb lehet.</td><td>Átirat nélkül is futhat, de a pontos szöveg erősen ajánlott.</td></tr>
-            <tr><td><strong>Voice instruct</strong></td><td>Nem, kor, hangmagasság és akcentus alapján hangot tervez.</td><td>A hangazonosságot főként a referencia adja; Expressive módban pitch/whisper tokenné alakul.</td></tr>
-            <tr><td><strong>Automatikus hang</strong></td><td>Referencia és instruct nélkül támogatott.</td><td>Referencia nélkül a modell saját hangkondicionálásával generál.</td></tr>
+            <tr><td><strong>Referenciahang + átirat</strong></td><td>Elsődleges, stabil voice clone mód; javasolt hossz 10–30 mp.</td><td>Nem használják fel: beépített hangokon olvasnak.</td></tr>
+            <tr><td><strong>Üres referenciaszöveg</strong></td><td>A beszédfelismerő automatikusan átírhatja, lassabb és pontatlanabb lehet.</td><td>Nem releváns.</td></tr>
+            <tr><td><strong>Referencia nélkül</strong></td><td>A Hangstúdió beépített mintahangja szolgál alapul.</td><td>A leírás neme választ hangot (F1–F5 / M1–M5 / Anna, Berta, Imre).</td></tr>
             <tr><td><strong>Egy narrátor</strong></td><td colspan="2">Minden narrációt és párbeszédet ugyanazzal a narrátorhanggal olvas.</td></tr>
           </tbody>
         </table>
@@ -691,7 +690,7 @@ ffprobe -version</code></pre>
         <span class="docs-callout-icon" aria-hidden="true">123</span>
         <div>
           <strong>A magyar számok felolvasás előtt nyelvtanilag helyes alakra alakulnak.</strong>
-          <p>Az Auris felismeri többek között a számneveket, sorszámokat, évszámokat, dátumokat, időpontokat, telefonszámokat, pénznemeket, mértékegységeket, törteket, rövidítéseket és a kötőjeles magyar ragokat. Ez az OmniVoice és a Higgs nyers módjában is működik, ha a szövegnormalizálás be van kapcsolva. Részletek: <a href="#hungarian-text">Magyar szövegfeldolgozás</a>.</p>
+          <p>Az Auris felismeri többek között a számneveket, sorszámokat, évszámokat, dátumokat, időpontokat, telefonszámokat, pénznemeket, mértékegységeket, törteket, rövidítéseket és a kötőjeles magyar ragokat. Ez minden motorral működik, ha a szövegnormalizálás be van kapcsolva. Részletek: <a href="#hungarian-text">Magyar szövegfeldolgozás</a>.</p>
         </div>
       </div>
       <div class="docs-callout">
@@ -703,7 +702,7 @@ ffprobe -version</code></pre>
             vagy másik beszélő. Az átirat betű szerint azt tartalmazza, ami a
             hangban elhangzik. A Voice Studio egyszer menti a hangot és a
             szöveget; nem kell generáláskor újra megadni. A javasolt hossz
-            motorfüggő: a Higgs TTS 3 részletes ajánlását lásd alább.
+            10–30 másodperc (részletes ajánlás: <a href="#xtts-clone">XTTSv2-ONNX</a>).
           </p>
         </div>
       </div>
@@ -716,15 +715,15 @@ ffprobe -version</code></pre>
       </div>
     </section>
 
-    <section class="docs-section docs-engine-section" id="omnivoice">
+    <section class="docs-section docs-engine-section" id="supertonic">
       <div class="docs-section-heading">
         <span class="docs-section-index">04</span>
         <div>
-          <h2>OmniVoice</h2>
+          <h2>Supertonic 3</h2>
           <p>
-            A k2-fsa többnyelvű TTS modellje. Az Aurisban voice clone,
-            voice design és automatikus hang módban használható, jellemzően
-            24 kHz-es kimenettel.
+            A Supertonic 3 beépített magyar hangokkal dolgozó, CPU-n futó motor.
+            Két változatban érhető el: natív ONNX CPU, és a Snapdragonra mért
+            leggyorsabb sherpa-onnx int8 gyorsítás.
           </p>
         </div>
       </div>
@@ -732,56 +731,53 @@ ffprobe -version</code></pre>
         <div>
           <h3>Erősségek</h3>
           <ul class="docs-check-list">
-            <li><strong>600+ nyelv</strong>; ismert nyelvnél az Auris átadja a nyelvkódot.</li>
-            <li>Voice clone pontos referenciahanggal és referenciaszöveggel.</li>
-            <li>Voice design nem, kor, hangmagasság és akcentus leírásából. A leírt hang alapértelmezés szerint egyszer egy magyar mintamondatot mond el, és a könyv minden szakasza ezt a klipet klónozza (<strong>Leírt hangok rögzítése referenciaklippel</strong>), így a hangszín nem változik szakaszról szakaszra, és az export két sávot is használhat.</li>
-            <li>Lista/batch generálás és újrahasznosítható clone prompt.</li>
-            <li>Automatikus hosszú szöveg-darabolás és alkalmazásszintű szegmensek.</li>
-            <li>OmniVoice-specifikus exportoptimalizálás és opcionális kétmodell-sáv.</li>
+            <li><strong>10 beépített hang</strong> (F1–F5, M1–M5); a Hangstúdió szereplőnként és a narrátornál is választ enged.</li>
+            <li><strong>Mért RTF 0,14</strong> (sherpa-onnx int8) — 428 perc hang olvasható fel egy óra alatt.</li>
+            <li>Batchelt generálás: az azonos hang/nyelv/tempó mondatok együtt készülnek (<code>supertonic_batch</code>), mérve 2,25× gyorsabb.</li>
+            <li>Tempóállítás és magyar szöveg-normalizálás támogatott.</li>
+            <li>A sherpa-onnx modell (~139 MB) az első betöltéskor automatikusan letöltődik.</li>
           </ul>
         </div>
         <div>
           <h3>Minőségi kiindulópont</h3>
           <ul class="docs-check-list">
-            <li><strong>Speech quality:</strong> 16 step; végső minőséghez 24 vagy 32.</li>
-            <li><strong>Guidance:</strong> az Auris/upstream alapérték 2.0.</li>
-            <li><strong>Speed:</strong> 1.0; egyszerre csak egy paramétert változtass.</li>
-            <li><strong>Normalize numbers:</strong> könyvszövegnél általában bekapcsolva.</li>
-            <li><strong>Referencia:</strong> azonos nyelvű minta adja a legsemlegesebb kiejtést.</li>
-            <li>Keresztnyelvű referencia átviheti a forráshang akcentusát.</li>
-            <li>Apple Silicon gépen az OmniVoice az MPS gyorsítást használja, alapból FP32 pontossággal. Az <code>AURIS_MPS_DTYPE=bf16</code> gyorsabb lehet, de ronthatja a mondatkezdések hangját.</li>
+            <li><strong>WER 0,11%</strong> a 24 mondatos magyar korpuszon (M-41).</li>
+            <li>Az <strong>auto</strong> motorválasztó ezt a változatot ajánlja.</li>
+            <li>A sherpa-onnx változat 44,1 kHz-en ad hangot; az ONNX CPU változat 24 kHz-en.</li>
+            <li>Klónozás nincs: a referenciahangot figyelmen kívül hagyja.</li>
+            <li>A tempó egyszerre csak egy paramétert módosítson; előbb preview-val ellenőrizd.</li>
           </ul>
         </div>
       </div>
 
       <div class="settings-guide-wrap" style="margin-top:28px">
         <table class="settings-guide">
-          <thead><tr><th>OmniVoice beállítás</th><th>Mit szabályoz?</th><th>Ajánlás</th></tr></thead>
+          <thead><tr><th>Supertonic beállítás</th><th>Mit szabályoz?</th><th>Ajánlás</th></tr></thead>
           <tbody>
-            <tr><td>Speech quality</td><td>12/16/24/32 iteratív dekódolási lépés; több lépés lassabb és finomabb.</td><td><strong>16</strong></td></tr>
-            <tr><td>GPU batch size</td><td>Egy generate hívásban együtt, de külön hullámformaként feldolgozott szövegegységek száma.</td><td><strong>Auto</strong></td></tr>
-            <tr><td>Exact spoken-line boundaries</td><td>Minden szövegegység külön hangfájlt kap; nincs karakterszám alapján visszavágott, összekevert rövid sor.</td><td><strong>Bekapcsolva</strong></td></tr>
-            <tr><td>GPU-gyorsítás</td><td>Alap vagy optimalizált PyTorch, NVIDIA CUDA Graph, Triton és hibrid (Triton + CUDA Graph).</td><td>Automatikus; munkaterhelésenként mérendő</td></tr>
-            <tr><td>Parallel export workers</td><td>Második modell csak nagyobb voice-clone export idejére; a referenciaklippel rögzített leírt hangok is ide tartoznak.</td><td><strong>Auto</strong></td></tr>
-            <tr><td>Leírt hangok rögzítése</td><td>A leírásból egyszer referenciaklip készül, a szakaszok ezt klónozzák.</td><td><strong>Bekapcsolva</strong></td></tr>
+            <tr><td>Beszédmotor</td><td>supertonic (ONNX CPU) vagy supertonic_sherpa (int8 gyorsítás).</td><td><strong>supertonic_sherpa</strong></td></tr>
+            <tr><td>Beépített hang</td><td>F1–F5 női, M1–M5 férfihang.</td><td>Szereplőnként választandó</td></tr>
+            <tr><td>Kötegméret</td><td>Egy generálásban együtt feldolgozott mondatok száma (1–6).</td><td><strong>4</strong></td></tr>
+            <tr><td>Lépésszám</td><td>A dekódolási lépések száma; több lépés lassabb és finomabb.</td><td><strong>8</strong></td></tr>
+            <tr><td>Pontossági változat</td><td>fp32 / int8 modellkiadás.</td><td><strong>int8</strong></td></tr>
           </tbody>
         </table>
       </div>
       <p class="docs-footnote" style="margin-top:14px">
-        Upstream: <a href="https://github.com/k2-fsa/OmniVoice" target="_blank" rel="noopener">k2-fsa/OmniVoice</a>.
-        Az OmniVoice modell- és csomaglicenc feltételeit mindig az aktuális upstream forrásban ellenőrizd.
+        Modell: <a href="https://huggingface.co/supertone-oss-archive/supertonic-3" target="_blank" rel="noopener">supertone-oss-archive/supertonic-3</a>
+        (OpenRAIL-M licenc, MIT kód). A mérési adatok forrása: <code>docs/meresek.md</code> (M-41).
       </p>
     </section>
 
-    <section class="docs-section docs-section-tinted docs-engine-section" id="higgs">
+    <section class="docs-section docs-section-tinted docs-engine-section" id="xtts-clone">
       <div class="docs-section-heading">
         <span class="docs-section-index">05</span>
         <div>
-          <h2>Higgs TTS 3 — 4B</h2>
+          <h2>XTTSv2-ONNX int8 — hangklónozás</h2>
           <p>
-            A Boson AI autoregresszív, beszélgetésre és expresszív beszédre
-            tervezett modellje. 100+ nyelvet, zero-shot hangklónozást és
-            szövegbe ágyazható vezérlőtokeneket támogat; a kimenet 24 kHz.
+            A Coqui XTTS v2 ONNX-re kvantált változata: referenciahangból
+            másolja a hangot, több szereplős könyvnél szereplőnként külön
+            klónozott hangon olvas. CPU-n fut, a modell a telepítéssel együtt
+            érkezik.
           </p>
         </div>
       </div>
@@ -790,146 +786,79 @@ ffprobe -version</code></pre>
         <div>
           <h3>Magyar kiejtés</h3>
           <ul class="docs-check-list">
-            <li>A hivatalos modellkártyán a <strong>magyar a WER/CER 5 alatti</strong>, magasabb minőségi csoportban szerepel.</li>
-            <li>Magyar könyvhöz a <strong>Raw prompt mode</strong> a biztos kiindulópont.</li>
-            <li>Használj magyar referenciahangot és hozzá betűpontos magyar átiratot.</li>
+            <li><strong>Mért CER 2,73%</strong> magyar szövegen (M-44).</li>
+            <li>Magyar könyvhöz használj magyar referenciát, vagy hagyd az átirat mezőt üresen és töltsd fel a feliratot.</li>
             <li>Az Auris javítja a régi PDF-ek gyakori <code>õ→ő</code> és <code>û→ű</code> karakterhibáit.</li>
-            <li>A worker teljes kommunikációja UTF-8; így a tokenizer sértetlen magyar szöveget kap.</li>
-            <li>A Raw útvonal a projektben található, bevált Transformers <code>direct_speech()</code> hívást követi.</li>
+            <li>A tempó beállítása minden motorral működik, ahol a motor támogatja.</li>
           </ul>
         </div>
         <div>
           <h3>Auris-integráció</h3>
           <ul class="docs-check-list">
-            <li>A hivatalos képességeket a Transformers-kompatibilis community adapterrel futtatja helyben.</li>
-            <li>Külön <code>.higgs_runtime</code> környezetben használ Transformers 5.13-at.</li>
-            <li>Nem ütközik az OmniVoice saját Transformers-verziójával.</li>
-            <li>CUDA esetén BF16, Apple Silicon MPS-en alapból FP32, CPU-n FP32 betöltés; a modell egy külön worker processzben él.</li>
-            <li>A Stop megszakítja a futó processzt, majd cache-ből újratölti a modellt.</li>
+            <li>A <code>vendor/XTTSv2-Streaming-ONNX/xtts_onnx</code> könyvtár a telepítés része; az első indítás ellenőrzi.</li>
+            <li>Referencia nélkül az Auris a Hangstúdióban megadott beépített mintahangot használja.</li>
             <li>A referenciaszöveg a mentett Voice Studio rekordból automatikusan továbbadódik.</li>
+            <li>A Stop megszakítja a generálást; a kész szegmensek cache-ben maradnak.</li>
+            <li><strong>Mért RTF 0,58</strong> — lassabb, mint a Supertonic, de ez az egyetlen klónozó motor.</li>
           </ul>
         </div>
       </div>
 
-      <div class="settings-guide-wrap" style="margin-top:28px">
-        <table class="settings-guide">
-          <thead><tr><th>Higgs beállítás</th><th>Alapérték</th><th>Hatás</th></tr></thead>
-          <tbody>
-            <tr><td>Temperature</td><td><strong>0.8</strong></td><td>Mintavételi változatosság; magasabban szabadabb, kevésbé stabil lehet.</td></tr>
-            <tr><td>Top P</td><td><strong>0.95</strong></td><td>Nucleus sampling valószínűségi tömege; 0 esetén kikapcsolható.</td></tr>
-            <tr><td>Top K</td><td><strong>50</strong></td><td>A megtartott legvalószínűbb tokenek száma; 0 esetén kikapcsolható.</td></tr>
-            <tr><td>Maximum new tokens</td><td><strong>1024</strong></td><td>A generálható audiótokenek felső korlátja.</td></tr>
-            <tr><td>Seed</td><td><strong>-1</strong></td><td>-1 véletlen; rögzített egész szám ismételhető A/B összehasonlításhoz.</td></tr>
-            <tr><td>Prompt mode</td><td><strong>Raw</strong></td><td>Raw: tiszta szöveg. Expressive: Auris normalizálás és automatikus vezérlőtokenek.</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="docs-two-column">
-        <div>
-          <h3>Raw mód</h3>
-          <p>
-            A megtisztított könyvszöveget extra előtagok nélkül adja át. Nem
-            alkalmaz automatikus érzelmet vagy voice-design akcentust. Magyar
-            kiejtés ellenőrzéséhez és a referenciaalkalmazással való
-            összehasonlításhoz ezt használd.
-          </p>
-        </div>
-        <div>
-          <h3>Expressive mód</h3>
-          <p>
-            Alkalmazhat számnormalizálást, alapérzelmet, stílust,
-            expresszivitást, sebesség-, pitch-, whisper-, szünet- és
-            hangeffekt-tokeneket. A tokenek kreatív vezérlést adnak, de
-            minden könyvnél érdemes rövid preview-val ellenőrizni őket.
-          </p>
-        </div>
-      </div>
-
-      <h3>Kvantálás és vLLM</h3>
-      <p>A 4 milliárd paraméteres Higgs súlyai bf16-ban kb. 8 GB-ot foglalnak (4 milliárd × 2 bájt),
-        ami egy 24 GB-os kártyán bőven elfér; ezért az Auris nem kvantálja. Az FP8 csak Ada és újabb (RTX 40xx, H100) kártyán
-        gyorsít, Ampere-en (RTX 30xx) nem támogatott. A bitsandbytes int8 csökkenti a memóriát, de
-        lassítja a generálást. A vLLM natív Windowson nem fut. A gyorsítás ezért a kötegelésből, a
-        referenciahang kódjainak gyorsítótárazásából és a hangszín-horgonyzásból jön, nem kvantálásból.</p>
-
       <div class="docs-callout">
         <span class="docs-callout-icon" aria-hidden="true">♪</span>
         <div>
-          <strong>Higgs referenciahang: hivatalosan 5–30 másodperc; a legjobb kiindulópont 8–15 másodperc.</strong>
+          <strong>Referenciahang: 10–30 másodperc tiszta, egybeszélő hang.</strong>
           <p>
-            A <strong>bosonai/higgs-tts-3-4b</strong> számára egyetlen beszélő
-            tiszta, zaj-, zene- és háttérhangmentes beszédét használd. A
-            3–5 másodperces minta is működhet zero-shot klónozással, de kevésbé
-            stabil; 30 másodperc fölött általában nem javul az eredmény, viszont
-            nő a kontextus- és tokenigény. A pontos <code>ref_text</code>
-            (a töltelékszavakkal együtt) erősen javítja a hanghűséget. Hosszú
-            generálásnál ugyanazt a referenciahangot és átiratot használd
-            következetesen.
+            Egyetlen beszélő zaj-, zene- és visszhangmentes beszédét használd,
+            lehetőleg a könyv nyelvén. A betűpontos átirat lényegesen javítja a
+            hanghűséget; ha nincs kéznél, a feltöltött felvételről a
+            beszédfelismerő elkészítheti. Hosszú generálásnál következetesen
+            ugyanazt a referenciát használd.
           </p>
         </div>
       </div>
 
       <div class="settings-guide-wrap" style="margin-top:28px">
         <table class="settings-guide">
-          <thead><tr><th>Tokenkategória</th><th>Támogatott értékek</th></tr></thead>
+          <thead><tr><th>Lehetőség</th><th>XTTSv2-ONNX</th></tr></thead>
           <tbody>
-            <tr><td><strong>Emotion</strong></td><td>elation, amusement, enthusiasm, determination, pride, contentment, affection, relief, contemplation, confusion, surprise, awe, longing, arousal, anger, fear, disgust, bitterness, sadness, shame, helplessness</td></tr>
-            <tr><td><strong>Style</strong></td><td>singing, shouting, whispering</td></tr>
-            <tr><td><strong>Prosody</strong></td><td>speed_very_slow, speed_slow, speed_fast, speed_very_fast, pitch_low, pitch_high, pause, long_pause, expressive_low, expressive_high</td></tr>
-            <tr><td><strong>Sound effect</strong></td><td>cough, laughter, crying, screaming, burping, humming, sigh, sniff, sneeze</td></tr>
+            <tr><td><strong>Referenciahang + átirat</strong></td><td>Elsődleges, stabil voice clone mód.</td></tr>
+            <tr><td><strong>Üres referenciaszöveg</strong></td><td>A beszédfelismerő automatikusan átírhatja; lassabb és pontatlanabb lehet.</td></tr>
+            <tr><td><strong>Referencia nélkül</strong></td><td>A Hangstúdió beépített mintahangja szolgál alapul.</td></tr>
+            <tr><td><strong>Egy narrátor</strong></td><td>Minden narrációt és párbeszédet ugyanazzal a narrátorhanggal olvas.</td></tr>
           </tbody>
         </table>
-      </div>
-      <div class="docs-callout">
-        <span class="docs-callout-icon" aria-hidden="true">&lt;|</span>
-        <div>
-          <strong>Tokenformátum: <code>&lt;|category:value|&gt;</code></strong>
-          <p>
-            Az emotion, style, speed, pitch és expressive token általában a
-            mondat elejére kerül. A pause és sound effect ott álljon, ahol
-            történnie kell. Hangeffekt után szükséges a hozzá illő leírt hang,
-            például <code>&lt;|sfx:laughter|&gt;Haha</code> vagy
-            <code>&lt;|sfx:sigh|&gt;Uh</code>.
-          </p>
-        </div>
       </div>
       <div class="docs-callout">
         <span class="docs-callout-icon" aria-hidden="true">§</span>
         <div>
-          <strong>Higgs licenc és alkotói felhasználás</strong>
+          <strong>Licenc: MIT kód, CPML modellsúly (nem kereskedelmi).</strong>
           <p>
-            Kutatási és nem kereskedelmi licenc. A Creator Use Grant podcast,
-            videó, audiobook és hasonló — akár monetizált — kreatív tartalomhoz
-            enged használatot, jól látható Boson AI Higgs Audio
-            forrásmegjelöléssel. Hosztolt API, szolgáltatásba építés,
-            továbbértékesítés vagy más termékhasználat külön kereskedelmi
-            licencet igényel. Mindig az aktuális hivatalos licenc az irányadó.
+            Hangklónozáshoz a beszélő beleegyezése szükséges; megtévesztésre,
+            megszemélyesítésre vagy csalásra ne használd. A modellsúlyok
+            nem kereskedelmi felhasználásra engedélyezettek; részletek a
+            <a href="https://huggingface.co/coqui/XTTS-v2" target="_blank" rel="noopener">modellkártyán</a>.
           </p>
         </div>
       </div>
-      <p class="docs-footnote" style="margin-top:14px">
-        Hivatalos modellkártya, nyelvek, tokenek és licenc:
-        <a href="https://huggingface.co/bosonai/higgs-tts-3-4b" target="_blank" rel="noopener">bosonai/higgs-tts-3-4b</a>.
-      </p>
     </section>
 
     <section class="docs-section" id="more-engines">
       <div class="docs-section-heading">
         <span class="docs-section-index">05b</span>
         <div>
-          <h2>MOSS-TTS 1.5, MOSS-TTS-Nano, Supertonic 3 és Piper</h2>
-          <p>Mind a négy motor hivatalosan támogatja a magyart, és ugyanazt a könyvtárat, gyorsítótárat és exportot használja.</p>
+          <h2>Motor-összehasonlító és Piper</h2>
+          <p>Mind a négy motor ugyanazt a könyvtárat, gyorsítótárat és exportot használja; egyszerre egy van betöltve.</p>
         </div>
       </div>
       <div class="settings-guide-wrap">
         <table class="settings-guide">
-          <thead><tr><th>Motor</th><th>Hang</th><th>Hardver</th><th>Letöltés</th><th>Licenc</th></tr></thead>
+          <thead><tr><th>Motor</th><th>Hang</th><th>Hardver</th><th>Letöltés</th><th>Mért RTF</th><th>Licenc</th></tr></thead>
           <tbody>
-            <tr><td><strong>MOSS-TTS 1.5 — 4B</strong></td><td>Hangklónozás; tempóállítás nincs</td><td>GPU, kb. 14 GB VRAM</td><td>~17,6 GB (Hugging Face gyorsítótár)</td><td>Apache-2.0</td></tr>
-            <tr><td><strong>MOSS-TTS-Nano</strong></td><td>Hangklónozás (átirat nélkül); tempóállítás nincs</td><td>CPU</td><td>~0,8 GB (<code>reader/models</code>)</td><td>Apache-2.0</td></tr>
-            <tr><td><strong>Supertonic 3</strong></td><td><strong>Nincs hangklónozás</strong>: 10 beépített hang (F1–F5, M1–M5)</td><td>CPU</td><td>~0,4 GB</td><td>OpenRAIL-M modell, MIT kód</td></tr>
-            <tr><td><strong>Piper</strong></td><td><strong>Nincs hangklónozás</strong>: Anna, Berta, Imre</td><td>CPU</td><td>~190 MB</td><td>GPL-3.0 csomag (külön telepítendő), CC0 hangok</td></tr>
+            <tr><td><strong>Supertonic 3 sherpa</strong></td><td>10 beépített hang</td><td>CPU (ONNX int8)</td><td>~139 MB, automatikus</td><td><strong>0,14</strong></td><td>OpenRAIL-M modell, MIT kód</td></tr>
+            <tr><td><strong>Supertonic 3</strong></td><td>10 beépített hang</td><td>CPU (ONNX)</td><td>~0,4 GB, automatikus</td><td>0,25</td><td>OpenRAIL-M modell, MIT kód</td></tr>
+            <tr><td><strong>XTTSv2-ONNX</strong></td><td><strong>Hangklónozás</strong> referenciahangból</td><td>CPU (ONNX int8)</td><td>A telepítés része</td><td>0,58</td><td>MIT kód, CPML súly (nem kereskedelmi)</td></tr>
+            <tr><td><strong>Piper</strong></td><td>Beépített hangok (Anna, Berta, Imre)</td><td>CPU</td><td>~190 MB</td><td>0,04–0,1</td><td>GPL-3.0 csomag (külön telepítendő), CC0 hangok</td></tr>
           </tbody>
         </table>
       </div>
@@ -939,25 +868,23 @@ ffprobe -version</code></pre>
           <ul class="docs-check-list">
             <li>A feltöltött referenciahangot figyelmen kívül hagyják; a Hangstúdió ezt jelzi, és elrejti a referencia feltöltését.</li>
             <li>A hangot a leírás neme választja ki (női → Anna/Berta vagy F1–F5, férfi → Imre vagy M1–M5), azonos leírás mindig ugyanazt a hangot adja.</li>
-            <li>A Hangstúdió <strong>Beépített hang</strong> mezőjében szereplőnként és a narrátornál is választható konkrét hang.</li>
-            <li>A tempóállítás működik. Az OmniVoice hangulatcímkéit (<code>[laughter]</code> stb.) ezek a motorok nem mondják fel.</li>
+            <li>A tempóállítás működik. Az elavult hangulatcímkék (<code>[laughter]</code> stb.) ezeknél a motoroknál nem mondódnak fel.</li>
           </ul>
         </div>
         <div>
-          <h3>Klónozó motorok (MOSS-TTS, Nano)</h3>
+          <h3>Klónozó motor (XTTSv2-ONNX)</h3>
           <ul class="docs-check-list">
-            <li>Saját hanghoz tölts fel referenciahangot. A Nano átiratot nem használ.</li>
-            <li>Referencia nélkül az Auris a leírás neméhez illő magyar mintahangot készít a Supertonic (vagy ha az nem érhető el, a Piper) motorral, és azt klónozza. Ezt egyszer készíti el és elmenti.</li>
-            <li>A MOSS-TTS a távoli kódot rögzített, ellenőrzött modellverzióból futtatja, külön folyamatban; leállításkor a teljes videomemória felszabadul.</li>
-            <li>A <strong>Véletlenmag</strong> a mintavételt befolyásolja; a MOSS-TTS ugyanazzal a maggal sem ad mindig bitazonos hangot.</li>
+            <li>Saját hanghoz tölts fel referenciahangot a Hangstúdióban.</li>
+            <li>Referencia nélkül a beépített mintahang szolgál alapul.</li>
+            <li>A <strong>Véletlenmag</strong> a mintavételt befolyásolja; ugyanazzal a maggal sem mindig bitazonos az eredmény.</li>
           </ul>
         </div>
       </div>
       <div class="docs-callout">
         <span class="docs-callout-icon" aria-hidden="true">⚡</span>
         <div>
-          <strong>Saját mérés (RTX 3090, magyar mondatok, 2026. szeptember):</strong>
-          <p>Piper RTF 0,04–0,1 és Supertonic RTF ~0,2 processzoron; MOSS-TTS-Nano RTF ~1,2–1,4 processzoron (az első mondat a mintahang elkészítését is tartalmazza); MOSS-TTS 1.5 RTF ~0,9 GPU-n. Az RTF a generálási idő és a hang hosszának aránya; 1 alatt a valós időnél gyorsabb. Hallás utáni minőségi összevetés nem készült; a magyar minőséget saját fülpróbával vagy a minőségellenőrzéssel érdemes értékelni.</p>
+          <strong>Saját mérés (Snapdragon X Elite, 2026. október):</strong>
+          <p>Az RTF a generálási idő és a hang hosszának aránya; 1 alatt a valós időnél gyorsabb. A sherpa-Supertonic 0,14, a Supertonic 0,25, a klónozó XTTS 0,58; a Piper 0,04–0,1. A magyar érthetőséget az ASR-alapú minőségellenőrzés és a <code>docs/meresek.md</code> mérései jellemzik.</p>
         </div>
       </div>
     </section>
@@ -1036,7 +963,7 @@ ffprobe -version</code></pre>
           <ul class="docs-check-list">
             <li><strong>Beszédfelismerés:</strong> a Whisper visszahallgatja a mondatot, és a <strong>karakterhiba-arány (CER)</strong> megmutatja, mennyire tér el attól, aminek el kellett hangzania. A számokat kimondott alakban veti össze, az írásjeleket és a kis-nagybetűt nem számolja, az ékezeteket igen (<em>kor</em> ≠ <em>kór</em>). A könyv szereplőneveit is megkapja, hogy a nevek ne számítsanak hibának.</li>
             <li><strong>Hangjelek:</strong> túlvezérlés, 1,5 s-nál hosszabb szünet a mondaton belül, néma hang, a szöveghez képest túl gyors (levágott) vagy túl lassú (elnyújtott) felolvasás, illetve a fejezet többi mondatához képest szokatlan hossz.</li>
-            <li><strong>Beszédfelismerő:</strong> videokártyán a magyarra finomhangolt Whisper, processzoron automatikusan az NVIDIA Parakeet v3 fut (ONNX, első használatkor kb. 2,4 GB letöltés). Ez gyorsan meghallgat minden mondatot, és csak a gyanúsakat hallgatja vissza a Whisper is; a jobb olvasat számít. Saját mérés öt magyar mintán: a Parakeet CER-je 0,7–4,4%, a Whisperé 0,7–5,9%. A Parakeet számjegyekkel ír, ezt az összevetés kimondott alakra hozza. A választás a Beállítások → Minőségellenőrzés → <strong>Beszédfelismerő</strong> alatt módosítható.</li>
+            <li><strong>Beszédfelismerő:</strong> alapból a Parakeet TDT v3 fut (ONNX, CPU, első használatkor kb. 2,4 GB letöltés): ez gyorsan meghallgat minden mondatot, és csak a gyanúsakat hallgatja vissza a Whisper is (ha a telepítés tartalmazza); a jobb olvasat számít. Saját mérés öt magyar mintán: a Parakeet CER-je 0,7–4,4%, a Whisperé 0,7–5,9%. A Parakeet számjegyekkel ír, ezt az összevetés kimondott alakra hozza. A választás a Beállítások → Minőségellenőrzés → <strong>Beszédfelismerő</strong> alatt módosítható (auto/whisper/parakeet/hybrid).</li>
             <li>Állapot: <strong>Rendben</strong>; <strong>Gyanús</strong> 8% CER felett vagy hangjelzésnél; <strong>Hibás</strong> 15% CER felett vagy néma hangnál. A küszöb a Beállítások → Minőségellenőrzés alatt módosítható.</li>
           </ul>
         </div>
@@ -1048,7 +975,7 @@ ffprobe -version</code></pre>
             <li>Az <strong>Új változat</strong> gomb kézzel kér még egyet. A változatok egymás után meghallgathatók, és bármelyik kiválasztható (<strong>Ezt használom</strong>); a lejátszás és az export a kiválasztottat használja.</li>
             <li>A <strong>Jóváhagyás</strong> jelzi, hogy a mondatot meghallgattad. A <strong>Jóváhagyásra vár</strong> szűrő a még ellenőrizetlen mondatokat mutatja.</li>
           </ol>
-          <p>Új változatot az OmniVoice, a Higgs és a két MOSS motor tud adni; a Supertonic és a Piper ugyanarra a szövegre mindig ugyanazt a hangot adja.</p>
+          <p>Új változatot a klónozó XTTSv2-ONNX motor ad (véletlenszám-mintavétellel); a Supertonic és a Piper ugyanarra a szövegre mindig ugyanazt a hangot adja.</p>
           <p><strong>Változat másik hanggal:</strong> az <strong>Új változat hangja</strong> mezőben bármelyik mentett hangprofil választható. Az új változat ezzel a hanggal készül, a jelölése a profil nevét is mutatja (pl. <em>2. változat · Mély mesélő</em>), és ugyanúgy kiválasztható vagy elvethető. Így egy-egy mondatot kipróbálhatsz más hangon a szereplő átállítása nélkül. A beszédmotor nem cserélhető mondatonként, mert egyszerre egy motor van betöltve.</p>
         </div>
       </div>
@@ -1061,8 +988,8 @@ ffprobe -version</code></pre>
       <div class="docs-callout">
         <span class="docs-callout-icon" aria-hidden="true">⌁</span>
         <div>
-          <strong>Saját mérés (2026. szeptember, RTX 3090):</strong>
-          <p>Öt magyar szakasz OmniVoice-hangjának teljes ellenőrzése beszédfelismeréssel, a modell első betöltésével együtt 16 s alatt futott le; a CER 0–1,6% volt. Ugyanazt a magyar mondatot (számokkal és rövidítéssel) a motorok ennyi CER-rel mondták: Supertonic 0–0,7%, Piper 3,7–5,9%, MOSS-TTS 1.5 1,5–17%, MOSS-TTS-Nano 26–34%. Ez egyetlen mondaton mért érthetőség, nem hallás utáni minőségértékelés.</p>
+          <strong>Saját mérés (Snapdragon X Elite, magyar korpusz):</strong>
+          <p>A motorok beszédfelismeréssel mért magyar teljesítménye: a sherpa-Supertonic WER 0,11%, a klónozó XTTSv2-ONNX CER 2,73%, a Parakeet felismerő CER 0,7–4,4% a QA mintákon. Ez érthetőségi mérés, nem hallás utáni minőségértékelés; a teljes napló a <code>docs/meresek.md</code> fájlban.</p>
         </div>
       </div>
     </section>
@@ -1098,7 +1025,7 @@ ffprobe -version</code></pre>
         <div>
           <h3>Cache és konzisztencia</h3>
           <ul class="docs-check-list">
-            <li>A kész hang cache-kulcsa tartalmazza a motort, szöveget, hangot, átiratot, generálási paramétereket, valamint az OmniVoice tényleges eszközét és adattípusát.</li>
+            <li>A kész hang cache-kulcsa tartalmazza a motort, szöveget, hangot, átiratot és a generálási paramétereket.</li>
             <li>Referencia-, voice-, motor- vagy releváns beállításváltás után nem használható a régi szegmenshang. Az új referenciahang tartalom alapján egyedi fájlnevet kap, ezért ugyanazon szereplő hangjának cseréjekor sem kerülhet elő a régi hang a cache-ből.</li>
             <li>A WAV cache atomikusan készül, így félbehagyott írás nem válik érvényes hanggá.</li>
             <li>Export alatt az interaktív generálás vár, így nem versenyez ugyanazért a TTS motorért.</li>
@@ -1210,7 +1137,7 @@ ffprobe -version</code></pre>
       <h3>OpenAI-kompatibilis felolvasás</h3>
       <p>A <code>POST /v1/audio/speech</code> végpont az OpenAI kérésformátumát fogadja (<code>input</code>, <code>voice</code>, <code>response_format</code>: mp3, wav, opus, flac, aac, pcm; <code>speed</code>). Így más programok (például OpenReader, Pandrator) az aktív Auris-motorral és a mentett magyar hangprofilokkal beszélhetnek. A <code>voice</code> lehet mentett hangprofil neve vagy azonosítója, hangleírás (<code>female, middle-aged</code>) vagy beépített hang (<code>anna</code>, <code>F1</code>). A <code>GET /v1/models</code> a motorokat, a <code>GET /v1/audio/voices</code> a hangprofilokat listázza. Alapból csak erről a gépről érhető el; kulcs a Beállítások → Kiadás és Audiobookshelf alatt adható meg (<code>Authorization: Bearer …</code>).</p>
       <h3>Docker</h3>
-      <p>A projekt gyökerében: <code>docker compose up -d</code>, majd <code>http://localhost:7860</code>. NVIDIA GPU-hoz az NVIDIA Container Toolkit szükséges; GPU nélküli géphez a <code>docker-compose.yml</code>-ban állítsd a <code>TORCH_VARIANT</code> értékét <code>cpu</code>-ra és töröld a <code>deploy</code> részt. A könyvtár, a modellek, az exportok és a gyorsítótár a <code>docker-data</code> mappába kerülnek, így a konténer újraépítése után is megmaradnak. Ha a helyi hálózatról más gépnévvel éred el, add hozzá az <code>AURIS_ALLOWED_HOSTS</code> változóhoz, és a portot ne csak a <code>127.0.0.1</code>-hez kösd.</p>
+      <p>A projekt gyökerében: <code>docker compose up -d</code>, majd <code>http://localhost:7860</code>. A kép CPU-ra épül (nem kell videokártya vagy külön illesztőprogram). A könyvtár, a modellek, az exportok és a gyorsítótár a <code>docker-data</code> mappába kerülnek, így a konténer újraépítése után is megmaradnak. Ha a helyi hálózatról más gépnévvel éred el, add hozzá az <code>AURIS_ALLOWED_HOSTS</code> változóhoz, és a portot ne csak a <code>127.0.0.1</code>-hez kösd.</p>
     </section>
 
     <section class="docs-section" id="storage">
@@ -1282,128 +1209,63 @@ ffprobe -version</code></pre>
       <div class="docs-section-heading">
         <span class="docs-section-index">10</span>
         <div>
-          <h2>Teljesítmény és GPU-mérés</h2>
+          <h2>Teljesítmény és mérések</h2>
           <p>
-            Az alábbi saját mérés az <strong>OmniVoice exportmotorra</strong>,
-            RTX 3090-re és Windows 11-re vonatkozik. Nem Higgs benchmark.
+            Az összes motor ONNX-en, a Snapdragon X Elite CPU-ján fut. Az alábbi
+            adatok helyi mérések magyar szövegen; a teljes napló a
+            <code>docs/meresek.md</code> fájlban.
           </p>
         </div>
       </div>
       <div class="benchmark-numbers">
-        <div class="benchmark-number"><span class="benchmark-value">147,65 <small>s</small></span><span class="benchmark-label">1 OmniVoice modell</span></div>
+        <div class="benchmark-number"><span class="benchmark-value">0,14</span><span class="benchmark-label">sherpa-Supertonic RTF</span></div>
         <span class="benchmark-arrow" aria-hidden="true">→</span>
-        <div class="benchmark-number is-highlight"><span class="benchmark-value">90,23 <small>s</small></span><span class="benchmark-label">2 modell · 2 CUDA stream</span></div>
-        <div class="benchmark-vram"><span>1,64× gyorsabb</span><small>32 szegmens · 4477 karakter · 8 step</small></div>
+        <div class="benchmark-number is-highlight"><span class="benchmark-value">428 <small>perc/óra</small></span><span class="benchmark-label">felolvasási sebesség</span></div>
+        <div class="benchmark-vram"><span>5,4× gyorsabb</span><small>az ONNX CPU Supertonic soros futásához képest</small></div>
       </div>
       <div class="settings-guide-wrap" style="margin-top:28px">
         <table class="settings-guide">
-          <thead><tr><th>OmniVoice profil</th><th>Balanced</th><th>Fast</th></tr></thead>
+          <thead><tr><th>Motor (Snapdragon X Elite, 2026. október)</th><th>Mért RTF</th><th>Megjegyzés</th></tr></thead>
           <tbody>
-            <tr><td>Speech quality</td><td><strong>16 step</strong></td><td><strong>8 step</strong></td></tr>
-            <tr><td>GPU batch size</td><td><strong>8 vagy Auto</strong></td><td><strong>8 vagy Auto</strong></td></tr>
-            <tr><td>Exact spoken-line boundaries</td><td><strong>Bekapcsolva</strong></td><td><strong>Bekapcsolva</strong></td></tr>
-            <tr><td>GPU-gyorsítás</td><td><strong>Auto; saját méréssel ellenőrizve</strong></td><td><strong>Auto; saját méréssel ellenőrizve</strong></td></tr>
-            <tr><td>Parallel export workers</td><td><strong>2</strong></td><td><strong>2</strong></td></tr>
+            <tr><td>Supertonic 3 sherpa-onnx int8</td><td><strong>0,14</strong></td><td>Az auto-ajánlás; betöltés ~1,7 s.</td></tr>
+            <tr><td>Supertonic 3 (batch 4)</td><td>0,25</td><td>A kötegelés 2,25× gyorsít a soroshoz képest.</td></tr>
+            <tr><td>XTTSv2-ONNX int8</td><td>0,58</td><td>Klónozó motor; betöltés ~1,1 s.</td></tr>
+            <tr><td>Piper</td><td>0,04–0,1</td><td>Könnyű tartalék motor.</td></tr>
           </tbody>
         </table>
       </div>
       <div class="settings-guide-wrap" style="margin-top:22px">
         <table class="settings-guide">
-          <thead><tr><th>Export- és lejátszásgyorsítás (3.5.0)</th><th>Mit csinál?</th></tr></thead>
+          <thead><tr><th>Export- és lejátszásgyorsítás</th><th>Mit csinál?</th></tr></thead>
           <tbody>
-            <tr><td>Könyvszintű kötegelés</td><td>A kijelölt fejezetek függő szakaszai egy menetben, hangonként és hossz szerint csoportosítva kerülnek a GPU-ra; nincs fejezetenként félig üres csomag.</td></tr>
-            <tr><td>Párhuzamos mastering</td><td>A hangerő-kiegyenlítés fejezetenként, több FFmpeg-folyamatban fut. Saját mérés (30 perces szintetikus könyv, 10 fejezet, mastering bekapcsolva): M4B 92,6 s → 57,4 s.</td></tr>
+            <tr><td>Könyvszintű kötegelés</td><td>A kijelölt fejezetek mondatai hangonként és hossz szerint csoportosítva, kötegekben készülnek; nincs fejezetenként félig üres csomag.</td></tr>
+            <tr><td>Párhuzamos mastering</td><td>A hangerő-kiegyenlítés fejezetenként, több FFmpeg-folyamatban fut. Saját mérés (30 perces szintetikus könyv, 10 fejezet): M4B 92,6 s → 57,4 s.</td></tr>
             <tr><td>Kevesebb memória</td><td>A fejezet-WAV és az MP3 blokkonként, közvetlenül FFmpeg-gel készül, a teljes fejezet nem kerül a memóriába.</td></tr>
-            <tr><td>Gyorsabb első lejátszás</td><td>Betöltés után egy rövid magyar mondat bemelegíti a modellt; a lejátszandó mondat nem vár a 75 ms-os gyűjtési ablakra, a következő mondatok egy csomagban készülnek.</td></tr>
-            <tr><td>Higgs referencia</td><td>A referenciahang kódolása hangonként egyszer történik meg, a további megszólalások újrahasználják.</td></tr>
+            <tr><td>Gyorsabb első lejátszás</td><td>Betöltés után egy rövid magyar mondat bemelegíti a modellt; a lejátszandó mondat nem vár a gyűjtési ablakra, a következő mondatok egy csomagban készülnek.</td></tr>
+            <tr><td>Klónozott referencia</td><td>A referenciahang kódolása hangonként egyszer történik meg, a további megszólalások újrahasználják.</td></tr>
           </tbody>
         </table>
       </div>
-      <p class="docs-footnote" style="margin-top:14px">
-        A fenti sebességmérés a korábbi rövidsor-egyesítéssel készült. A jelenlegi
-        alapbeállítás a pontos mondathatárokat részesíti előnyben; emiatt a tényleges
-        exportidő hosszabb lehet, miközben a GPU batch és a párhuzamos export worker
-        továbbra is használható.
-      </p>
       <div class="docs-two-column">
         <div>
-          <h3>GPU ellenőrzése</h3>
-          <p>A Feladatkezelő 3D grafikonja nem megbízható CUDA-mérő. Export közben külön PowerShellben futtasd:</p>
-          <div class="code-block">
-            <div class="code-block-head">
-              <span>PowerShell</span>
-              <button type="button" class="copy-code" data-copy="nvidia-smi dmon -s pucm -d 1" aria-label="Parancs másolása">Másolás</button>
-            </div>
-            <pre><code>nvidia-smi dmon -s pucm -d 1</code></pre>
-          </div>
+          <h3>Egy motor egyszerre</h3>
+          <p>
+            Egyszerre egy beszédmotor van betöltve; a motorváltás előbb
+            felszabadítja az előzőt, majd betölti az újat. A
+            <code>tts_engine=auto</code> beállítás a leggyorsabb használható
+            motort választja (jelenleg a sherpa-Supertonicot).
+          </p>
         </div>
         <div>
-          <h3>Mit jelent a hullámzó terhelés?</h3>
+          <h3>Mit mérj magad?</h3>
           <p>
-            Normális, hogy a magas GPU-burst után alacsonyabb szakasz következik:
-            közben CPU-s előkészítés, audio-dekódolás, fájlírás és a következő
-            csomag összeállítása történik. A terminál
-            <code>GPU generate done</code>, <code>elapsed</code> és
-            <code>peak_alloc</code> sorai hasznosabbak a 3D grafikonnál.
+            A könyved hangja a szöveg összetételétől és a beállított hangtól is
+            függ. Export előtt a mondat-előnézettel ellenőrizheted a hangot és a
+            tempót; a minőséget az <a href="#quality">Ellenőrzés</a> oldal
+            beszédfelismerős CER-értékei jellemzik.
           </p>
         </div>
       </div>
-      <div class="docs-two-column" id="performance-platforms" style="grid-template-columns:1fr"><div>
-      <h3>Új mérési eredmények és platformok (2026. szeptember 10.)</h3>
-      <p>A változó hanghosszak miatt kikapcsoltuk a cuDNN költséges algoritmuskeresését.
-        Az RTX 3090 / Windows 11 / PyTorch 2.11 + CUDA 12.8 próbában egy új, négy magyar
-        szöveges csomag első futása körülbelül 27 másodpercről 2,4 másodpercre csökkent.
-        A már bemelegített futás mindkét esetben körülbelül 2,4 másodperc volt.
-        Ez az új bemenet előkészítési késleltetésének javulása, nem minden generálásra
-        érvényes tízszeres gyorsulás. A próba 16 dekódolási lépéssel készült.</p>
-      <div class="settings-guide-wrap">
-        <table class="settings-guide">
-          <thead><tr><th>Rendszer</th><th>Automatikus működés</th><th>Ellenőrzés és feltétel</th></tr></thead>
-          <tbody>
-            <tr><td>NVIDIA / Windows, Linux</td><td>CUDA + CUDA Graph; capture-hibánál optimalizált PyTorch.</td><td>RTX 3090 / Windows 11 helyben mérve. Rövid szövegnél a Graph hasznos; nagyobb kötegnél külön mérendő.</td></tr>
-            <tr><td>AMD / ROCm</td><td>ROCm + optimalizált PyTorch. Az NVIDIA-specifikus Graph/Triton mód helyett is ezt használja.</td><td>AMD által támogatott GPU, operációs rendszer, Python és torch/torchaudio páros szükséges. Hardveres Auris-mérés még nincs.</td></tr>
-            <tr><td>Apple Silicon / macOS</td><td>MPS + optimalizált PyTorch, alapból FP32. Nincs CUDA Graph vagy Triton.</td><td>MPS-képes PyTorch szükséges. A mostani módosítás fizikai Macen még nincs lemérve.</td></tr>
-            <tr><td>CPU</td><td>Optimalizált PyTorch.</td><td>GPU nélkül is használható, de a mostani sebességadatok nem CPU-mérések.</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <p>Az <strong>Alap PyTorch</strong> opció is GPU-n fut, ha az rendelkezésre áll;
-        csak az extra OmniVoice-optimalizálásokat tiltja le. A Higgs külön motor: az OmniVoice
-        gyorsítási módjai és az alábbi benchmark nem vonatkoznak rá.</p>
-      <h3>Triton és hibrid mód (NVIDIA)</h3>
-      <p>A <strong>Beállítások → GPU-gyorsítás → Triton-gyorsítás telepítése</strong> gomb
-        (vagy telepítéskor az <code>AURIS_TRITON=1</code> környezeti változó) a PyTorch-verzióhoz
-        illő Triton fordítót teszi fel; Windowson a <code>triton-windows</code> csomagot, amely
-        saját C-fordítót hoz. A kerneleket az Auris tartalmazza, Python 3.11-en is működnek.
-        Telepítés után válaszd a <strong>Hibrid</strong> módot, és töltsd újra a beszédmotort.</p>
-      <p>RTX 3090-en, Windows 11-en, 36 magyar mondaton (négyes kötegek, 16 lépés) mérve a
-        bemelegített valós idejű tényező: optimalizált PyTorch 0,085, CUDA Graph 0,08–0,09,
-        csak Triton 0,068, hibrid 0,065–0,068. A beszédfelismeréssel mért karakterhiba
-        (CER) azonos maradt (5,6% és 5,8%, ugyanazok a hibás mondatok). A Triton a kerekítés
-        miatt nem bitazonos hangot ad, ezért a már elkészült hangok cache-e érvényes marad,
-        de az újrageneráltak kissé eltérhetnek. Az Automatikus mód továbbra is a CUDA Graphot
-        választja; a hibrid módot tudatosan kell bekapcsolni.</p>
-      <p>Teljes könyv generálásakor vagy exportjakor 20 GB-nál nagyobb videokártyán két modellpéldány dolgozik
-        párhuzamosan. Ilyenkor a CUDA Graph szünetel, mert a két sáv közös véletlenszám-generátora miatt a
-        gráfrögzítés összeomlást okozna; a Triton-kernelek közben is működnek. Saját mérés, 48 klónozott mondat:
-        két sáv Tritonnal 13,2 s, egy sáv hibrid módban 15,6 s, egy sáv CUDA Graph-fal 18,8 s. Az export után a
-        gráfok visszakapcsolnak az olvasó lejátszásához.</p>
-      <p>AMD-n először a <a href="https://rocm.docs.amd.com/projects/radeon-ryzen/en/latest/">gyártó kompatibilitási útmutatója</a>
-        szerinti ROCm PyTorch/torchaudio párost telepítsd az Auris környezetébe.
-        A telepítő a működő ROCm-környezetet felismeri és megőrzi; önállóan nem
-        választ AMD-illesztőprogramot vagy GPU-specifikus wheel-csomagot.</p>
-      <h3>Megismételhető saját sebességmérés</h3>
-      <p>A projekt gyökeréből futtasd. A mérés valódi hangot generál, megkerüli a
-        kész hangok gyorsítótárát, külön tárolja az első és az öt bemelegített
-        futást, és nem menti át a beállításaidat. Az RTF a generálási idő osztva
-        az elkészült hang hosszával; kisebb érték gyorsabb.</p>
-      <div class="code-block"><pre><code>reader\.venv\Scripts\python.exe scripts\benchmark_tts.py --output reader/data/performance/sajat-meres.json</code></pre></div>
-      <p>Macen vagy Linuxon a környezet <code>reader/.venv/bin/python</code>
-        futtatható állományát használd. Klónozás méréséhez add meg a
-        <code>--ref-audio minta.wav --ref-text atirat.txt</code> kapcsolókat;
-        az átirat UTF-8 szöveg legyen. Más minőségi szintet a <code>--steps</code>
-        paraméterrel mérhetsz, de az eltérő lépésszám hangminőségi különbséget is okozhat.</p>
-      </div></div>
     </section>
 
     <section class="docs-section" id="troubleshooting">
@@ -1417,27 +1279,23 @@ ffprobe -version</code></pre>
       <div class="faq-list">
         <details>
           <summary>A Lejátszás gomb után „A modell még nem áll készen” jelenik meg</summary>
-          <div><p>Várd meg a <strong>Hang kész</strong> állapotot. Első Higgs-betöltéskor a több gigabájtos modell letöltése és inicializálása hosszabb lehet. A hang előtöltése a Lejátszás megnyomása után automatikusan megvárja a modellt.</p></div>
+          <div><p>Várd meg a <strong>Hang kész</strong> állapotot. Első betöltéskor a modell letöltése és inicializálása hosszabb lehet (a sherpa-Supertonic betöltése ezután ~0,5 s, a XTTS ~1,1 s). A hang előtöltése a Lejátszás megnyomása után automatikusan megvárja a modellt.</p></div>
         </details>
         <details>
-          <summary>A Higgs magyar szöveget angolosan ejt</summary>
-          <div><p>Állítsd a Prompt mode-ot <strong>Raw</strong> értékre, használj magyar referenciahangot és pontos magyar referenciaszöveget, majd ments és töltsd újra a motort. Ellenőrizd a könyv nyelvét és a forrásszöveg ő/ű karaktereit is.</p></div>
-        </details>
-        <details>
-          <summary>Higgs betöltéskor „audio_head.weight | MISSING” látható</summary>
-          <div><p>A használt Transformers adapternél ez ismert betöltési riport: a modell saját weight-tying rendje kezeli. Önmagában nem hiba. Az a mérvadó, hogy utána megjelenik-e a <code>Higgs TTS ready (...)</code> sor.</p></div>
+          <summary>A klónozó XTTS rosszul ejti a magyar szöveget</summary>
+          <div><p>Használj magyar referenciahangot és pontos magyar referenciaszöveget (vagy hagyd az átiratot üresen, hogy a felismerő készítse el), majd ments és töltsd újra a motort. Ellenőrizd a könyv nyelvét és a forrásszöveg ő/ű karaktereit is. A <strong>Beállítások → Kiejtés</strong> szótárral egyedi szavak kiejtése is szabályozható.</p></div>
         </details>
         <details>
           <summary>A Stop után még fut a generálás</summary>
-          <div><p>A jelenlegi Auris megszakítja a böngészős kéréseket és a backend generálást is. Higgs esetén leállítja az izolált worker processzt, majd újratölti a modellt. Régi szerverfolyamat esetén indítsd újra a <code>run.bat</code>-ot és frissíts <code>Ctrl+F5</code>-tel.</p></div>
+          <div><p>A jelenlegi Auris megszakítja a böngészős kéréseket és a backend generálást is; a már elkészült szegmensek cache-ben maradnak. Régi szerverfolyamat esetén indítsd újra a <code>run.bat</code>-ot és frissíts <code>Ctrl+F5</code>-tel.</p></div>
         </details>
         <details>
-          <summary>OmniVoice exportnál csak egy worker indul</summary>
-          <div><p>Két sáv csak megfelelő számú függő voice-clone tételnél és elegendő VRAM esetén indul. Voice design, kevés munka vagy memóriahiány esetén szándékosan egy modell marad.</p></div>
+          <summary>Kevés a memória generálás közben</summary>
+          <div><p>A motorok CPU-n futnak, a memóriaigény a modelltől függ (Supertonic ~1 GB, XTTS klónozó több GB). Motorváltás előtt az Auris felszabadítja az előző motort; ne tarts két külön Auris szervert egyszerre. Szűkös helyen csökkentsd a kötegméretet (<code>supertonic_batch</code>), és a minőség-ellenőrzés modelljét is add ki, ha épp nem kell.</p></div>
         </details>
         <details>
-          <summary>CUDA out of memory</summary>
-          <div><p>OmniVoice-nál csökkentsd a batch méretét és állíts egy export workerre. Higgsnél zárj be más GPU-igényes programokat, állítsd le a régi motort, majd töltsd újra. Motorváltáskor ne tarts két külön Auris szervert egyszerre.</p></div>
+          <summary>Nem jelenik meg a klónozó motor a Beállításokban</summary>
+          <div><p>A XTTSv2-ONNX csak akkor jelenik meg, ha a telepítés tartalmazza a <code>vendor/XTTSv2-Streaming-ONNX/xtts_onnx</code> könyvtárat és a szöveg-előkészítés függőségei (<code>librosa</code>, <code>pypinyin</code>) telepítve vannak. A <code>/api/engine/suggest</code> végpont megmutatja, mi hiányzik.</p></div>
         </details>
         <details>
           <summary>Megváltoztattam a hangot, de a régi felolvasás hallatszik</summary>

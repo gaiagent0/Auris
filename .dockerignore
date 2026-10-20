@@ -1,16 +1,14 @@
 .git
 **/__pycache__
 reader/.venv
-reader/.higgs_runtime
 reader/data
 reader/models
 reader/exports
 reader/audio_cache
 reader/uploads
+reader/output
 model_backup
 docker-data
 wheels
 test_docs
 assets
-source
-OmniVoice

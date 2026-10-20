@@ -122,10 +122,10 @@ const PRESET_VOICES = {
   ],
 };
 const ENGINE_LABELS = {
-  omnivoice: "OmniVoice", higgs: "Higgs TTS 3", moss_tts: "MOSS-TTS 1.5",
-  supertonic: "Supertonic 3", piper: "Piper",
+  supertonic_sherpa: "Supertonic 3 (sherpa)", supertonic: "Supertonic 3",
+  xtts_onnx: "XTTSv2-ONNX (klónozás)", piper: "Piper",
 };
-let activeEngine = { engine: "omnivoice", capabilities: { voice_clone: true, voice_design: true } };
+let activeEngine = { engine: "supertonic_sherpa", capabilities: { voice_clone: false, voice_design: false, speed: true } };
 
 function presetVoiceOf(instruct) {
   const match = String(instruct || "").match(/(?:^|,)\s*voice:\s*([\w-]+)/i);
@@ -693,7 +693,7 @@ async function applyEngineCapabilities() {
   try {
     const status = await requestJson("/api/tts/status");
     activeEngine = {
-      engine: status.engine || "omnivoice",
+      engine: status.engine || "supertonic_sherpa",
       capabilities: status.capabilities || {},
     };
   } catch (_) {

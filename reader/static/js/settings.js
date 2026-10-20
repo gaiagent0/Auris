@@ -1,5 +1,5 @@
 let _settings = {};
-let _dlPollTimer = null;
+let _recommendedEngine = 'supertonic_sherpa';
 let _settingsReady = false;
 let _settingsDirty = false;
 const OPENAI_TEXT_MODEL_PREFIXES = [
@@ -52,45 +52,21 @@ function ensureModelOption(select, model) {
 async function loadSettings() {
   _settings = await fetch('/api/settings').then(r => r.json());
 
-  // Active engine
-  const engine = _settings.tts_engine || 'omnivoice';
-  document.getElementById('tts-engine').value = engine;
+  // Active engine ('auto' = hardware recommendation on Snapdragon)
+  const engine = _settings.tts_engine || 'auto';
+  const engineSelect = document.getElementById('tts-engine');
+  if ([...engineSelect.options].some(o => o.value === engine)) {
+    engineSelect.value = engine;
+  }
+  if (engine === 'auto') {
+    try {
+      const st = await fetch('/api/tts/status').then(r => r.json());
+      if (st.engine) _recommendedEngine = st.engine;
+    } catch (_) { /* keep the default recommendation */ }
+  } else {
+    _recommendedEngine = engine;
+  }
   toggleEngineSettings(engine);
-
-  // Model
-  const src = _settings.model_source || 'local';
-  const srcRadio = document.querySelector(`input[name="model_source"][value="${src}"]`);
-  if (srcRadio) srcRadio.checked = true;
-  document.getElementById('model-path').value  = _settings.model_path  || '';
-  document.getElementById('model-repo').value  = _settings.model_repo  || 'k2-fsa/OmniVoice';
-  document.getElementById('dl-dest').value     = _settings.model_path  || '';
-  document.getElementById('hf-endpoint').value = _settings.hf_endpoint || '';
-  toggleSource(src);
-
-  // Higgs model and generation
-  const higgsSrc = _settings.higgs_model_source || 'download';
-  const higgsSrcRadio = document.querySelector(
-    `input[name="higgs_model_source"][value="${higgsSrc}"]`
-  );
-  if (higgsSrcRadio) higgsSrcRadio.checked = true;
-  document.getElementById('higgs-model-path').value = _settings.higgs_model_path || '';
-  document.getElementById('higgs-model-repo').value =
-    _settings.higgs_model_repo || 'multimodalart/higgs-audio-v3-tts-4b-transformers';
-  document.getElementById('higgs-temperature').value = _settings.higgs_temperature ?? 0.8;
-  document.getElementById('higgs-top-p').value = _settings.higgs_top_p ?? 0.95;
-  document.getElementById('higgs-top-k').value = _settings.higgs_top_k ?? 50;
-  document.getElementById('higgs-max-new-tokens').value = _settings.higgs_max_new_tokens ?? 2048;
-  document.getElementById('higgs-seed').value = _settings.higgs_seed ?? -1;
-  document.getElementById('higgs-prompt-mode').value =
-    _settings.higgs_prompt_mode || 'raw';
-  document.getElementById('higgs-default-emotion').value =
-    _settings.higgs_default_emotion || 'none';
-  document.getElementById('higgs-default-style').value =
-    _settings.higgs_default_style || 'none';
-  document.getElementById('higgs-default-expressive').value =
-    _settings.higgs_default_expressive || 'none';
-  toggleHiggsSource(higgsSrc);
-  toggleHiggsPromptMode(_settings.higgs_prompt_mode || 'raw');
 
   // Additional engines
   const setValue = (id, value) => { const el = document.getElementById(id); if (el) el.value = value; };
@@ -100,10 +76,6 @@ async function loadSettings() {
   setValue('supertonic-variant', _settings.supertonic_variant || 'fp32');
   setValue('supertonic-steps', _settings.supertonic_steps ?? 10);
   setValue('supertonic-batch', _settings.supertonic_batch ?? 4);
-  setValue('moss-seed', _settings.moss_seed ?? 1234);
-  setValue('moss-temperature', _settings.moss_temperature ?? 1.7);
-  setValue('moss-top-p', _settings.moss_top_p ?? 0.8);
-  setValue('moss-top-k', _settings.moss_top_k ?? 25);
 
   // Character / dialogue-speaker detection
   const detectionMode = _settings.character_detection_mode || 'legacy';
@@ -130,51 +102,10 @@ async function loadSettings() {
   // TTS text processing (default true when unset)
   document.getElementById('normalize-text').checked = _settings.normalize_text !== false;
 
-  // Export / TTS quality
-  const steps = String(_settings.tts_num_step ?? 16);
-  const stepSelect = document.getElementById('tts-num-step');
-  if (stepSelect) {
-    if (![...stepSelect.options].some(o => o.value === steps)) {
-      stepSelect.value = '16';
-    } else {
-      stepSelect.value = steps;
-    }
-  }
-  const batch = String(_settings.tts_batch_size ?? 0);
-  const batchSelect = document.getElementById('tts-batch-size');
-  if (batchSelect) {
-    if (![...batchSelect.options].some(o => o.value === batch)) {
-      batchSelect.value = '0';
-    } else {
-      batchSelect.value = batch;
-    }
-  }
-  const coal = String(_settings.tts_coalesce_chars ?? 0);
-  const coalSelect = document.getElementById('tts-coalesce-chars');
-  if (coalSelect) {
-    coalSelect.value = '0';
-  }
-  const accel = String(_settings.tts_accel ?? 'auto');
-  const accelSelect = document.getElementById('tts-accel');
-  if (accelSelect) {
-    if (![...accelSelect.options].some(o => o.value === accel)) {
-      accelSelect.value = 'auto';
-    } else {
-      accelSelect.value = accel;
-    }
-  }
-  const workers = String(_settings.tts_export_workers ?? 0);
-  const workerSelect = document.getElementById('tts-export-workers');
-  if (workerSelect) {
-    workerSelect.value = [...workerSelect.options].some(o => o.value === workers)
-      ? workers : '0';
-  }
   document.getElementById('audio-format').value    = _settings.audio_format    || 'wav';
   document.getElementById('subtitle-format').value = _settings.subtitle_format || 'ass';
   document.getElementById('audio-mastering').checked =
     _settings.audio_mastering !== false;
-  const anchor = document.getElementById('voice-design-anchor');
-  if (anchor) anchor.checked = _settings.voice_design_anchor !== false;
   const setChecked = (id, value) => { const el = document.getElementById(id); if (el) el.checked = value; };
   setChecked('trim-segment-silence', _settings.trim_segment_silence !== false);
   setChecked('export-room-tone', Boolean(_settings.export_room_tone));
@@ -201,8 +132,6 @@ async function loadSettings() {
     if (select) select.value = _settings.abs_library_id;
   }
 
-  refreshAccelStatus();
-
   // UI — theme
   selectTheme(_settings.theme || 'night', false);
 
@@ -220,7 +149,6 @@ async function loadSettings() {
   document.getElementById('line-height-val').textContent = parseFloat(lh).toFixed(1);
 
   checkSpacy();
-  checkExistingDownload();
   _settingsReady = true;
   setSettingsDirty(false);
 }
@@ -251,17 +179,6 @@ function selectFontFamily(ff, persist = true) {
     localStorage.setItem('fontFamily', ff);
     markSettingsDirty();
   }
-}
-
-// ── Model source toggle ───────────────────────────────────────────────────────
-
-document.querySelectorAll('input[name="model_source"]').forEach(el => {
-  el.addEventListener('change', () => toggleSource(el.value));
-});
-
-function toggleSource(src) {
-  document.getElementById('panel-local').classList.toggle('hidden', src !== 'local');
-  document.getElementById('panel-download').classList.toggle('hidden', src !== 'download');
 }
 
 function toggleCharacterDetection(mode) {
@@ -375,20 +292,21 @@ async function testLLMConnection() {
 }
 
 const ENGINE_CAPABILITIES = {
-  omnivoice: {clone: true, design: true, speed: true, device: 'GPU vagy CPU', license: 'kód Apache-2.0, súlyok CC-BY-NC'},
-  higgs: {clone: true, design: false, speed: true, device: 'GPU', license: 'Boson kutatási licenc'},
-  moss_tts: {clone: true, design: false, speed: false, device: 'GPU, ~14 GB VRAM', license: 'Apache-2.0'},
   supertonic: {clone: false, design: false, speed: true, device: 'CPU', license: 'OpenRAIL-M'},
   supertonic_sherpa: {clone: false, design: false, speed: true, device: 'CPU', license: 'OpenRAIL-M (sherpa-onnx)'},
+  xtts_onnx: {clone: true, design: false, speed: true, device: 'CPU', license: 'CPML (XTTSv2)'},
   piper: {clone: false, design: false, speed: true, device: 'CPU', license: 'GPL-3.0 (piper-tts)'},
 };
 
 function toggleEngineSettings(engine) {
+  // 'auto' resolves to the active engine; class names use dashes.
+  const active = engine === 'auto' ? _recommendedEngine : engine;
+  const wanted = `${String(active).replace(/_/g, '-')}-settings`;
   document.querySelectorAll('.engine-settings').forEach(el => {
     const owner = [...el.classList].find(name => name.endsWith('-settings') && name !== 'engine-settings');
-    el.classList.toggle('hidden', owner !== `${engine}-settings`);
+    el.classList.toggle('hidden', owner !== wanted);
   });
-  const caps = ENGINE_CAPABILITIES[engine] || {};
+  const caps = ENGINE_CAPABILITIES[active] || {};
   const box = document.getElementById('engine-capabilities');
   if (box) {
     const chip = (ok, label) =>
@@ -421,115 +339,6 @@ async function installEngineRuntime(engine) {
   }
 }
 
-document.querySelectorAll('input[name="higgs_model_source"]').forEach(el => {
-  el.addEventListener('change', () => toggleHiggsSource(el.value));
-});
-
-function toggleHiggsSource(src) {
-  document.getElementById('higgs-panel-local').classList.toggle('hidden', src !== 'local');
-  document.getElementById('higgs-panel-download').classList.toggle('hidden', src !== 'download');
-}
-
-function toggleHiggsPromptMode(mode) {
-  document.querySelectorAll('.higgs-expressive-control').forEach(el =>
-    el.classList.toggle('hidden', mode !== 'expressive')
-  );
-}
-
-// ── Path checker ──────────────────────────────────────────────────────────────
-
-async function checkPath() {
-  const path = document.getElementById('model-path').value.trim();
-  const hint = document.getElementById('path-status');
-  hint.textContent = 'Ellenőrzés…';
-  const r = await fetch('/api/settings/check-model-path', {
-    method: 'POST', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ path }),
-  });
-  const d = await r.json();
-  if (!d.exists) {
-    hint.textContent = 'A megadott mappa nem létezik.';
-    hint.className = 'status-hint status-error';
-  } else if (!d.has_config) {
-    hint.textContent = 'A mappa létezik, de nincs benne config.json – ez nem modellmappa.';
-    hint.className = 'status-hint status-warn';
-  } else {
-    hint.textContent = 'Érvényes modellmappa.';
-    hint.className = 'status-hint status-ok';
-  }
-}
-
-async function checkHiggsPath() {
-  const path = document.getElementById('higgs-model-path').value.trim();
-  const hint = document.getElementById('higgs-path-status');
-  hint.textContent = 'Ellenőrzés…';
-  const r = await fetch('/api/settings/check-model-path', {
-    method: 'POST', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ path }),
-  });
-  const d = await r.json();
-  if (!d.exists) {
-    hint.textContent = 'A megadott mappa nem létezik.';
-    hint.className = 'status-hint status-error';
-  } else if (!d.has_config) {
-    hint.textContent = 'A mappa létezik, de nincs benne config.json – ez nem modellmappa.';
-    hint.className = 'status-hint status-warn';
-  } else {
-    hint.textContent = 'Érvényes modellmappa.';
-    hint.className = 'status-hint status-ok';
-  }
-}
-
-// ── HuggingFace download ──────────────────────────────────────────────────────
-
-async function startDownload() {
-  const repo = document.getElementById('model-repo').value.trim();
-  const dest = document.getElementById('dl-dest').value.trim();
-  const hfep = document.getElementById('hf-endpoint').value.trim();
-  if (!dest) { Auris.toast('Add meg, hova töltődjön le a modell.', 'err'); return; }
-
-  document.getElementById('dl-progress-wrap').classList.remove('hidden');
-  document.getElementById('dl-btn').disabled = true;
-
-  await fetch('/api/settings/model-download', {
-    method: 'POST', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ repo_id: repo, dest, hf_endpoint: hfep }),
-  });
-  pollDownload();
-}
-
-function pollDownload() {
-  if (_dlPollTimer) clearInterval(_dlPollTimer);
-  _dlPollTimer = setInterval(async () => {
-    const d   = await fetch('/api/settings/model-download/progress').then(r => r.json());
-    const bar = document.getElementById('dl-bar');
-    const msg = document.getElementById('dl-msg');
-    bar.style.width  = d.pct + '%';
-    msg.textContent  = d.message;
-
-    if (d.status === 'done') {
-      clearInterval(_dlPollTimer);
-      document.getElementById('dl-btn').disabled = false;
-      msg.className = 'progress-msg status-ok';
-      document.getElementById('model-path').value = d.dest;
-      document.getElementById('dl-dest').value    = d.dest;
-    } else if (d.status === 'error') {
-      clearInterval(_dlPollTimer);
-      document.getElementById('dl-btn').disabled = false;
-      msg.className = 'progress-msg status-error';
-    }
-  }, 2000);
-}
-
-async function checkExistingDownload() {
-  const d = await fetch('/api/settings/model-download/progress').then(r => r.json());
-  if (d.status === 'downloading') {
-    document.getElementById('dl-progress-wrap').classList.remove('hidden');
-    document.getElementById('dl-btn').disabled = true;
-    pollDownload();
-  }
-}
-
 // ── TTS reload ────────────────────────────────────────────────────────────────
 
 async function reloadTTS() {
@@ -549,8 +358,6 @@ async function reloadTTS() {
     if (st.state === 'ready') {
       finished = true;
       hint.textContent = 'A beszédmotor készen áll.';
-      // The event carries no acceleration details, so read the full status once.
-      try { refreshAccelStatus(await fetch('/api/tts/status').then(r => r.json())); } catch (_) {}
     } else if (st.state === 'error') {
       finished = true;
       hint.textContent = 'Betöltési hiba: ' + (st.message || 'ismeretlen hiba');
@@ -567,54 +374,6 @@ async function reloadTTS() {
     try { consider(await fetch('/api/tts/status').then(r => r.json())); } catch (_) {}
   }, off ? 10000 : 2000);
 }
-
-async function refreshAccelStatus(st) {
-  const el = document.getElementById('tts-accel-status');
-  if (!el) return;
-  try {
-    if (!st) st = await fetch('/api/tts/status').then(r => r.json());
-    const a = st.accel || {};
-    const probe = a.probe || {};
-    const backends = { cuda: 'NVIDIA CUDA', rocm: 'AMD ROCm', mps: 'Apple Metal (MPS)', cpu: 'CPU' };
-    const modes = { off: 'Alap PyTorch', eager: 'Optimalizált PyTorch', cuda_graph: 'CUDA Graph',
-      triton: 'Triton', hybrid: 'Triton + CUDA Graph', transformers: 'Higgs Transformers' };
-    const parts = [
-      `Beszédmotor: ${st.engine || 'omnivoice'}`,
-      st.state === 'ready' ? `Aktív: ${modes[a.effective] || a.effective || 'Alap PyTorch'}` : 'A modell nincs betöltve',
-      backends[probe.backend] || backends[a.device] || '',
-      probe.device_name || '',
-      a.dtype || '',
-      a.message || '',
-      probe.platform || '',
-    ].filter(Boolean);
-    el.textContent = parts.join(' · ');
-    const row = document.getElementById('triton-install-row');
-    if (row) row.classList.toggle('hidden', !(probe.backend === 'cuda' && !(probe.triton && probe.omnivoice_triton)));
-  } catch (_) {
-    el.textContent = '';
-  }
-}
-
-document.getElementById('triton-install-btn')?.addEventListener('click', async (event) => {
-  const button = event.currentTarget;
-  const hint = document.getElementById('triton-install-hint');
-  button.disabled = true;
-  hint.className = 'status-hint status-warn';
-  hint.textContent = 'Telepítés… (egy-két perc)';
-  try {
-    const response = await fetch('/api/settings/triton-install', { method: 'POST' });
-    const data = await response.json();
-    hint.className = `status-hint ${data.ok ? 'status-ok' : 'status-error'}`;
-    hint.textContent = data.message || (data.ok ? 'Telepítve.' : 'A telepítés nem sikerült.');
-    if (data.ok) document.getElementById('tts-accel').value = 'hybrid';
-    if (data.ok) markSettingsDirty();
-  } catch (error) {
-    hint.className = 'status-hint status-error';
-    hint.textContent = error.message;
-  } finally {
-    button.disabled = false;
-  }
-});
 
 // ── spaCy ─────────────────────────────────────────────────────────────────────
 
@@ -672,30 +431,8 @@ async function installSpacy(language = 'hu') {
 // ── Save ──────────────────────────────────────────────────────────────────────
 
 async function saveSettingsValues() {
-  const src = document.querySelector('input[name="model_source"]:checked')?.value || 'local';
-  const higgsSrc = document.querySelector(
-    'input[name="higgs_model_source"]:checked'
-  )?.value || 'download';
   const payload = {
-    tts_engine:       document.getElementById('tts-engine').value || 'omnivoice',
-    model_source:      src,
-    model_path:        document.getElementById('model-path').value.trim(),
-    model_repo:        document.getElementById('model-repo').value.trim(),
-    hf_endpoint:       document.getElementById('hf-endpoint').value.trim(),
-    higgs_model_source: higgsSrc,
-    higgs_model_path:  document.getElementById('higgs-model-path').value.trim(),
-    higgs_model_repo:  document.getElementById('higgs-model-repo').value.trim(),
-    higgs_temperature: parseFloat(document.getElementById('higgs-temperature').value),
-    higgs_top_p:       parseFloat(document.getElementById('higgs-top-p').value),
-    higgs_top_k:       parseInt(document.getElementById('higgs-top-k').value, 10),
-    higgs_max_new_tokens: parseInt(
-      document.getElementById('higgs-max-new-tokens').value, 10
-    ),
-    higgs_seed:        parseInt(document.getElementById('higgs-seed').value, 10),
-    higgs_prompt_mode: document.getElementById('higgs-prompt-mode').value || 'raw',
-    higgs_default_emotion: document.getElementById('higgs-default-emotion').value,
-    higgs_default_style: document.getElementById('higgs-default-style').value,
-    higgs_default_expressive: document.getElementById('higgs-default-expressive').value,
+    tts_engine:       document.getElementById('tts-engine').value || 'auto',
     character_detection_mode: document.getElementById('character-detection-mode').value,
     llm_provider:      document.getElementById('llm-provider').value,
     llm_base_url:      document.getElementById('llm-base-url').value.trim(),
@@ -708,17 +445,10 @@ async function saveSettingsValues() {
     narrator_instruct: document.getElementById('narrator-instruct').value.trim(),
     single_narrator_mode: document.getElementById('default-single-narrator-mode').checked,
     normalize_text:    document.getElementById('normalize-text').checked,
-    tts_num_step:      parseInt(document.getElementById('tts-num-step').value, 10) || 16,
-    tts_batch_size:    parseInt(document.getElementById('tts-batch-size').value, 10) || 0,
     tts_coalesce_chars: parseInt(document.getElementById('tts-coalesce-chars').value, 10) || 0,
-    tts_accel:         document.getElementById('tts-accel')?.value || 'auto',
-    tts_export_workers: parseInt(
-      document.getElementById('tts-export-workers')?.value || '0', 10
-    ) || 0,
     audio_format:      document.getElementById('audio-format').value,
     subtitle_format:   document.getElementById('subtitle-format').value,
     audio_mastering:   document.getElementById('audio-mastering').checked,
-    voice_design_anchor: document.getElementById('voice-design-anchor')?.checked !== false,
     trim_segment_silence: document.getElementById('trim-segment-silence')?.checked !== false,
     export_room_tone: Boolean(document.getElementById('export-room-tone')?.checked),
     asr_keep_loaded: Boolean(document.getElementById('asr-keep-loaded')?.checked),
@@ -742,10 +472,6 @@ async function saveSettingsValues() {
     supertonic_variant: document.getElementById('supertonic-variant')?.value || 'fp32',
     supertonic_steps: parseInt(document.getElementById('supertonic-steps')?.value || '10', 10),
     supertonic_batch: parseInt(document.getElementById('supertonic-batch')?.value || '4', 10),
-    moss_seed:        parseInt(document.getElementById('moss-seed')?.value || '1234', 10),
-    moss_temperature: parseFloat(document.getElementById('moss-temperature')?.value || '1.7'),
-    moss_top_p:       parseFloat(document.getElementById('moss-top-p')?.value || '0.8'),
-    moss_top_k:       parseInt(document.getElementById('moss-top-k')?.value || '25', 10),
     theme:             document.getElementById('theme-select').value,
     font_family:       document.getElementById('font-family').value,
     font_size:         parseInt(document.getElementById('font-size').value) || 18,

@@ -59,7 +59,7 @@ let _bufferGenId = 0;
 const TTS_PLAYBACK_PRIORITY_AHEAD = 2;
 let _activeChapterGeneration = null;
 // All in-flight interactive TTS requests. Stop aborts the HTTP wait and also
-// asks the server-side Higgs token loop to terminate.
+// asks the server-side synthesis loop to terminate.
 let _ttsAbortControllers = new Map();
 
 function _standby() { return audio === _audioA ? _audioB : _audioA; }
@@ -1223,7 +1223,7 @@ function stopPlayback() {
   }
   _ttsAbortControllers.clear();
   // Aborting fetch only disconnects the browser. This endpoint interrupts the
-  // actual Higgs autoregressive token loop on the server/GPU.
+  // actual synthesis loop on the server.
   fetch('/api/tts/cancel', { method: 'POST' }).catch(() => {});
   if (_interSegmentTimer) {
     clearTimeout(_interSegmentTimer);

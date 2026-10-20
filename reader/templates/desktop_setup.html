@@ -9,30 +9,26 @@
 </head>
 <body>
   <main class="setup-shell">
-    <header class="setup-header"><a href="/" class="setup-brand">Auris<span>hangoskönyv</span></a><span class="platform-label">Windows x64</span></header>
+    <header class="setup-header"><a href="/" class="setup-brand">Auris<span>hangoskönyv</span></a><span class="platform-label">Windows ARM64 · Snapdragon X</span></header>
     <section class="setup-card">
       <p class="eyebrow">Üdv az Aurisban</p>
       <h1>A könyveidnek<br>most hangot adunk.</h1>
-      <p class="intro">Válassz egy beszédmotort. Letöltjük és beállítjuk a szükséges modellt, utána a felolvasás helyben, a számítógépeden fut.</p>
+      <p class="intro">Válassz egy beszédmotort. Beállítjuk a szükséges modellt, utána a felolvasás helyben, a Snapdragon processzorodon fut.</p>
       <form id="setup-form">
         <fieldset>
           <legend>Hogyan szeretnél kezdeni?</legend>
-          <label class="engine-choice"><input type="radio" name="engine" value="supertonic" checked><span><strong>Gyors indulás</strong><span class="choice-detail">Supertonic 3 · magyar női és férfihangok · CPU</span><span class="choice-note">Kisebb, kb. 0,4 GB-os letöltés. Videokártya nélkül is használható.</span></span><span class="choice-tag">Ajánlott</span></label>
-          <label class="engine-choice"><input type="radio" name="engine" value="omnivoice"><span><strong>Saját hangok és hangklónozás</strong><span class="choice-detail">OmniVoice · több szereplő, egyedi hangok</span><span class="choice-note">Több GB-os modell. CPU-n lassabb; megfelelő NVIDIA-kártyával gyorsítható.</span></span></label>
+          <label class="engine-choice"><input type="radio" name="engine" value="supertonic" checked><span><strong>Gyors indulás</strong><span class="choice-detail">Supertonic 3 · magyar női és férfihangok · CPU</span><span class="choice-note">Kisebb, kb. 0,4 GB-os letöltés. Teljesen helyben fut, felhő nélkül.</span></span><span class="choice-tag">Ajánlott</span></label>
+          <label class="engine-choice"><input type="radio" name="engine" value="xtts_onnx"><span><strong>Saját hangok és hangklónozás</strong><span class="choice-detail">XTTSv2-ONNX int8 · egyedi hangok, referenciahangból</span><span class="choice-note">A klónmodell a telepítéssel együtt jár; betöltése ~2 mp. A klónozáshoz tölts fel referenciahangot a Hangstúdióban.</span></span></label>
         </fieldset>
         <div class="hardware-panel">
-          {% if hardware.gpu_supported %}
-          <p><span class="status-dot"></span>Elérhető NVIDIA-kártya: <strong>{{ hardware.nvidia }}</strong></p>
-          <label class="gpu-option"><input id="gpu" type="checkbox" disabled> NVIDIA-gyorsítás telepítése az OmniVoice-hoz</label>
-          <p class="small">További több GB-os letöltés. A szükséges összetevőket az Auris automatikusan telepíti.</p>
-          {% elif hardware.nvidia %}
-          <p>Felismert kártya: <strong>{{ hardware.nvidia }}</strong></p>
-          <p class="small">CPU-val elindíthatod az Aurist. NVIDIA-gyorsításhoz előbb frissítsd az illesztőprogramot (CUDA 12.8 támogatás), majd nyisd meg újra ezt a beállítást.</p>
+          {% if hardware.snapdragon %}
+          <p><span class="status-dot"></span><strong>Snapdragon X</strong> felismerve — a beszéd számítógépen fut.</p>
           {% else %}
-          <p><span class="status-dot"></span>A CPU-s felolvasás rendelkezésre áll.</p>
+          <p><span class="status-dot"></span>ARM64 processzor felismerve — a beszéd számítógépen fut.</p>
           {% endif %}
+          <p class="small">NVIDIA/AMD gyorsítás nem szükséges: minden motor ONNX-en, CPU-n fut.</p>
         </div>
-        <p class="license-note">A Supertonic modell az <a href="https://huggingface.co/supertone-oss-archive/supertonic-3/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">OpenRAIL-M</a> licenc feltételeivel használható. Az <a href="https://huggingface.co/k2-fsa/OmniVoice#license" target="_blank" rel="noopener noreferrer">OmniVoice</a> kódja Apache-2.0, modellsúlyai CC-BY-NC licencűek (nem kereskedelmi felhasználás). Az első letöltéshez internetkapcsolat szükséges.</p>
+        <p class="license-note">A Supertonic modell az <a href="https://huggingface.co/supertone-oss-archive/supertonic-3/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">OpenRAIL-M</a> licenc feltételeivel használható. Az <a href="https://github.com/Coqui-XTTS/TTS/blob/dev/LICENSE.txt" target="_blank" rel="noopener noreferrer">XTTSv2</a> kódja MIT, modellsúlyai CPML licencűek. Az első letöltéshez internetkapcsolat szükséges.</p>
         <button id="start" class="primary-button" type="submit">Letöltés és beállítás</button>
       </form>
       <div id="setup-progress" class="progress-panel" hidden aria-live="polite">

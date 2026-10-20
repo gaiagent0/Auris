@@ -58,9 +58,6 @@ def main() -> int:
         if args.check_runtime:
             import importlib.metadata as metadata
             import subprocess
-            import torch
-            import torchaudio
-            import omnivoice
             import spacy
             import onnxruntime
             import webview
@@ -70,8 +67,10 @@ def main() -> int:
             if check.returncode:
                 raise RuntimeError(check.stdout + check.stderr)
             payload = {'python': sys.version.split()[0], 'prefix': sys.prefix,
-                       'executable': sys.executable, 'torch': torch.__version__,
-                       'cuda': torch.cuda.is_available(), 'dependencies': check.stdout.strip(),
+                       'executable': sys.executable,
+                       'onnxruntime': onnxruntime.__version__,
+                       'providers': onnxruntime.get_available_providers(),
+                       'dependencies': check.stdout.strip(),
                        'pywebview': metadata.version('pywebview'),
                        'data': str(root), 'sys_path': sys.path}
             write_json(root / 'runtime-check.json', payload)

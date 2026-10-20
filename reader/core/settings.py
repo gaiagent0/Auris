@@ -1,7 +1,7 @@
 """
 Persistent settings — stored in data/settings.json.
-All path defaults are resolved relative to the repo root at runtime,
-so the app works on Windows, Linux, and macOS without modification.
+All path defaults are resolved relative to the repo root at runtime.
+Snapdragon X Elite (Windows ARM64) build: only ONNX engine settings live here.
 """
 
 import json
@@ -9,19 +9,16 @@ import os
 import sys
 import threading
 from pathlib import Path
-from core.paths import user_path, omnivoice_model, higgs_model
+from core.paths import user_path
 
 # reader/ directory
 _APP_DIR   = Path(__file__).resolve().parent.parent
-# E:\Ebook-Reader\ (or equivalent on other platforms)
+# The repository root (the app runs from reader/).
 _REPO_ROOT = _APP_DIR.parent
 
 SETTINGS_FILE = user_path('data', 'settings.json')
 _settings_write_lock = threading.RLock()
 
-# Default model path = <repo_root>/model_backup/OmniVoice
-_DEFAULT_MODEL_PATH = str(omnivoice_model())
-_DEFAULT_HIGGS_MODEL_PATH = str(higgs_model())
 LEGACY_NARRATOR_INSTRUCT = 'female, middle-aged, moderate pitch, american accent'
 # Foreign accents in the voice description pull Hungarian stress and vowels
 # towards English, so the default narrator carries no accent.
@@ -31,32 +28,9 @@ TTS_EXPRESSION_POLICY_VERSION = 2
 TTS_SEGMENT_BOUNDARY_POLICY_VERSION = 2
 
 DEFAULTS: dict = {
-    # Active TTS engine. Each engine keeps an independent model configuration.
-    'tts_engine': 'auto',   # 'auto' (hardware-detected) | 'omnivoice' | 'higgs' | ...
-
-    # OmniVoice model
-    'model_source': 'local',           # 'local' | 'download'
-    'model_path': _DEFAULT_MODEL_PATH,
-    'model_repo': 'k2-fsa/OmniVoice',
-    'hf_endpoint': '',                 # e.g. https://hf-mirror.com for restricted networks
-
-    # Higgs TTS 3 (Transformers-compatible port used for direct local inference)
-    'higgs_model_source': 'download',  # 'local' | 'download' (HF cache)
-    'higgs_model_path': _DEFAULT_HIGGS_MODEL_PATH,
-    'higgs_model_repo': 'multimodalart/higgs-audio-v3-tts-4b-transformers',
-    'higgs_temperature': 0.8,
-    'higgs_top_p': 0.95,
-    'higgs_top_k': 50,
-    # ~25 audio frames per second: 2048 leaves room for a 500-character
-    # segment read slowly (1024 could cut off after ~41 s).
-    'higgs_max_new_tokens': 2048,
-    'higgs_seed': -1,
-    # raw = match the reference Gradio app (plain text, no automatic controls)
-    # expressive = apply Auris normalization, scene speed and expression tags
-    'higgs_prompt_mode': 'raw',
-    'higgs_default_emotion': 'none',
-    'higgs_default_style': 'none',
-    'higgs_default_expressive': 'none',
+    # Active TTS engine. 'auto' = hardware recommendation (Snapdragon X Elite:
+    # sherpa-onnx int8 Supertonic); an explicit choice always wins.
+    'tts_engine': 'auto',
 
     # Narrator
     'narrator_instruct': DEFAULT_NARRATOR_INSTRUCT,
@@ -90,42 +64,30 @@ DEFAULTS: dict = {
     # EN/ZH prefer WeTextProcessing (optional); other languages use num2words.
     'normalize_text': True,
 
-    # Internal migration marker. Version 2 stops treating OmniVoice's literal
+    # Internal migration marker. Version 2 stops treating the legacy literal
     # "oh/ah" non-verbal tags as silent punctuation/prosody controls.
     'tts_expression_policy_version': TTS_EXPRESSION_POLICY_VERSION,
     # Version 1 disables proportional waveform splitting of coalesced lines.
     'tts_segment_boundary_policy_version': TTS_SEGMENT_BOUNDARY_POLICY_VERSION,
 
-    # How many segments to synthesize in one OmniVoice.generate() call.
-    # 0 = auto from free VRAM (recommended). Larger values keep the GPU busier.
-    # On OOM the engine automatically halves the batch and retries.
+    # How many segments the engine may combine into one synthesis call.
+    # 0 = the engine picks its own default (the ONNX engines are memory-bound,
+    # not VRAM-bound, so their batch comes from supertonic_batch).
     'tts_batch_size': 0,
 
     # Exact sentence audio boundaries take priority over unsafe waveform
-    # splitting. GPU batching still combines independent synthesis requests.
+    # splitting. Batch synthesis still combines independent requests.
     'tts_coalesce_chars': 0,
 
-    # OmniVoice iterative decoding steps for playback and export.
+    # Iterative decoding steps for engines that support it (quality vs speed).
     # Higher = better quality but slower. 16 is a good default; 32 is max quality.
     'tts_num_step': 16,
-
-    # Inference acceleration: off | auto | eager | cuda_graph | triton | hybrid
-    # Auto: NVIDIA CUDA Graph; ROCm/MPS/CPU portable scoring optimization.
-    # cuda_graph = pure PyTorch; speed depends on workload and shape reuse.
-    # triton/hybrid need the Triton compiler (triton or triton-windows); the kernels are vendored.
-    'tts_accel': 'auto',
-
-    # Parallel model replicas for export: 0 = auto, 1 = off, 2 = dual worker.
-    # Auto enables two replicas on CUDA cards with at least 20GB VRAM.
-    'tts_export_workers': 0,
 
     # Export defaults
     'audio_format': 'wav',
     'subtitle_format': 'ass',
     # Conservative FFmpeg EQ/compression + two-pass chapter loudness matching.
     'audio_mastering': True,
-    # Render voice descriptions once into an anchor clip, then clone it.
-    'voice_design_anchor': True,
     # Export: trim model silence at sentence edges; optional ACX room tone
     'trim_segment_silence': True,
     'export_room_tone': False,
@@ -145,7 +107,8 @@ DEFAULTS: dict = {
     'qa_max_takes': 3,
     'qa_autostart': True,
     'asr_model': '',
-    # auto: Whisper on a CUDA GPU, Parakeet + Whisper confirmation on CPU.
+    # auto: hybrid — Parakeet (ONNX) primary, Whisper re-checks suspicious
+    # sentences when its runtime is installed.
     'asr_backend': 'hybrid',
     'asr_keep_loaded': False,
     # Additional engines (core/local_engines.py)
@@ -303,19 +266,17 @@ def migrate_tts_segment_boundary_policy_version() -> bool:
 
 
 # Bumped when a release changes how existing segment audio must be rendered
-# (voice anchoring, Hungarian normalization). Clone voices re-hit the WAV
+# (Hungarian normalization, segment identity). Clone voices re-hit the WAV
 # cache; only audio whose identity changed is synthesized again.
 TTS_RENDER_POLICY_VERSION = 1
 
 
 def current_tts_render_policy() -> str:
     from core import hungarian_numbers
-    from core.tts_engine import VOICE_DESIGN_ANCHOR_VERSION
 
     return (
         f"r{TTS_RENDER_POLICY_VERSION}"
         f"-n{getattr(hungarian_numbers, 'NORMALIZER_VERSION', 1)}"
-        f"-a{VOICE_DESIGN_ANCHOR_VERSION}"
     )
 
 
@@ -405,67 +366,3 @@ def install_spacy_model(language: str = 'en') -> dict:
     if result.returncode == 0:
         return {'ok': True, 'message': f'{HUNGARIAN_SPACY_MODEL} telepítve.'}
     return {'ok': False, 'message': result.stderr or result.stdout}
-
-
-# ── HuggingFace model download ────────────────────────────────────────────────
-
-_dl_state: dict = {'status': 'idle', 'pct': 0, 'message': '', 'dest': ''}
-_dl_lock = threading.Lock()
-
-
-def download_state() -> dict:
-    with _dl_lock:
-        return dict(_dl_state)
-
-
-def _set_dl(status, pct, message, dest=''):
-    with _dl_lock:
-        _dl_state.update({'status': status, 'pct': pct, 'message': message, 'dest': dest})
-
-
-def start_model_download(repo_id: str, dest_dir: str, hf_endpoint: str = '') -> None:
-    """Kick off a background download of a HuggingFace model."""
-    if _dl_state['status'] == 'downloading':
-        return
-    t = threading.Thread(
-        target=_do_download, args=(repo_id, dest_dir, hf_endpoint), daemon=True
-    )
-    t.start()
-
-
-def _do_download(repo_id: str, dest_dir: str, hf_endpoint: str):
-    _set_dl('downloading', 0, f'Kapcsolódás a HuggingFace-hez ({repo_id})…', dest_dir)
-    try:
-        if hf_endpoint:
-            os.environ['HF_ENDPOINT'] = hf_endpoint
-
-        from huggingface_hub import list_repo_files, hf_hub_download
-        import huggingface_hub
-
-        _set_dl('downloading', 2, 'A tároló fájljainak listázása…', dest_dir)
-
-        files = list(list_repo_files(repo_id))
-        total = len(files)
-        if total == 0:
-            _set_dl('error', 0, 'A tárolóban nincs letölthető fájl.', dest_dir)
-            return
-
-        dest = Path(dest_dir)
-        dest.mkdir(parents=True, exist_ok=True)
-
-        for i, filename in enumerate(files):
-            pct = int((i / total) * 95)
-            _set_dl('downloading', pct, f'Letöltés: {filename} ({i+1}/{total})…', dest_dir)
-            hf_hub_download(
-                repo_id=repo_id,
-                filename=filename,
-                local_dir=str(dest),
-            )
-
-        _set_dl('done', 100, f'A letöltés kész → {dest_dir}', dest_dir)
-
-        # Persist the new model path in settings
-        save({'model_path': dest_dir, 'model_source': 'local'})
-
-    except Exception as e:
-        _set_dl('error', 0, str(e), dest_dir)

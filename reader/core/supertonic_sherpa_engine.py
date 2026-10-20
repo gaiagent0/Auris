@@ -1,4 +1,4 @@
-"""Sherpa-onnx csomagolású Supertonic 3 int8 — opcionális második motor az Aurisban.
+r"""Sherpa-onnx csomagolású Supertonic 3 int8 — opcionális második motor az Aurisban.
 
 Kérdés (2026-10-06): a sherpa-onnx csomagolású Supertonic int8 hogyan áll
 az Auris SupertonicEngine-éhez képest (batch4 RTF 0,3348, serial 0,7624).

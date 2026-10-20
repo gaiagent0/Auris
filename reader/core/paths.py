@@ -12,15 +12,3 @@ def storage_root() -> Path:
 
 def user_path(*parts: str) -> Path:
     return storage_root().joinpath(*parts)
-
-
-def omnivoice_model() -> Path:
-    if os.environ.get('AURIS_DATA_DIR', '').strip():
-        return user_path('models', 'OmniVoice')
-    return APP_DIR.parent / 'model_backup' / 'OmniVoice'
-
-
-def higgs_model() -> Path:
-    if os.environ.get('AURIS_DATA_DIR', '').strip():
-        return user_path('models', 'Higgs-TTS-3-4B')
-    return APP_DIR.parent / 'model_backup' / 'Higgs-TTS-3-4B'
