@@ -9,7 +9,7 @@
 ## 0. Első induló
 
 ```bat
-cd /d "C:\Users\<user>\Dev\portfolio\Projects\audiobook narrator\auris"
+cd /d "%USERPROFILE%\Auris"
 reader\setup.bat       :: csak egyszer — venv + függőségek
 reader\run.bat         :: induló — a TTS modell hátérterülben betölt, az app rögtön nyit
 ```

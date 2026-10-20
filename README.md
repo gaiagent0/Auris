@@ -52,7 +52,7 @@ Kiegészítések ebben a fork-ban:
 ### Friss-klón Snapdragon runbook (a leggyorsabb út)
 
 ```powershell
-cd /d "C:\Users\<user>\Dev\portfolio\Projects\audiobook narrator"
+cd /d "%USERPROFILE%"
 git clone https://github.com/gaiagent0/Auris.git
 cd Auris
 reader\setup.bat          # ARM64-nál a natív venv + minden függőség (sherpa-onnx is)
