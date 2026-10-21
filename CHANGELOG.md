@@ -53,6 +53,18 @@ represent a new product generation or an incompatible change.
     kimarad.
 - **A friss Windows ARM64 telepítés után a tesztek futtathatók** — a venv a
   `reader/.venv` mappában készül, a `run.bat` ezt használja.
+- **A `setup.bat` nem nyitja meg a Microsoft Store-t** — a Windows a
+  `WindowsApps\python.exe` útvonalon egy alias-stubot tesz be, amely Python
+  helyett a Store-t indítja el, és a telepítés ott beragad. A wrapper most a
+  `py` launchert keresi (3.12 → 3.11 → 3.13 → 3 sorrendben), és a sima
+  `python`-t csak akkor használja, ha nem a Store alias. A kiválasztott
+  interpreter és verzió kiíródik.
+- **A telepítő ellenőrzi a Python verziót** — 3.10-nél régebbi Pythonnal
+  tiszta, magyar hibaüzenettel áll meg (`setup.py`), és kiírja a használt
+  verziót és architektúrát. A `setup.sh` ugyanezt teszi a Linux/macOS úton.
+- **A `run.bat` elavult OmniVoice-útvonala** — a komment a már eltávolított
+  `model_backup\OmniVoice` mappát említette; a modellek most a
+  `reader\models\` alatt vannak, és első használatkor töltődnek le.
 
 ### English
 
@@ -95,6 +107,18 @@ represent a new product generation or an incompatible change.
     skipped too.
 - **The test suite runs after a fresh Windows ARM64 install** — the venv is
   created in `reader/.venv` and `run.bat` uses it.
+- **`setup.bat` no longer opens the Microsoft Store** — Windows installs a
+  stub at `WindowsApps\python.exe` that launches the Store instead of
+  Python, and the setup hung there. The wrapper now looks for the `py`
+  launcher first (3.12 → 3.11 → 3.13 → 3) and only falls back to plain
+  `python` when it is not the Store alias. The chosen interpreter and its
+  version are printed.
+- **The installer checks the Python version** — `setup.py` stops with a
+  clear message on a Python older than 3.10 and prints the version and the
+  architecture it runs on. `setup.sh` does the same on Linux/macOS.
+- **The stale OmniVoice path in `run.bat`** — the comment still pointed at
+  the removed `model_backup\OmniVoice` folder; the models live in
+  `reader\models\` now and are downloaded on first use.
 
 ## [5.0.0] - 2026-10-20
 

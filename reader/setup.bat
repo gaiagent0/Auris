@@ -5,18 +5,36 @@
 cd /d "%~dp0"
 
 set "BOOTSTRAP="
-where python >nul 2>&1
-if not errorlevel 1 set "BOOTSTRAP=python"
+
+:: The py launcher always points at a real interpreter, so it comes first.
+:: The versions are tried in order of how well they are tested on ARM64.
+for %%V in (3.12 3.11 3.13 3) do (
+    if not defined BOOTSTRAP (
+        py -%%V -c "import sys" >nul 2>&1
+        if not errorlevel 1 set "BOOTSTRAP=py -%%V"
+    )
+)
+
+:: Plain python is the fallback, but the Microsoft Store alias in
+:: WindowsApps is a stub: it opens the Store instead of running Python,
+:: and the setup would hang there.
 if not defined BOOTSTRAP (
-    where py >nul 2>&1
-    if not errorlevel 1 set "BOOTSTRAP=py -3"
+    for /f "delims=" %%P in ('where python 2^>nul') do (
+        if not defined BOOTSTRAP (
+            echo %%P | find /i "\WindowsApps\" >nul || set "BOOTSTRAP=python"
+        )
+    )
 )
 
 if not defined BOOTSTRAP (
     echo Python not found. Please install Python 3.10+ from https://python.org
+    echo ^(the "py" launcher is enough - tick "Add python.exe to PATH"^)
     pause
     exit /b 1
 )
+
+echo Using Python: %BOOTSTRAP%
+%BOOTSTRAP% --version
 
 if not exist ".venv\Scripts\python.exe" (
     echo Creating virtual environment in .venv...

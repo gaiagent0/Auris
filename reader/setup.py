@@ -85,6 +85,28 @@ def run(cmd, check=True, **kwargs):
     return subprocess.run(cmd, check=check, **kwargs)
 
 
+MIN_PYTHON = (3, 10)
+
+
+def check_python_version():
+    """Refuse to continue on a Python the dependency wheels do not cover."""
+    if sys.version_info < MIN_PYTHON:
+        raise RuntimeError(
+            "Auris needs Python "
+            + ".".join(str(part) for part in MIN_PYTHON)
+            + " or newer; this interpreter is "
+            + sys.version.split()[0]
+            + "."
+        )
+    info(
+        "Python "
+        + sys.version.split()[0]
+        + " ("
+        + platform.machine()
+        + ")"
+    )
+
+
 def is_arm64():
     """True on ARM64 Windows (Snapdragon X and friends) and on aarch64 Linux."""
     machine = platform.machine().lower()
@@ -385,6 +407,7 @@ def print_summary(hw_tag):
 def main():
     banner()
     os.chdir(APP_DIR)
+    check_python_version()
 
     if running_in_virtualenv():
         ok(f"Using virtual environment: {sys.prefix}")

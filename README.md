@@ -168,7 +168,7 @@ available below.
 ## Requirements (source-based web installation)
 
 - Windows 11 ARM64 (Snapdragon X Elite) or Linux ARM64/x64
-- Python 3.12 or later
+- Python 3.10 or later (3.12 is the tested version on ARM64)
 - `ffmpeg` on `PATH` for MP3, M4B, and export mastering
 - `onnxruntime` (the engines are CPU-only ONNX models; no GPU required)
 
@@ -188,6 +188,10 @@ reader\setup.bat
 # Linux / macOS
 bash reader/setup.sh
 ```
+
+The Windows wrapper picks the interpreter itself: it prefers the `py` launcher
+(3.12 → 3.11 → 3.13 → 3) and ignores the Microsoft Store alias stub in
+`WindowsApps`, which would open the Store instead of running Python.
 
 Or directly:
 
