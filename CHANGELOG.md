@@ -72,6 +72,14 @@ represent a new product generation or an incompatible change.
   miatt nem indítható puszta nevvel a parancssorból — ezt a README és a
   használati útmutató is jelzi.
 
+#### Dokumentáció
+
+- **A Docker-út valós viselkedése leírva** — az útmutató kimondja, hogy a
+  sherpa-Supertonic int8 modell a konténerben az első hanggeneráláskor
+  automatikusan letöltődik a `docker-data\models\` alá (~139 MB, a HF
+  gyorsítótár a `huggingface` volume-ban), és megmutatja a foglalt 7860-as
+  port esetére a `docker-compose.override.yml` + `!override` megoldást.
+
 ### English
 
 #### Changed
@@ -131,6 +139,15 @@ represent a new product generation or an incompatible change.
   The README and the user guide also note that `setup.bat` cannot be started
   by its bare name in a command prompt while the Windows
   `NoDefaultCurrentDirectoryInExePath=1` variable is set.
+
+#### Documentation
+
+- **The Docker path's real behaviour is written down** — the guide states
+  that inside the container the sherpa-Supertonic int8 model is downloaded
+  on the first generation into `docker-data/models/` (~139 MB, HF cache in
+  the `huggingface` volume), and shows the
+  `docker-compose.override.yml` + `!override` recipe for when port 7860 is
+  already taken.
 
 ## [5.0.0] - 2026-10-20
 

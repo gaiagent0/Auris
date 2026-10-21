@@ -186,7 +186,23 @@ docker compose up -d --build
 - A modellek a `docker-data\models` mappából jönnek bind mounttal, így a
   hoszton letöltött modellek azonnal használhatók, és a konténer újraépítésekor
   nem kell újra letölteni őket.
+- **A modell bekötése a konténerben is automatikus** — az első hanggeneráláskor
+  a sherpa-Supertonic int8 modell (~139 MB) letöltődik a
+  `docker-data\models\supertonic-sherpa-int8\` mappába, a Hugging Face
+  gyorsítótár pedig a `huggingface` named volume-ba kerül. Nem kell előre
+  modellt másolni a képet építő gépre; a letöltést a `docker compose logs -f`
+  mutatja.
 - A könyvek, exportok és a hangcache a `docker-data\` alatt marad.
+- **Ha a 7860-as port foglalt** (például a natív `run.bat` app fut rajta),
+  írj egy `docker-compose.override.yml`-t a repó gyökerébe (gitignore-olt):
+  ```yaml
+  services:
+    auris:
+      ports: !override
+        - "127.0.0.1:7862:7860"
+  ```
+  A `!override` lecseréli az alap portlistát (nem fűzi hozzá). Így a két út
+  egyszerre futhat: natív a 7860-on, konténer a 7862-n.
 - Ha a Docker Engine nem indul el, a javítási lépések:
   [`docs/docker-wsl.md`](docker-wsl.md) — vagy egy parancsban:
   `bash scripts/windows/docker-desktop-repair.sh restart`.
