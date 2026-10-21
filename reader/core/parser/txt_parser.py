@@ -20,7 +20,7 @@ from core.parser.sections import (
 )
 
 # The private aliases above keep the historical import surface of this module.
-# tests/test_txt_chapter_detection.py imports _is_all_caps_heading,
+# the chapter-detection tests imported _is_all_caps_heading (that suite now
 # _is_explicit_section and _looks_like_heading from here.
 
 

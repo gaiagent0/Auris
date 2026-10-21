@@ -2,13 +2,19 @@
 
 **Ez a fájl a bizonyítékkatalógus.** Az [arm64-install.md](arm64-install.md)
 a *hogyan*-t dokumentálja, témánként (hogyan működik az ONNX→DLC, mi a
-batchelés); a [handoff-2026-10-03.md](handoff-2026-10-03.md) az *útmutatót*
-és a nyitott listát. Itt minden mérés egy azonos sémában szerepel, hogy ne
-kelljen újrafelderíteni: **mi futott a gépen, mi csak dokumentáció, és mi az
-elvetett hipotézis.**
+batchelés); a nyitott lista és az összefoglaló a git történetében lévő
+`handoff-2026-10-03.md` jegyzetben volt. Itt minden mérés egy azonos sémában
+szerepel, hogy ne kelljen újrafelderíteni: **mi futott a gépen, mi csak
+dokumentáció, és mi az elvetett hipotézis.**
 
 Utolsó állapotellenőrzés: **2026-10-04** — az artifact-leltár (§5) ekkor
 lett újraellenőrizve a lemezen, programszerűen.
+
+> **Megjegyzés a nyilvános repóhoz:** a nyers mérési adatok
+> (`docs/meresi-adatok/`), a `handoff-2026-10-03.md` belső jegyzet és a
+> tesztkészlet a publikus repóból eltávolítva — a git történetben
+> megvannak, onnan visszaállíthatók. Az itt hivatkozott „archív” elérési
+> utak is erre a történeti példányra hivatkoznak.
 
 ## 0. Hogyan olvasd
 

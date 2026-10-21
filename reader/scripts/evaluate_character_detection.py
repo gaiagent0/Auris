@@ -1,8 +1,8 @@
-"""Run the configured local LLM character detector without importing a book.
+r"""Run the configured local LLM character detector without importing a book.
 
 Example (from the repository root):
   reader\.venv\Scripts\python.exe reader\scripts\evaluate_character_detection.py \
-      test_docs\Rejto_Jeno-14-karatos-auto.pdf --output reader\data\llm_eval_hu.json
+      konyv.epub --output reader\data\llm_eval_hu.json
 """
 
 from __future__ import annotations

@@ -167,7 +167,7 @@ licenc CC-BY-4.0). Első használtnál automatikusan tölte be.
 | ASR/VAD | `reader/core/qa.py` (Transcriber, vad_speech_spans) |
 | Gyorsítótár | `reader/audio_cache/` |
 | Modellok | `reader/models/supertonic-3/` (fp32), `...-int8/` |
-| Doku | `reader/docs/` — **meresek.md** (bizonyítékkatalógus), **handoff-2026-10-03.md** |
+| Doku | `reader/docs/` — **meresek.md** (bizonyítékkatalógus), **arm64-install.md** (telepítés és mérés) |
 
 ---
 

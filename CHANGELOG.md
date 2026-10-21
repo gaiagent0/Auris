@@ -36,6 +36,15 @@ represent a new product generation or an incompatible change.
 
 #### Eltávolítva
 
+- **Tesztek és belső fejlesztési anyagok leválasztva a nyilvános repóról** —
+  a `reader/tests/` teljes tesztkészlete (670 teszt), a `test_docs/`
+  mintakönyvek (jogvédett szövegek), a nyers `docs/meresi-adatok/`
+  mérési naplók, a `handoff-2026-10-03.md` belső jegyzet, a
+  `docs/superpowers/` tervek és specifikációk, az `.agents/skills`, a teszt-
+  infografika és a `_check_refs.py` doc-ellenőrző. A repó ezután csak a
+  telepíthető alkalmazást és a felhasználói dokumentációt tartalmazza; a
+  eltávolított anyag a git történetben marad, onnan visszaállítható. A
+  kiadási munkafolyamat és a RELEASING.md a tesztlépések nélkül frissítve.
 - **A duplikált sherpa-Supertonic modul** (`reader/core/supertonic_sherpa.py`) —
   az első vázlata volt, felváltotta a `reader/core/supertonic_sherpa_engine.py`;
   semmi nem importálta, csak gépfüggő útvonalat tartalmazott.
@@ -126,6 +135,16 @@ represent a new product generation or an incompatible change.
 
 #### Removed
 
+- **Tests and internal development material detached from the public
+  repository** — the full `reader/tests/` suite (670 tests), the
+  `test_docs/` sample books (copyrighted texts), the raw
+  `docs/meresi-adatok/` measurement logs, the internal
+  `handoff-2026-10-03.md` note, the `docs/superpowers/` plans and specs,
+  `.agents/skills`, the tests infographic and the `_check_refs.py` doc
+  checker. The repository now carries only the installable application and
+  the user documentation; the removed material stays in the git history and
+  can be restored from there. The release workflow and `RELEASING.md` were
+  updated accordingly (no test step).
 - **The duplicated sherpa-Supertonic module** (`reader/core/supertonic_sherpa.py`)
   — the first draft, superseded by `reader/core/supertonic_sherpa_engine.py`.
   Nothing imported it and it only carried a machine-specific path.

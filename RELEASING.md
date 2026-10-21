@@ -57,8 +57,6 @@ reader\.venv\Scripts\python.exe scripts\release.py notes --version X.Y.Z
 A `reader` könyvtárból:
 
 ```powershell
-.venv\Scripts\python.exe -m unittest discover -s tests -p "test_*.py"
-node --test tests\reader_experience.node.test.js tests\voice_studio.node.test.js
 .venv\Scripts\python.exe -m pip check
 ```
 
@@ -160,8 +158,6 @@ reader\.venv\Scripts\python.exe scripts\release.py notes --version X.Y.Z
 Run from the `reader` directory:
 
 ```powershell
-.venv\Scripts\python.exe -m unittest discover -s tests -p "test_*.py"
-node --test tests\reader_experience.node.test.js tests\voice_studio.node.test.js
 .venv\Scripts\python.exe -m pip check
 ```
 
@@ -186,7 +182,6 @@ that:
 - the tag matches `VERSION`;
 - the changelog contains the version and `Unreleased` is empty;
 - the release notes contain both Hungarian and English sections;
-- the release-tool tests pass;
 - the tagged commit belongs to the remote `main` history.
 
 On success, GitHub publishes the matching bilingual changelog section as the

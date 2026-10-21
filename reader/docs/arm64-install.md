@@ -7,7 +7,8 @@ ONNX Runtime 1.30.0 (win_arm64 wheel), **torchaudio nélkül**.
 > **Ez a fájl a *módszer* és a *rendszer* leírása.** A bizonyítékkatalógus —
 > hogy melyik szám mért, melyik csak dokumentáció, és mi a nyitott mérési
 > kérdés — a [meresek.md](meresek.md)-ben van, számozott M-xx bejegyzésekkel.
-> Az összefoglaló és a terv a [handoff-2026-10-03.md](handoff-2026-10-03.md)-ben.
+> Az összefoglaló és a terv a git történetében lévő `handoff-2026-10-03.md`
+> jegyzetben volt (a nyilvános repóból eltávolítva).
 
 > **Fontos pontosítás (2026-10-04):** a „torchaudio nincs win_arm64 wheel"
 > állítás **igaz**, és a korábbi „minden PyTorch-klónozó zárt" következtetés
@@ -16,10 +17,15 @@ ONNX Runtime 1.30.0 (win_arm64 wheel), **torchaudio nélkül**.
 > (F5-TTS, WER 0,11 %). A natív ARM64 úthoz a repo saját shimje
 > (`core/torchaudio_compat.py`) kell — az is működött, de lassabb volt, és
 > 2026-10-05-ön a shim és az F5-TTS teljes környezete **törlésre került**
-> (a lezárt kutatás). A nyers mérési adatok a `docs/meresi-adatok/f5-tts/`
-> alatt vannak. Lásd a
+> (a lezárt kutatás). A nyers mérési adatok a git történetében maradtak
+> (`docs/meresi-adatok/f5-tts/` — eltávolítva a nyilvános repóból). Lásd a
 > [Hangklónozás](#hangklónozás-f5-tts-magyar-arm64-en-mérve-2026-10-04)
 > szakaszt.
+>
+> **Nyilvános repó:** a tesztkészlet (`reader/tests/`), a nyers mérési adatok
+> (`docs/meresi-adatok/`) és a `handoff-2026-10-03.md` belső jegyzet a
+> publikus repóból eltávolítva — a git történetben megvannak. Az alábbi
+> leírások történeti állapotot rögzítenek.
 
 ## Mi fut, és miért
 

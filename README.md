@@ -511,8 +511,10 @@ language model or paid API automatically. **Folytatás / újrapróbálás** is t
 explicit action that resumes from valid cached results. Cancellation is
 cooperative, so the currently running batch may finish before new work stops.
 
-The two files in `test_docs/` were measured end to end against LM Studio with
-`unsloth/gemma-4-26b-a4b-it` and a 160,000-token server context:
+Two Hungarian sample documents were measured end to end against LM Studio
+with `unsloth/gemma-4-26b-a4b-it` and a 160,000-token server context (the
+sample books are copyrighted test material and are **not shipped in this
+repository**):
 
 | Test document | Chapters | Dialogue candidates | Speaker assigned | Coverage | Chapter errors | Elapsed |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |

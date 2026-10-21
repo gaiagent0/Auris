@@ -10,5 +10,4 @@ reader/output
 model_backup
 docker-data
 wheels
-test_docs
 assets
