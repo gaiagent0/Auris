@@ -14,6 +14,15 @@ represent a new product generation or an incompatible change.
 
 ### Magyar
 
+#### Hozzáadva
+
+- **Letöltőszkript a XTTSv2-ONNX klónmodellhez** (`scripts/download_xtts.py`) —
+  a gated, CC BY-NC 4.0 licencű `pltobing/XTTSv2-Streaming-ONNX` modellt tölti
+  a repó `vendor/` mappájába, a motor által kért fájlokat ellenőrzi
+  (`--check` hálózat nélkül is), és gated hiba esetén magyar útmutatást ad
+  (licenc-űrlap, HF_TOKEN). A `vendor/` a `.gitignore`-ban, így a 2,2 GB
+  modell nem kerül a repóba.
+
 #### Módosítva
 
 - **A modellútvonalak feloldása a repó melletti modellekre** — a Supertonic,
@@ -71,6 +80,12 @@ represent a new product generation or an incompatible change.
   A `setup.bat` a Windows `NoDefaultCurrentDirectoryInExePath=1` változója
   miatt nem indítható puszta nevvel a parancssorból — ezt a README és a
   használati útmutató is jelzi.
+- **A XTTS motor alapértelmezett modellútvonala** — a motor korábban a
+  gép-specifikus `D:\<projekt>\vendor\...` könyvtárat kereste, így egy másik
+  gépen (friss klón) soha nem találta meg a modellt. A sorrend most:
+  `VOICEAI_XTTS_DIR` → a repó melletti `vendor/XTTSv2-Streaming-ONNX/xtts_onnx`
+  (ahogy a README írja) → `reader/models/xttsv2-streaming-onnx/` → a régi gépi
+  tárház — a meglévő gépeket a fallback továbbra is kiszolgálja.
 
 #### Dokumentáció
 
@@ -79,8 +94,24 @@ represent a new product generation or an incompatible change.
   automatikusan letöltődik a `docker-data\models\` alá (~139 MB, a HF
   gyorsítótár a `huggingface` volume-ban), és megmutatja a foglalt 7860-as
   port esetére a `docker-compose.override.yml` + `!override` megoldást.
+- **A README teljes „Telepítés és konfiguráció — Snapdragon X Elite”
+  szekciója** — előfeltételek (natív ARM64 Python, ffmpeg, tárhely), a
+  telepítés és indítás lépései, az első beállítások (`tts_engine=auto`,
+  `supertonic_batch=4`, `supertonic_steps=10`), a modellek táblázata
+  letöltési időponttal és mérettel, az XTTS klónmodell beszerzésének négy
+  lépése (`download_xtts.py`), a környezeti változások és egy hibaelhárítási
+  táblázat (Store-alias, foglalt 7860, hiányzó klónmodell, ffmpeg).
 
 ### English
+
+#### Added
+
+- **A downloader script for the XTTSv2-ONNX cloning model**
+  (`scripts/download_xtts.py`) — fetches the gated, CC BY-NC 4.0
+  `pltobing/XTTSv2-Streaming-ONNX` model into the repository's `vendor/`
+  folder, verifies the files the engine requires (`--check` works offline),
+  and prints Hungarian guidance (licence form, `HF_TOKEN`) when the repo is
+  gated. `vendor/` is gitignored, so the 2,2 GB model never enters the repo.
 
 #### Changed
 
@@ -139,6 +170,13 @@ represent a new product generation or an incompatible change.
   The README and the user guide also note that `setup.bat` cannot be started
   by its bare name in a command prompt while the Windows
   `NoDefaultCurrentDirectoryInExePath=1` variable is set.
+- **The XTTS engine's default model path** — the engine looked for a
+  machine-specific `D:\<projekt>\vendor\...` folder, so it never found the
+  model on another machine (a fresh clone). The order is now
+  `VOICEAI_XTTS_DIR` → the repo-adjacent
+  `vendor/XTTSv2-Streaming-ONNX/xtts_onnx` (as documented in the README) →
+  `reader/models/xttsv2-streaming-onnx/` → the legacy machine path, which
+  still serves existing machines.
 
 #### Documentation
 
@@ -148,6 +186,13 @@ represent a new product generation or an incompatible change.
   the `huggingface` volume), and shows the
   `docker-compose.override.yml` + `!override` recipe for when port 7860 is
   already taken.
+- **A full "Installation and configuration — Snapdragon X Elite" section in
+  the README** — prerequisites (native ARM64 Python, ffmpeg, disk space),
+  installation and start-up steps, first-run settings (`tts_engine=auto`,
+  `supertonic_batch=4`, `supertonic_steps=10`), a table of every model with
+  download timing and size, the four steps to obtain the gated XTTS cloning
+  model (`download_xtts.py`), environment variables and a troubleshooting
+  table (Store alias, busy port 7860, missing clone model, ffmpeg).
 
 ## [5.0.0] - 2026-10-20
 

@@ -74,6 +74,133 @@ A használati útmutató: [`docs/HASZNÁLATI-ÚTMUTATÓ.md`](docs/HASZNÁLATI-Ú
 Az infografika: [`docs/auris-infografika.html`](docs/auris-infografika.html).
 A teljes ARM64-telepítés és mérési útmutató: [`reader/docs/arm64-install.md`](reader/docs/arm64-install.md).
 
+## Teljes telepítés és konfiguráció — Snapdragon X Elite, lépésről lépésre
+
+Ez a szekció mindent tartalmaz, amit Snapdragon X alatt tudni kell a
+telepítéshez és a beállításhoz. Aki először csinálja, végigolvashatja;
+aki siet, a fenti runbook-három parancs is elég.
+
+### 0. Előfeltételek
+
+| Kell | Megjegyzés |
+|---|---|
+| Windows 11 ARM64 (Snapdragon X Elite/Plus) | a fork erre a hardverre készült, natív ARM64 futással |
+| **Natív ARM64 Python 3.10+** (3.12 a mért verzió) | ne a Microsoft Store-ból: a `setup.bat` a `py` launchert keresi, és kihagyja a Store alias-t |
+| `git` | a klónozáshoz |
+| `ffmpeg` a PATH-on | MP3/M4B export és a minőségellenőrzés |
+| ~4 GB szabad lemez | modellek + hangcache; további ~2,2 GB, ha hangklónozást is akarsz |
+| internet az első indításhoz | a modellek első betöltéskor töltődnek le |
+
+### 1. Klónozás és telepítés
+
+```powershell
+cd $env:USERPROFILE
+git clone https://github.com/gaiagent0/Auris.git
+cd Auris
+reader\setup.bat
+```
+
+A `setup.bat` létrehozza a `reader\.venv` környezetet, és feltelepíti az ONNX
+motor-készletet (Supertonic 3, sherpa-onnx, XTTSv2-ONNX szöveg-pipeline, Piper),
+az opcionális CPU-s PyTorch-ot (Whisper QA), majd letölti a magyar spaCy-modellt.
+Két csomagnak nincs Windows ARM64 wheel-je, ezért a telepítő kezeli őket:
+`pymupdf` a `1.28.2`-re van rögzítve, a spaCy/thinc pedig kihagyva (a karakter-
+felismerés szabályalapú módba esik vissza, minden más import-formátum marad).
+
+Ha a parancssor azt írja, hogy `setup.bat ... is not recognized`, a Windows
+`NoDefaultCurrentDirectoryInExePath=1` változója áll: futtasd teljes útvonallal
+(`reader\setup.bat`), vagy állítsd `0`-ra a változót.
+
+### 2. Indítás
+
+```powershell
+reader\run.bat          # http://127.0.0.1:7860
+```
+
+A modell hátérben töltődik, a felület rögtön használható; a motor állapota a
+jobb felső sarokban látszik. Leállítás: `Ctrl+C` a terminálban.
+
+### 3. Első beállítások — Settings → Beszédmotorok
+
+| Beállítás | Érték | Miért |
+|---|---|---|
+| `tts_engine` | `auto` | a hardver-javaslatot adja (Snapdragonon → `supertonic_sherpa`); **ne írd át tartósan** `supertonic`-ra, ebből indul a végpont-végpont futtatás |
+| `supertonic_batch` | `4` | mért 2,25× gyorsabb generálás (1..6) |
+| `supertonic_steps` | `10` | sebesség/minőség kompromisszum |
+| `supertonic_variant` | `fp32` | a gyári minőség |
+
+Ha explicit ki akarod jelölni a leggyorsabb motort: `tts_engine=supertonic_sherpa`.
+Az `auto`-javaslat és az összes motor képessége a Beállításokban látszik.
+
+### 4. Modellek — mi honnan jön
+
+| Motor | Forrás | Méret | Mikor töltődik |
+|---|---|---|---|
+| Supertonic 3 | Hugging Face (`supertone-oss-archive/supertonic-3`) | ~1 GB | automatikusan az első betöltéskor |
+| Sherpa-onnx Supertonic 3 int8 | Hugging Face (`csukuangfj2/sherpa-onnx-supertonic-3-tts-int8-2026-05-11`) | ~139 MB | automatikusan az első betöltéskor |
+| **XTTSv2-ONNX klón** | **gated HF-repó, kézi letöltés** | ~2,2 GB | egyszer, lásd az 5. lépést |
+| Piper magyar hangok | Settingsből (`piper-tts`) | ~60 MB/hang | a választott hangnál |
+| Parakeet ASR (QA) | Hugging Face (`istupakov/parakeet-tdt-0.6b-v3-onnx`) | ~230 MB | az első minőségellenőrzésnél |
+
+A letöltött modellek a `reader/models/` alatt maradnak, így az újraépítés és
+frissítés sem tölti le őket újra. A Docker-porthoz lásd a 7. lépést.
+
+### 5. Hangklónozás (XTTSv2-ONNX) — egyszeri, kézi letöltés
+
+A klónmodell **nem része a repónak**: a `pltobing/XTTSv2-Streaming-ONNX`
+gated (zárt) HF-repó, CC BY-NC 4.0 licenc — nem kereskedelmi célra, ezért
+kézzel, egyszer kell beszerezni. Egyszerű út:
+
+1. Nyisd meg: <https://huggingface.co/pltobing/XTTSv2-Streaming-ONNX> —
+   jelentkezz be, és **fogadd el a licenc-űrlapot** (a jóváhagyás azonnali).
+2. Kérj egy **read** jogú tokent: <https://huggingface.co/settings/tokens>.
+3. Töltsd le a modellt a repóba (a venv-jából, a repó gyökeréből):
+
+   ```bat
+   set HF_TOKEN=hf_...
+   reader\.venv\Scripts\python.exe scripts\download_xtts.py
+   ```
+
+   A szkript a `vendor\XTTSv2-Streaming-ONNX\` alá teszi, és a motor által
+   kért fájlokat ellenőrzi. Ellenőrzés hálózat nélkül:
+   `... scripts\download_xtts.py --check`.
+4. **Indítsd újra az Aurist** — a `xtts_onnx` motor megjelenik a
+   Beállításokban, a Hangstúdióban pedig feltöltheted a referencia WAV-ot
+   (10–30 másodperc, tiszta beszéd).
+
+Máshova letöltöd? `--dest D:\modell\XTTSv2-Streaming-ONNX`, majd állítsd be a
+`VOICEAI_XTTS_DIR` környezeti változót a `...\xtts_onnx` mappára.
+
+### 6. Környezeti változások (opcionális)
+
+| Változó | Mit ír felül |
+|---|---|
+| `VOICEAI_XTTS_DIR` | a klónmodell könyvtára (`...\xtts_onnx`) |
+| `VOICEAI_SHERPA_SUPERTONIC` | a sherpa-Supertonic int8 könyvtár (alapból `reader/models/supertonic-sherpa-int8/`) |
+| `VOICEAI_SILERO_VAD` | a Silero VAD ONNX a QA-hoz |
+| `AURIS_DATA_DIR` | a könyvek/modellek tárolója (a desktop app alapból `%LOCALAPPDATA%\Auris`) |
+| `HF_TOKEN` | Hugging Face-token a gated letöltésekhez |
+
+Beállítás nélkül minden a repó mellett keres, így **egy friss klón konfiguráció
+nélkül is működik**.
+
+### 7. Hibaelhárítás
+
+| Tünet | Ok | Megoldás |
+|---|---|---|
+| `setup.bat ... is not recognized` | `NoDefaultCurrentDirectoryInExePath=1` | futtasd `reader\setup.bat` teljes útvonallal, vagy állítsd a változót `0`-ra |
+| a Python helyett a Store nyílik | Microsoft Store alias | a `setup.bat` ezt kezeli (a `py` launchert használja); telepíts natív ARM64 Pythont |
+| „Python 3.10+ szükséges” | régi Python | telepíts 3.10+ verziót (a mért: 3.12.10) |
+| `7860 already in use` | fut egy másik példány (vagy konténer) | `netstat -ano | findstr 7860` → a PID-t zárd be, vagy konténerből használj portot (`docker-compose.override.yml` + `!override`) |
+| a klónmotor nem jelenik meg | hiányzik a gated modell | 5. lépés, majd újraindítás |
+| nincs karakter-felismerés | spaCy nincs ARM64-re | szándékos: szabályalapú felismerésre vált, minden más működik |
+| MP3/M4B export hibás | nincs `ffmpeg` | telepíts és tedd a PATH-ra |
+| a Docker Engine nem indul | WSL2 háttér-motor hiba | [`docs/docker-wsl.md`](docs/docker-wsl.md), egy parancsban: `bash scripts/windows/docker-desktop-repair.sh restart` |
+
+További mélyebb útmutatók: [`docs/HASZNÁLATI-ÚTMUTATÓ.md`](docs/HASZNÁLATI-ÚTMUTATÓ.md)
+(Web UI + CLI), [`reader/docs/arm64-install.md`](reader/docs/arm64-install.md)
+(telepítés és mérések), [`docs/docker-wsl.md`](docs/docker-wsl.md) (Docker/WSL).
+
 ## Screenshots
 
 These images show the earlier layout. The current interface uses Hungarian
@@ -263,11 +390,12 @@ Every engine runs locally through ONNX Runtime; there is no hosted dependency.
   (`supertone-oss-archive/supertonic-3`, OpenRAIL-M license).
 - **Supertonic 3 sherpa-onnx int8** — downloaded automatically on first use
   (~139 MB); the measured-fastest engine on Snapdragon.
-- **XTTSv2-ONNX** — the cloning engine ships with the install; the setup wizard
-  verifies `vendor/XTTSv2-Streaming-ONNX/xtts_onnx` is present. Cloning needs a
-  reference recording uploaded in Voice Studio. XTTSv2 weights follow the Coqui
-  Public Model License (non-commercial); review the
-  [model card](https://huggingface.co/coqui/XTTS-v2) before use.
+- **XTTSv2-ONNX** — the cloning engine's model is **not in the repository**
+  (gated HF repo, non-commercial CC BY-NC 4.0 license, ~2,2 GB). Fetch it once
+  with `reader\.venv\Scripts\python.exe scripts\download_xtts.py` after
+  accepting the licence on <https://huggingface.co/pltobing/XTTSv2-Streaming-ONNX>
+  and creating a read token; it lands in `vendor/XTTSv2-Streaming-ONNX/`.
+  Cloning needs a reference recording uploaded in Voice Studio.
 - **Piper** — preset Hungarian voices; the `piper-tts` package can be installed
   from Settings.
 
@@ -280,7 +408,7 @@ machine, point the engines at it with these environment variables:
 | Variable | Model |
 |---|---|
 | `VOICEAI_SHERPA_SUPERTONIC` | Sherpa-onnx Supertonic 3 int8 (default: `reader/models/supertonic-sherpa-int8/`, auto-downloaded from Hugging Face) |
-| `VOICEAI_XTTS_DIR` | XTTSv2-Streaming-ONNX (the 2,1 GB cloning model) |
+| `VOICEAI_XTTS_DIR` | XTTSv2-Streaming-ONNX (the ~2,2 GB cloning model, downloaded once with `scripts/download_xtts.py`) |
 | `VOICEAI_SILERO_VAD` | Silero VAD ONNX for the quality-control voice activity detection |
 
 ## Usage

@@ -795,7 +795,7 @@ ffprobe -version</code></pre>
         <div>
           <h3>Auris-integráció</h3>
           <ul class="docs-check-list">
-            <li>A <code>vendor/XTTSv2-Streaming-ONNX/xtts_onnx</code> könyvtár a telepítés része; az első indítás ellenőrzi.</li>
+            <li>A <code>vendor/XTTSv2-Streaming-ONNX/xtts_onnx</code> modell nem a repóban van (gated, CC BY-NC 4.0, ~2,2 GB): egyszer le kell tölteni a <code>scripts/download_xtts.py</code> paranccsal, az Auris csak ellenőrzi, hogy megvan.</li>
             <li>Referencia nélkül az Auris a Hangstúdióban megadott beépített mintahangot használja.</li>
             <li>A referenciaszöveg a mentett Voice Studio rekordból automatikusan továbbadódik.</li>
             <li>A Stop megszakítja a generálást; a kész szegmensek cache-ben maradnak.</li>
@@ -1295,7 +1295,7 @@ ffprobe -version</code></pre>
         </details>
         <details>
           <summary>Nem jelenik meg a klónozó motor a Beállításokban</summary>
-          <div><p>A XTTSv2-ONNX csak akkor jelenik meg, ha a telepítés tartalmazza a <code>vendor/XTTSv2-Streaming-ONNX/xtts_onnx</code> könyvtárat és a szöveg-előkészítés függőségei (<code>librosa</code>, <code>pypinyin</code>) telepítve vannak. A <code>/api/engine/suggest</code> végpont megmutatja, mi hiányzik.</p></div>
+          <div><p>A XTTSv2-ONNX csak akkor jelenik meg, ha a <code>vendor/XTTSv2-Streaming-ONNX/xtts_onnx</code> modell megvan (egyszeri, kézi letöltés: <code>python scripts/download_xtts.py</code>, előbb fogadd el a licencet a HF-oldalon), és a szöveg-előkészítés függőségei (<code>librosa</code>, <code>pypinyin</code>) telepítve vannak. A <code>/api/engine/suggest</code> végpont megmutatja, mi hiányzik.</p></div>
         </details>
         <details>
           <summary>Megváltoztattam a hangot, de a régi felolvasás hallatszik</summary>

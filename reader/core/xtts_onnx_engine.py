@@ -11,8 +11,11 @@ Mért adatok (M-41/M-49, Snapdragon X Elite, int8 GPT):
   - szintetizálás: 2,27 s hang 3,9 s alatt (0,58x valós idejű, 4 szál)
   - minőség: a minta-klon könyv CER 2,73% / WER 11,94% (Parakeet ellenőrzés)
 
-A modell nem a repóban van (2,1 GB), hanem a gép modell-tárházában; az
-útvonal a `VOICEAI_XTTS_DIR` felülírással állítható. A spacy ARM64-en nincs
+A modell nem a repóban van (2,2 GB), hanem a repó melletti `vendor/`
+mappában vagy a gép modell-tárházában; az útvonal a `VOICEAI_XTTS_DIR`
+felülírással állítható. A letöltés a repó gyökeréből futtatható
+`python scripts/download_xtts.py` parancsal történik (a HF-repó gated:
+előbb el kell fogadni a CC BY-NC 4.0 licencet). A spacy ARM64-en nincs
 meg, ezért a `models/xtts-stubs/` alól töltjük be — a magyar út nem használja.
 
 Hiányzó modell esetén a betöltés magyar hibaüzenetet ad a letöltési
@@ -72,11 +75,35 @@ class XttsOnnxEngine(LocalEngineBase):
 
     # ── modell ──────────────────────────────────────────────────────────────
     @staticmethod
-    def model_dir() -> Path:
+    def candidate_dirs() -> tuple[Path, ...]:
+        """A lehetséges modellkönyvtárak felülírás nélkül, sorrendben."""
+        from core.local_engines import MODELS_DIR
+
+        repo_root = Path(__file__).resolve().parents[2]
+        return (
+            repo_root / "vendor" / "XTTSv2-Streaming-ONNX" / "xtts_onnx",
+            MODELS_DIR / "xttsv2-streaming-onnx" / "xtts_onnx",
+            Path(r"D:\<projekt>\vendor\XTTSv2-Streaming-ONNX\xtts_onnx"),
+        )
+
+    @classmethod
+    def model_dir(cls) -> Path:
+        """A modell könyvtára.
+
+        Sorrend: `VOICEAI_XTTS_DIR` → a repó melletti `vendor/` (ahogy a README
+        írja, így egy friss klón is működik) → `reader/models/` → a régi, gépi
+        tárház (ha megvan, a meglévő gépeket nem bontja meg). Ha egyik helyen
+        sincs meg, az első jelöltet adjuk vissza, hogy a hibaüzenet a várt
+        helyet mutassa.
+        """
         override = os.environ.get("VOICEAI_XTTS_DIR", "").strip()
         if override:
-            return Path(override)
-        return Path(r"D:\<projekt>\vendor\XTTSv2-Streaming-ONNX\xtts_onnx")
+            return Path(override).expanduser()
+        candidates = cls.candidate_dirs()
+        for candidate in candidates:
+            if (candidate / XTTS_FILES[0]).is_file():
+                return candidate
+        return candidates[0]
 
     @staticmethod
     def _stubs_dir() -> Path:
@@ -97,9 +124,11 @@ class XttsOnnxEngine(LocalEngineBase):
             raise RuntimeError(
                 "A XTTSv2-ONNX modell nincs meg ("
                 + d.as_posix()
-                + "). Töltsd le a hiteles forrásból: huggingface.co/"
-                "pltobing/XTTSv2-Streaming-ONNX — vagy állítsd be a "
-                "VOICEAI_XTTS_DIR környezeti változót a modell könyvtárára."
+                + "). Töltsd le a repó gyökeréből: python scripts/download_xtts.py "
+                "(a hiteles forrás huggingface.co/pltobing/XTTSv2-Streaming-ONNX, "
+                "a gated repóhoz előbb fogadd el a CC BY-NC 4.0 licencet) — vagy "
+                "állítsd be a VOICEAI_XTTS_DIR környezeti változót a modell "
+                "könyvtárára."
             )
         # A pipeline a saját moduljait a modellkönyvtárból importálja, a
         # spacy-t pedig a stub-könyvtárból vesszük (ARM64-en nincs wheel).

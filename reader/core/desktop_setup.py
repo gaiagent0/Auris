@@ -81,14 +81,18 @@ class SetupController:
 
     def _download_model(self, engine: str):
         if engine == 'xtts_onnx':
-            # The cloning model ships with the install; only verify it is here.
+            # The cloning model is gated (CC BY-NC 4.0) and fetched once by
+            # scripts/download_xtts.py; only verify that it is here.
             self._update(message='A XTTSv2-ONNX klónmodell ellenőrzése…', progress=90)
             from core.xtts_onnx_engine import XttsOnnxEngine
             model = XttsOnnxEngine()
             if not model.model_present():
                 raise RuntimeError(
-                    'A XTTSv2-ONNX klónmodell hiányzik: a vendor/XTTSv2-Streaming-ONNX/'
-                    'xtts_onnx könyvtár szükséges a hangklónozáshoz.')
+                    'A XTTSv2-ONNX klónmodell hiányzik (' +
+                    XttsOnnxEngine.model_dir().as_posix() + '): a gated HF-repóról '
+                    'egyszer le kell tölteni a parancssorból: '
+                    'python scripts/download_xtts.py — előbb fogadd el a CC BY-NC 4.0 '
+                    'licencet a huggingface.co/pltobing/XTTSv2-Streaming-ONNX oldalon.')
             return
 
         from huggingface_hub import hf_hub_download, list_repo_files
