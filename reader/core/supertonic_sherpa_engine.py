@@ -13,8 +13,8 @@ Korlát 2026-10-06:
   - sherpa csomagolás: 44 100 Hz kimenet (Auris cache 24 000 Hz), egyetlen beépített hang (voice.bin)
   - Az Auris Settings oldala tükrözi a 44,1 kHz kimenetet és az 1 hang limitjét.
 
-Futtatása:
-  D:\<projekt>\envs\sherpa-arm64\Scripts\python.exe hub\scripts\sherpa_supertonic_probe.py
+Mérés (három magyar mondat, RTF + kimeneti WAV + JSON):
+  python -m core.supertonic_sherpa_engine
 """
 from __future__ import annotations
 
@@ -92,7 +92,10 @@ class SherpaSupertonicEngine(LocalEngineBase):
     @staticmethod
     def model_dir() -> Path:
         """HF-downloaded sherpa model under reader/models (or VOICEAI override)."""
-        override = os.environ.get("VOICEAI_SHERTA_SUPERTONIC", "").strip()
+        # A helyes név az elsődleges; a régebbi, elgépelt változat is él, hogy egy
+        # már beállított helyi környezet ne vesszen el.
+        override = (os.environ.get("VOICEAI_SHERPA_SUPERTONIC", "").strip()
+                    or os.environ.get("VOICEAI_SHERTA_SUPERTONIC", "").strip())
         if override:
             return Path(override)
         from core.local_engines import MODELS_DIR

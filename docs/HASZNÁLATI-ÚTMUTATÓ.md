@@ -130,8 +130,8 @@ Egy szöveget szintetizálja fájlba — a leggyorsabb mód a motor ellenőrzés
 |---|---|---|
 | **Beépített Supertonic** | F1–F5, M1–M5 | `tts_engine=auto`, beállítási mezőben |
 | **Sherpa-onnx Supertonic int8** | **a leggyorsabb motor** (RTF 0,14); a Snapdragon `auto`-javaslat; választható a `tts_engine=supertonic_sherpa` Beállításokban | modell automatikus HF-letöltés `reader/models/supertonic-sherpa-int8/` (+ `sherpa-onnx` a deps-ben) |
-| **Magyar Piper-hang** (anna, berta, imre) | külső ONNX, `D:\<projekt>\apps\hu-voice-ai\models\piper\` | ONNX Runtime-tal fut, de a phonemizálás ARM64-en nyitott kérdés |
-| **XTTSv2-ONNX klón** | a **legjobb klónozó**: magyar zero-shot, tiszta ONNX, WER 0,18 %, 45,4 perc/óra | referencia WAV a Hangstúdióban; a modell `D:\XTTSv2-Streaming-ONNX` (CC BY-NC 4.0) |
+| **Magyar Piper-hang** (anna, berta, imre) | külső ONNX, `reader/models/piper/` (vagy a `piper_models_dir` beállítás) | ONNX Runtime-tal fut, de a phonemizálás ARM64-en nyitott kérdés |
+| **XTTSv2-ONNX klón** | a **legjobb klónozó**: magyar zero-shot, tiszta ONNX, WER 0,18 %, 45,4 perc/óra | referencia WAV a Hangstúdióban; a modell a `VOICEAI_XTTS_DIR` által megadott könyvtárban (CC BY-NC 4.0) |
 
 **Klón-korlát:** a sherpa-onnx Supertonic a referenciahang-klónozást **nem támogatja**
 (fixed-voice, voice.bin). A custom hangklónhoz az **XTTSv2-ONNX** a követendő út.
@@ -162,3 +162,25 @@ licenc CC-BY-4.0). Első használtnál automatikusan tölte be.
 | Gyorsítótár | `reader/audio_cache/` |
 | Modellok | `reader/models/supertonic-3/` (fp32), `...-int8/` |
 | Doku | `reader/docs/` — **meresek.md** (bizonyítékkatalógus), **handoff-2026-10-03.md** |
+
+---
+
+## 6. Docker — a hordozható alternatíva
+
+A fenti lépések a **natív venv**-et használják; ez az ajánlott út a Snapdragondon.
+Ha másik gépen (x64 Linux szerver, másik ARM64 gép) akarod futtatni az Aurist,
+akkor a Docker a megfelelő:
+
+```bat
+docker compose up -d --build
+:: majd: http://127.0.0.1:7860
+```
+
+- A kép **CPU-only**: minden motor ONNX Runtime-on fut, nem kell NVIDIA.
+- A modellek a `docker-data\models` mappából jönnek bind mounttal, így a
+  hoszton letöltött modellek azonnal használhatók, és a konténer újraépítésekor
+  nem kell újra letölteni őket.
+- A könyvek, exportok és a hangcache a `docker-data\` alatt marad.
+- Ha a Docker Engine nem indul el, a javítási lépések:
+  [`docs/docker-wsl.md`](docker-wsl.md) — vagy egy parancsban:
+  `bash scripts/windows/docker-desktop-repair.sh restart`.

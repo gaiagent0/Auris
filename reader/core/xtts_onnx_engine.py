@@ -11,12 +11,12 @@ Mért adatok (M-41/M-49, Snapdragon X Elite, int8 GPT):
   - szintetizálás: 2,27 s hang 3,9 s alatt (0,58x valós idejű, 4 szál)
   - minőség: a minta-klon könyv CER 2,73% / WER 11,94% (Parakeet ellenőrzés)
 
-A modell nem a repóban van (2,1 GB), hanem a `D:\\VoiceAI\\vendor\\` alatt; az
+A modell nem a repóban van (2,1 GB), hanem a gép modell-tárházában; az
 útvonal a `VOICEAI_XTTS_DIR` felülírással állítható. A spacy ARM64-en nincs
 meg, ezért a `models/xtts-stubs/` alól töltjük be — a magyar út nem használja.
 
-Futtatás / mérés a hubból:
-  D:\\VoiceAI\\envs\\xtts-probe\\venv-arm64\\Scripts\\python.exe hub\\scripts\\xtts_hu_probe.py --smoke
+Hiányzó modell esetén a betöltés magyar hibaüzenetet ad a letöltési
+forrással (`huggingface.co/pltobing/XTTSv2-Streaming-ONNX`).
 """
 from __future__ import annotations
 

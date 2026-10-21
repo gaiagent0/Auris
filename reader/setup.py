@@ -107,13 +107,31 @@ def arm64_platform_tag():
 # has no win_arm64 wheel; soxr has no ARM wheel at all; and thinc, spaCy's
 # compiled backend, dropped its aarch64 wheels in the 9.1 series, so aarch64
 # needs the 9.0 pin rather than a skip.
+#
+# spaCy and thinc are skipped on Windows ARM64: their compiled backend
+# (blis) has no win_arm64 wheel, so pip would try to build it from source
+# with Visual Studio and fail the whole install. The app runs without them:
+# character detection falls back to its regex mode (core.characters).
 ARM64_SOFT_DEPS = (
     ("torchaudio>=2.4,<2.12", ("win_arm64",)),
     ("soxr", ("win_arm64", "linux_aarch64")),
     ("scipy", ()),  # portable resample fallback, replaces soxr on every ARM tag
-    ("thinc<9.1", ()),
-    ("spacy>=3.7", ()),
+    ("thinc<9.1", ("win_arm64",)),
+    ("spacy>=3.7", ("win_arm64",)),
 )
+
+# Platform-specific version pins, applied on top of the requirement list.
+# The package name is the key, the value replaces the requirement.
+#
+# PyMuPDF 1.28.2 is the last release with a win_arm64 wheel
+# (cp310-abi3, so it also serves Python 3.11+ on ARM64). Newer releases
+# publish no win_arm64 build, so pip falls back to compiling the MuPDF
+# sources with Visual Studio, which fails and aborts the install.
+ARM64_PINNED_DEPS = {
+    "win_arm64": {
+        "pymupdf": "pymupdf==1.28.2",
+    },
+}
 
 # Everything else the app needs on an ARM64 machine (Snapdragon X Elite),
 # without any GPU stack.
@@ -146,6 +164,16 @@ ARM64_BASE_DEPS = (
 def arm64_requirements(tag):
     """Filter the ARM64 dependency set for the given platform tag."""
     return [req for req, missing in ARM64_SOFT_DEPS if tag not in missing]
+
+
+def apply_platform_pins(reqs, tag):
+    """Replace a requirement with its platform-pinned version, if any."""
+    pins = ARM64_PINNED_DEPS.get(tag, {})
+    pinned = []
+    for req in reqs:
+        name = re.split(r"[<>=!~ ]", req, maxsplit=1)[0].strip()
+        pinned.append(pins.get(name, req))
+    return pinned
 
 
 def detect_hardware():
@@ -257,7 +285,8 @@ def install_reader_deps(hw_tag=None):
     step("Installing the Snapdragon dependency set")
     tag = arm64_platform_tag()
     skipped = [req for req, missing in ARM64_SOFT_DEPS if tag in missing]
-    pip_install(*ARM64_BASE_DEPS, *arm64_requirements(tag))
+    requirements = apply_platform_pins([*ARM64_BASE_DEPS, *arm64_requirements(tag)], tag)
+    pip_install(*requirements)
     if skipped:
         info("Not available for " + tag + ": " + ", ".join(skipped))
         info("The app runs without them: SciPy resamples, and character")

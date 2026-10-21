@@ -40,7 +40,7 @@ A natív ARM64 futás minden másik platformot előze, a mérési bizonyíték a
 Kiegészítések ebben a fork-ban:
 - **Batchelt Supertonic-generálás** — a `generate_many` azonos hang/nyelv/tempó
   mondatokot csoportosít (2,25× gyorsabb, `supertonic_batch` 1..6).
-- **Sherpa-onnx Supertonic 3 int8 — FIRST-CLASS motor** (`reader/core/supertonic_sherpa*.py`):
+- **Sherpa-onnx Supertonic 3 int8 — FIRST-CLASS motor** (`reader/core/supertonic_sherpa_engine.py`):
   beillesztett a motor-választóba (`supertonic_sherpa`), a Snapdragon-ra a
   **leggyorsabb** (`auto`-javaslat), `sherpa-onnx` a deps-ben, a modell
   **automatikusan letölti** a HF-en `reader/models/supertonic-sherpa-int8/`-re
@@ -64,8 +64,11 @@ reader\run.bat            # http://127.0.0.1:7860
   modellok letöltik az első betöltéssel.
 - A leggyorsabb motor a javasolt (`auto` → `supertonic_sherpa`); a Beállításokban
   `tts_engine=supertonic_sherpa`-ra állíthatd, ha explicit jelöltet akarod.
-- Docker: `docker compose up -d --build` **CPU-ra fut** (nem kell NVIDIA) —
-  a Snapdragonon a natív út a gyorsabb, a Docker alternatíva mindenhol.
+- **A natív venv az elsődleges út Windowson**: nincs konténer-réteg, és a
+  modellek a `reader/models/` alatt maradnak. A Docker (`docker compose up -d
+  --build`) **CPU-ra fut** (nem kell NVIDIA) és ott is működik, ahol a natív
+  telepítés nem érhető el (pl. x64 Linux szerver) — lásd
+  [`docs/docker-wsl.md`](docs/docker-wsl.md).
 
 A használati útmutató: [`docs/HASZNÁLATI-ÚTMUTATÓ.md`](docs/HASZNÁLATI-ÚTMUTATÓ.md).
 Az infografika: [`docs/auris-infografika.html`](docs/auris-infografika.html).
@@ -194,6 +197,12 @@ python reader/setup.py
 
 The installer creates `reader/.venv`, installs the ONNX engine set (Supertonic 3, sherpa-onnx, XTTSv2-ONNX pipeline, Piper), optional CPU PyTorch for the Whisper QA backend, spaCy, and the reader dependencies, then downloads the Hungarian spaCy model when network access is available.
 
+Two packages have no Windows ARM64 wheel, so the installer skips or pins them
+there: `pymupdf` is pinned to `1.28.2` (the last release with a win_arm64
+wheel), and spaCy/thinc are skipped because their compiled backend (`blis`)
+has no win_arm64 build. The app runs without spaCy — character detection falls
+back to its rule-based mode — and every other import format stays available.
+
 ## Start after installation
 
 When the installer prints **Setup Complete**, start Auris from the cloned
@@ -227,8 +236,13 @@ with `Ctrl+C` in that terminal.
   command line (`python auris_cli.py --help`).
 - OpenAI-compatible `POST /v1/audio/speech` for other tools, using the active
   engine and saved Hungarian voice profiles.
-- `docker compose up -d` builds and runs Auris as a **CPU image** (works
-  anywhere, including Snapdragon ARM64); data lives in `docker-data/`.
+- `docker compose up -d --build` builds and runs Auris as a **CPU image**
+  (works anywhere, including Snapdragon ARM64); data lives in `docker-data/`.
+  Docker is the portable alternative to the native venv — on the Snapdragon the
+  native install is faster, because the ONNX engines run without a container
+  layer. The Windows/WSL details, the model volume wiring and the repair steps
+  for a stuck Docker Engine are in
+  [`docs/docker-wsl.md`](docs/docker-wsl.md).
 
 ## Model setup
 
@@ -245,6 +259,18 @@ Every engine runs locally through ONNX Runtime; there is no hosted dependency.
   [model card](https://huggingface.co/coqui/XTTS-v2) before use.
 - **Piper** — preset Hungarian voices; the `piper-tts` package can be installed
   from Settings.
+
+### Model path overrides
+
+The engines look for their models next to the application, so a fresh clone
+works without any configuration. If the models live in a shared hub on your
+machine, point the engines at it with these environment variables:
+
+| Variable | Model |
+|---|---|
+| `VOICEAI_SHERPA_SUPERTONIC` | Sherpa-onnx Supertonic 3 int8 (default: `reader/models/supertonic-sherpa-int8/`, auto-downloaded from Hugging Face) |
+| `VOICEAI_XTTS_DIR` | XTTSv2-Streaming-ONNX (the 2,1 GB cloning model) |
+| `VOICEAI_SILERO_VAD` | Silero VAD ONNX for the quality-control voice activity detection |
 
 ## Usage
 

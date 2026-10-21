@@ -14,6 +14,23 @@ represent a new product generation or an incompatible change.
 
 ### Magyar
 
+#### Módosítva
+
+- **A modellútvonalak feloldása a repó melletti modellekre** — a Supertonic,
+  a sherpa-Supertonic és az XTTS motor a beállítás nélküli esetben az
+  alkalmazás mellé letöltött modellt használja, nem gépfüggő abszolút útvonalat.
+  A modell-tárházat használó gépeken a `VOICEAI_SHERPA_SUPERTONIC`,
+  `VOICEAI_XTTS_DIR` és `VOICEAI_SILERO_VAD` környezeti változó írja felül.
+- **A sherpa-Supertonic környezeti változó neve** — a korábbi, elgépelt
+  `VOICEAI_SHERTA_SUPERTONIC` helyett a helyes `VOICEAI_SHERPA_SUPERTONIC`
+  az elsődleges; a régi név továbbra is elfogadott.
+
+#### Eltávolítva
+
+- **A duplikált sherpa-Supertonic modul** (`reader/core/supertonic_sherpa.py`) —
+  az első vázlata volt, felváltotta a `reader/core/supertonic_sherpa_engine.py`;
+  semmi nem importálta, csak gépfüggő útvonalat tartalmazott.
+
 #### Javítva
 
 - **Friss telepítés a telepítőben** — a telepítő az ONNX runtime ellenőrzését a
@@ -24,8 +41,37 @@ represent a new product generation or an incompatible change.
 - **PyTorch a Linux ARM64 konténerben** — a torchaudio nem húzza be a torch-ot,
   ezért a Whisper minőségellenőrző és a hardverjelentés a konténerben torch
   nélkül futott. Az aarch64 build most a CPU indexről a torch-ot is telepíti.
+- **A Windows ARM64 venv-telepítés elhasalt** két csomagnál, amelynek nincs
+  win_arm64 wheelje, ezért a pip forrásból próbált volna fordítani (Visual
+  Studio kellett volna) és az egész telepítés meghiúsult:
+  - a **PyMuPDF** 1.28.2-ig ad win_arm64 wheelt (`cp310-abi3`, tehát Python
+    3.11+-ra is jó), az újabb kiadások nem; a telepítő most `pymupdf==1.28.2`-re
+    rögzít Windows ARM64-en;
+  - a **spaCy / thinc** fordított háttere (`blis`) nem létezik win_arm64-en; a
+    telepítő ezeket kihagyja, és az alkalmazás a szabályalapú (regex)
+    szereplőfelismeréssel működik tovább — a HuSpaCy-modell letöltése is
+    kimarad.
+- **A friss Windows ARM64 telepítés után a tesztek futtathatók** — a venv a
+  `reader/.venv` mappában készül, a `run.bat` ezt használja.
 
 ### English
+
+#### Changed
+
+- **Model paths resolve next to the application** — the Supertonic,
+  sherpa-Supertonic and XTTS engines use the model downloaded next to the
+  application by default instead of a machine-specific absolute path. On a
+  machine with a shared model hub, `VOICEAI_SHERPA_SUPERTONIC`,
+  `VOICEAI_XTTS_DIR` and `VOICEAI_SILERO_VAD` override it.
+- **The sherpa-Supertonic environment variable name** — the correct
+  `VOICEAI_SHERPA_SUPERTONIC` is now primary; the old misspelled
+  `VOICEAI_SHERTA_SUPERTONIC` is still accepted.
+
+#### Removed
+
+- **The duplicated sherpa-Supertonic module** (`reader/core/supertonic_sherpa.py`)
+  — the first draft, superseded by `reader/core/supertonic_sherpa_engine.py`.
+  Nothing imported it and it only carried a machine-specific path.
 
 #### Fixed
 
@@ -37,6 +83,18 @@ represent a new product generation or an incompatible change.
 - **PyTorch in the Linux ARM64 container** — torchaudio does not pull torch in,
   so the Whisper quality-control backend and the hardware report ran without
   torch. The aarch64 build now also installs torch from the CPU index.
+- **The Windows ARM64 venv install aborted** on two packages that have no
+  win_arm64 wheel, so pip tried to build them from source (needing Visual
+  Studio) and failed the whole install:
+  - **PyMuPDF** ships a win_arm64 wheel up to 1.28.2 (`cp310-abi3`, so it also
+    serves Python 3.11+); later releases do not. The installer now pins
+    `pymupdf==1.28.2` on Windows ARM64.
+  - The **spaCy / thinc** compiled backend (`blis`) does not exist for
+    win_arm64. The installer now skips both, and the app keeps working with
+    its rule-based (regex) character detection — the HuSpaCy model download is
+    skipped too.
+- **The test suite runs after a fresh Windows ARM64 install** — the venv is
+  created in `reader/.venv` and `run.bat` uses it.
 
 ## [5.0.0] - 2026-10-20
 
