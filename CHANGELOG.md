@@ -12,6 +12,32 @@ represent a new product generation or an incompatible change.
 
 ## [Unreleased]
 
+### Magyar
+
+#### Javítva
+
+- **Friss telepítés a telepítőben** — a telepítő az ONNX runtime ellenőrzését a
+  függőségek telepítése *előtt* futtatta, ezért minden új virtuális környezetben
+  (Windows ARM64 telepítés, Docker build) elhasalt
+  (`ModuleNotFoundError: No module named 'onnxruntime'`). Az ellenőrzés a
+  függőségek telepítése utánra került.
+- **PyTorch a Linux ARM64 konténerben** — a torchaudio nem húzza be a torch-ot,
+  ezért a Whisper minőségellenőrző és a hardverjelentés a konténerben torch
+  nélkül futott. Az aarch64 build most a CPU indexről a torch-ot is telepíti.
+
+### English
+
+#### Fixed
+
+- **Fresh installs in the setup script** — the ONNX runtime check ran *before*
+  the dependency install, so every fresh virtual environment (a Windows ARM64
+  install and the Docker build alike) failed with
+  `ModuleNotFoundError: No module named 'onnxruntime'`. The check now runs
+  after the dependencies are in place.
+- **PyTorch in the Linux ARM64 container** — torchaudio does not pull torch in,
+  so the Whisper quality-control backend and the hardware report ran without
+  torch. The aarch64 build now also installs torch from the CPU index.
+
 ## [5.0.0] - 2026-10-20
 
 ### Magyar

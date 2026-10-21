@@ -226,7 +226,13 @@ def install_torch(hw_tag):
     info(f"ARM64 ({tag}) detected. Installing CPU-only torch; torchaudio is skipped.")
     info("The synthesis engines (Supertonic 3, XTTSv2-ONNX, Piper) run on ONNX Runtime.")
     if tag == "linux_aarch64":
-        pip_install(TORCHAUDIO_SPEC)
+        # aarch64 Linux has both wheels. The CPU index also serves the aarch64
+        # torch build, so the Whisper QA backend works in the container the
+        # same way it does on Windows ARM64 (torchaudio alone does not pull
+        # torch in, it is only the audio codec layer). Both come from the same
+        # index so pip can match the torchaudio/torch pair.
+        pip_install(TORCH_SPEC, TORCHAUDIO_SPEC,
+                    index_url="https://download.pytorch.org/whl/cpu")
     elif offline_wheels_available():
         pip_install(TORCH_SPEC, no_index=True)
     else:
@@ -374,8 +380,10 @@ def main():
     hw_tag = detect_hardware()
 
     # Snapdragon X Elite: wheel-only ONNX install, no GPU runtime anywhere.
+    # The runtime check runs after install_reader_deps: it imports
+    # onnxruntime, which only that step installs, so an earlier check fails
+    # on every fresh virtual environment (fresh Windows install, Docker).
     install_torch(hw_tag)
-    verify_torch(hw_tag)
     install_reader_deps(hw_tag)
     install_spacy_model()
     install_hungarian_spacy_model()
