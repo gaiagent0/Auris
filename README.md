@@ -193,6 +193,13 @@ The Windows wrapper picks the interpreter itself: it prefers the `py` launcher
 (3.12 → 3.11 → 3.13 → 3) and ignores the Microsoft Store alias stub in
 `WindowsApps`, which would open the Store instead of running Python.
 
+> **If `setup.bat` reports "is not recognized as an internal or external
+> command"**, the Windows environment variable
+> `NoDefaultCurrentDirectoryInExePath=1` is set: the command prompt then does
+> not look for batch files in the current directory. Run the installer by its
+> full path (`reader\setup.bat` from the repository root) or set that variable
+> to `0`.
+
 Or directly:
 
 ```bash

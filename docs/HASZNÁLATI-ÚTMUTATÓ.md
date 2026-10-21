@@ -14,6 +14,12 @@ reader\setup.bat       :: csak egyszer — venv + függőségek
 reader\run.bat         :: induló — a TTS modell hátérterülben betölt, az app rögtön nyit
 ```
 
+> **Ha a `setup.bat` a „not recognized as an internal or external command”
+> hibát ad**, akkor a Windows `NoDefaultCurrentDirectoryInExePath=1`
+> környezeti változója miatt a parancssor nem keresi az aktuális könyvtárban
+> a batch fájlokat. Ilyenkor a telepítőt teljes úttal futtasd
+> (`reader\setup.bat` a repo gyökeréből), vagy a változó értékét állítsd 0-ra.
+
 - Web UI: **http://127.0.0.1:7860**
 - CLI: `reader\.venv\Scripts\python.exe reader\auris_cli.py ...`
 - A modell a `reader\models\supertonic-3\`-ba van (fp32) — induláskor hátérterülben betölt, a lap ablaktív, amíg fut.

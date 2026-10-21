@@ -65,6 +65,12 @@ represent a new product generation or an incompatible change.
 - **A `run.bat` elavult OmniVoice-útvonala** — a komment a már eltávolított
   `model_backup\OmniVoice` mappát említette; a modellek most a
   `reader\models\` alatt vannak, és első használatkor töltődnek le.
+- **A `.gitattributes` rögzíti a sorvégeket** — a Windows batch fájlok
+  (`*.bat`, `*.cmd`, `*.ps1`) CRLF-en, a shell scriptek (`*.sh`) LF-en
+  checkoutolnak, így a `core.autocrlf` beállítástól függetlenül működnek.
+  A `setup.bat` a Windows `NoDefaultCurrentDirectoryInExePath=1` változója
+  miatt nem indítható puszta nevvel a parancssorból — ezt a README és a
+  használati útmutató is jelzi.
 
 ### English
 
@@ -119,6 +125,12 @@ represent a new product generation or an incompatible change.
 - **The stale OmniVoice path in `run.bat`** — the comment still pointed at
   the removed `model_backup\OmniVoice` folder; the models live in
   `reader\models\` now and are downloaded on first use.
+- **`.gitattributes` pins the line endings** — the Windows batch files
+  (`*.bat`, `*.cmd`, `*.ps1`) check out with CRLF and the shell scripts
+  (`*.sh`) with LF, so they work regardless of the `core.autocrlf` setting.
+  The README and the user guide also note that `setup.bat` cannot be started
+  by its bare name in a command prompt while the Windows
+  `NoDefaultCurrentDirectoryInExePath=1` variable is set.
 
 ## [5.0.0] - 2026-10-20
 

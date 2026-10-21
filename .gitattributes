@@ -1,0 +1,16 @@
+# A Windows batch fájloknak CRLF kell: a cmd a hagyományosan LF sorvéggel
+# is működik, de a CRLF a biztos. A shell scripteknek mindig LF, különben a
+# bash a "\r"-t a parancs részeként kapja.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+*.sh text eol=lf
+
+# A modell- és adatfájlok binárisak.
+*.onnx binary
+*.npy binary
+*.wav binary
+*.mp3 binary
+*.m4b binary
+*.epub binary
+*.pdf binary
