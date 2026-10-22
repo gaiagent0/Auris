@@ -85,3 +85,8 @@ reader/quality_out/
 reader/quality_report.py
 reader/docs/meresi-adatok/npu-qnn/inputs/
 reader/docs/meresi-adatok/npu-qnn/out_*/
+
+# ── Beágyazott, külön (privát) teszt-repo ────────────────────────────────────
+# A reader/tests/ nem része ennek a repónak: saját .git-tel klónolva
+# (gaiagent0/auris-tests), ide a working tree-be csak beágyazva lakik.
+reader/tests/
