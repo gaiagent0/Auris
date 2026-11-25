@@ -42,6 +42,7 @@ num2words>=0.5.13        # integer → spoken form for non-EN/ZH (and TN fallbac
 
 # ── Reader app ────────────────────────────────────────────────────────────────
 flask>=3.0
+yt-dlp>=2025.1          # YouTube-forrás letöltése a szinkronstúdióhoz
 ebooklib>=0.18
 pymupdf>=1.24            # PDF text extraction and page rendering
 pillow>=10              # Cover art and optional image/TIFF OCR preparation

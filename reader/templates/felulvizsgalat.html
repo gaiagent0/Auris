@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}Ellenőrzés — Auris{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/css/review.css">{% endblock %}
+{% block content %}
+<main class="review-page">
+  <header class="review-header">
+    <div class="review-heading">
+      <p class="review-eyebrow">Emberi ellenőrzés</p>
+      <h1>Ki beszél? — a film és a feliratok egymás mellett</h1>
+      <p class="review-intro">
+        A film mellett fut a felirat, és mindig az a sor van kiemelve, ami
+        éppen elhangzik. Kattints egy sorra (odaugrik), vagy jelölj ki
+        szavakat: az első szóra kattints, az utolsóra <kbd>Shift</kbd>-tel.
+        Utána egy kattintás a szereplő nevére: meghallgatod a kijelölt részt az
+        ő magyar hangján; dupla kattintásra a sor arra a hangra vált. A nevek magyar keresztnevek,
+        hogy a színészeket ne kódokkal kelljen megjegyezni. A megjelölés és az
+        elcsúszás a következő szinkronfutásnál érvényes — a gép döntését a
+        kézi megjelölés felülírja.
+      </p>
+    </div>
+    <div class="review-toolbar">
+      <label class="review-field">Projekt
+        <select id="rev-project" class="select-input"></select>
+      </label>
+      <label class="review-field">Epizód
+        <select id="rev-episode" class="select-input"></select>
+      </label>
+      <label class="review-field">Hang
+        <select id="rev-audio" class="select-input" disabled>
+          <option value="">— nincs betöltött média —</option>
+        </select>
+      </label>
+      <button id="rev-reload" class="btn btn-ghost" type="button">Újratöltés</button>
+    </div>
+  </header>
+
+  <p id="rev-status" class="review-status" role="status" aria-live="polite"></p>
+
+  <section class="review-shell">
+    <div class="review-stage">
+      <div class="review-video-wrap">
+        <video id="rev-video" controls preload="metadata" playsinline></video>
+        <div id="rev-prep" class="review-prep" role="status" aria-live="polite" hidden>
+          <span class="review-prepbar"><span></span></span>
+          <p id="rev-prep-text">A hangsáv előkészítése…</p>
+        </div>
+        <div id="rev-empty" class="review-empty" hidden></div>
+      </div>
+      <audio id="rev-voice" preload="none" hidden></audio>
+
+      <div class="review-transport" role="group" aria-label="Lejátszás">
+        <button id="rev-prev" class="btn btn-sm btn-ghost" type="button"
+                title="Előző sor (↑)">◀ Előző</button>
+        <button id="rev-play" class="btn btn-primary" type="button">▶ Lejátszás</button>
+        <button id="rev-next" class="btn btn-sm btn-ghost" type="button"
+                title="Következő sor (↓)">Következő ▶</button>
+        <button id="rev-back" class="btn btn-sm btn-ghost" type="button"
+                title="Vissza 2 másodpercet (←)">−2 s</button>
+        <button id="rev-fwd" class="btn btn-sm btn-ghost" type="button"
+                title="Előre 2 másodpercet (→)">+2 s</button>
+        <label class="review-check"><input id="rev-follow" type="checkbox" checked>
+          Követi a filmet</label>
+        <span id="rev-time" class="review-time">00:00</span>
+      </div>
+
+      <div id="rev-now" class="review-now" aria-live="polite"></div>
+
+      <div class="review-panel" id="rev-panel">
+        <div class="review-panel-head">
+          <span id="rev-selection" class="review-selection">Nincs kijelölt sor</span>
+          <button id="rev-clear-sel" class="btn btn-sm btn-ghost" type="button" hidden>
+            Kijelölés törlése
+          </button>
+        </div>
+        <p class="review-panel-hint" id="rev-panel-hint">
+          A megjelölés <strong>felülírja a gép döntését a következő
+          szinkronfutásban</strong>: teljes sorra a sort, szókijelölésnél a
+          kijelölt részt (a sor a szavak arányában válik ketté, a többi marad a
+          gép szerinti szereplőnél). Kattints egy sorra, vagy jelölj ki szavakat
+          (első szó, majd <kbd>Shift</kbd> + utolsó szó). A szereplő nevére <strong>egy
+          kattintás</strong>: a kijelölt rész meghallgatása az ő magyar hangján;
+          <strong>dupla kattintás</strong>: áttérés erre a hangra. A nevet
+          a szereplő melletti <strong>✎</strong> gombbal (vagy <kbd>Alt</kbd>+kattintással)
+          írhatod át, és ott választhatod ki a magyar hangját is (13 hang).
+        </p>
+        <div id="rev-people" class="review-people"></div>
+        <div id="rev-person-editor" class="review-person-editor" hidden></div>
+        <div class="review-actions">
+          <button id="rev-offscreen" class="btn btn-sm btn-ghost" type="button"
+                  title="Képen kívüli beszélő (O)">Képen kívül</button>
+          <button id="rev-unknown" class="btn btn-sm btn-ghost" type="button"
+                  title="Nem tudom eldönteni (N)">Nem tudom</button>
+          <button id="rev-clear" class="btn btn-sm btn-ghost" type="button"
+                  title="Megjelölés törlése (0)">Törlés</button>
+          <span class="review-new">
+            <input id="rev-new-name" class="text-input" maxlength="24"
+                   placeholder="Új szereplő neve (pl. Panna)" autocomplete="off">
+            <button id="rev-new-f" class="btn btn-sm btn-ghost" type="button">
+              Nő +</button>
+            <button id="rev-new-m" class="btn btn-sm btn-ghost" type="button">
+              Férfi +</button>
+          </span>
+        </div>
+        <div class="review-offset">
+          <span class="review-offset-label">Elcsúszás</span>
+          <button class="btn btn-sm btn-ghost" data-off="-0.5" type="button">−0,5</button>
+          <button class="btn btn-sm btn-ghost" data-off="-0.2" type="button">−0,2</button>
+          <button class="btn btn-sm btn-ghost" data-off="-0.1" type="button">−0,1</button>
+          <input id="rev-offset" class="text-input review-offset-input" type="number"
+                 step="0.05" min="-10" max="10" value="0" aria-label="Elcsúszás másodpercben">
+          <button class="btn btn-sm btn-ghost" data-off="0.1" type="button">+0,1</button>
+          <button class="btn btn-sm btn-ghost" data-off="0.2" type="button">+0,2</button>
+          <button class="btn btn-sm btn-ghost" data-off="0.5" type="button">+0,5</button>
+          <button id="rev-offset-save" class="btn btn-sm btn-primary" type="button">
+            Mentés</button>
+          <button id="rev-offset-reset" class="btn btn-sm btn-ghost" type="button">
+            Nulla</button>
+          <span id="rev-offset-info" class="review-offset-info"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="review-list-wrap">
+      <div class="review-list-head">
+        <span id="rev-counts" class="review-counts"></span>
+        <button id="rev-next-pending" class="btn btn-sm btn-ghost" type="button"
+                title="A következő sor, ahol még nincs szereplő megjelölve (J)">
+          Következő döntés (J)</button>
+        <label class="review-check">
+          <input id="rev-filter" type="checkbox"> Csak a döntésre váró sorok
+        </label>
+      </div>
+      <ol id="rev-lines" class="review-lines" aria-label="Feliratok"></ol>
+    </div>
+  </section>
+</main>
+{% endblock %}
+{% block scripts %}
+<script src="/static/js/felulvizsgalat.js"></script>
+{% endblock %}

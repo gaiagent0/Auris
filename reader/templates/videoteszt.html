@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% block title %}Videó teszt — Auris{% endblock %}
+{% block head %}
+<style>
+  .vt-page { max-width: 1100px; margin: 0 auto; padding: 24px 16px 64px; }
+  .vt-page h1 { margin: 0 0 6px; font-size: 1.4rem; }
+  .vt-lead { margin: 0 0 18px; color: var(--text2); font-size: .9rem; line-height: 1.6; }
+  .vt-box { border: 1px solid var(--border); border-radius: 10px; background: #000; overflow: hidden; }
+  .vt-box video { display: block; width: 100%; max-height: 70vh; background: #000; }
+  .vt-panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; margin-top: 16px; }
+  .vt-panel {
+    display: flex; flex-direction: column; gap: 10px; padding: 14px;
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 10px;
+    font-size: .85rem; color: var(--text2);
+  }
+  .vt-panel h2 { margin: 0; font-size: .95rem; color: var(--text); }
+  .vt-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .vt-panel input[type="file"] { font-size: .8rem; }
+  .vt-panel input[type="text"], .vt-panel select { padding: 5px 8px; font-size: .8rem; }
+  .vt-panel button {
+    padding: 6px 12px; font: inherit; font-size: .8rem; cursor: pointer;
+    color: var(--text); background: var(--bg3); border: 1px solid var(--border); border-radius: 8px;
+  }
+  .vt-panel button.is-primary { background: var(--accent); border-color: var(--accent); color: #08131f; font-weight: 600; }
+  .vt-diag { margin: 0; padding: 10px; max-height: 260px; overflow: auto; white-space: pre-wrap;
+             font-family: var(--mono-font); font-size: .75rem; background: var(--bg3);
+             border: 1px solid var(--border); border-radius: 8px; color: var(--text2); }
+  .vt-ok { color: var(--color-success); }
+  .vt-bad { color: var(--color-danger); }
+</style>
+{% endblock %}
+{% block content %}
+<main class="vt-page">
+  <h1>Videó teszt — csak lejátszó</h1>
+  <p class="vt-lead">
+    Ez az oldal semmit nem tesz hozzá a filmhez: csak egy sima
+    <code>&lt;video controls&gt;</code> elemet tartalmaz. Így elválasztható, hogy a
+    hiba a fájlban (kodek), a böngészőben vagy a beágyazásban van.
+  </p>
+
+  <div class="vt-box">
+    <video id="vt-video" controls playsinline preload="auto"></video>
+  </div>
+
+  <div class="vt-panels">
+    <section class="vt-panel">
+      <h2>1. Helyi fájl</h2>
+      <p style="margin:0">Válassz ki egy videót a gépről — nem töltődik fel sehova.</p>
+      <div class="vt-row">
+        <input id="vt-file" type="file" accept="video/*,.mkv,.mp4,.m4v,.webm,.mov">
+      </div>
+    </section>
+
+    <section class="vt-panel">
+      <h2>2. Szerveroldali lejátszó-proxy</h2>
+      <div class="vt-row">
+        <label>Projekt <input id="vt-project" type="text" value="biohackers" size="12"></label>
+        <label>Epizód <input id="vt-episode" type="text" value="E04" size="5"></label>
+      </div>
+      <div class="vt-row">
+        <label>Hang <select id="vt-audio"><option value="">— töltsd be a sávokat —</option></select></label>
+        <button id="vt-manifest" type="button">Sávok betöltése</button>
+        <button id="vt-load" class="is-primary" type="button">Lejátszás</button>
+      </div>
+    </section>
+
+    <section class="vt-panel">
+      <h2>3. Diagnosztika</h2>
+      <div class="vt-row">
+        <button id="vt-refresh" type="button">Állapot frissítése</button>
+        <button id="vt-ct" type="button">canPlayType teszt</button>
+      </div>
+      <pre id="vt-diag" class="vt-diag">—</pre>
+    </section>
+  </div>
+</main>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  const video = $('vt-video');
+  const diag = $('vt-diag');
+
+  const ERRORS = {
+    1: 'MEDIA_ERR_ABORTED – a betöltés megszakadt',
+    2: 'MEDIA_ERR_NETWORK – hálózati hiba',
+    3: 'MEDIA_ERR_DECODE – a böngésző nem tudja dekódolni',
+    4: 'MEDIA_ERR_SRC_NOT_SUPPORTED – ismeretlen formátum/kodek',
+  };
+
+  function report(extra) {
+    const q = video.getVideoPlaybackQuality ? video.getVideoPlaybackQuality() : {};
+    const lines = [
+      'src: ' + (video.currentSrc || video.src || '(nincs)'),
+      'kész: ' + video.readyState + ' / hálózat: ' + video.networkState,
+      'méret: ' + video.videoWidth + '×' + video.videoHeight,
+      'idő: ' + video.currentTime.toFixed(2) + ' / ' + (video.duration || 0).toFixed(2),
+      'szünetel: ' + video.paused,
+      'dekódolt képkocka: ' + (q.totalVideoFrames === undefined ? '?' : q.totalVideoFrames) +
+        ' · kimaradt: ' + (q.droppedVideoFrames === undefined ? '?' : q.droppedVideoFrames),
+      'hiba: ' + (video.error ? (ERRORS[video.error.code] || video.error.code) +
+        ' — ' + (video.error.message || '') : 'nincs'),
+    ];
+    if (extra) lines.push(extra);
+    diag.textContent = lines.join('\n');
+  }
+  window.vtReport = report;
+
+  ['loadedmetadata', 'canplay', 'playing', 'error', 'stalled', 'waiting', 'resize']
+    .forEach((ev) => video.addEventListener(ev, () => report('esemény: ' + ev)));
+
+  $('vt-refresh').addEventListener('click', () => report());
+
+  $('vt-ct').addEventListener('click', () => {
+    const probe = [
+      ['h264 baseline', 'video/mp4; codecs="avc1.42E01E"'],
+      ['h264 main', 'video/mp4; codecs="avc1.4D401E"'],
+      ['h264 high', 'video/mp4; codecs="avc1.640028"'],
+      ['h264 high 10', 'video/mp4; codecs="avc1.6E0028"'],
+      ['hevc', 'video/mp4; codecs="hvc1.1.6.L93.B0"'],
+      ['vp9', 'video/webm; codecs="vp9"'],
+      ['av1', 'video/mp4; codecs="av01.0.05M.08"'],
+      ['matroska', 'video/x-matroska'],
+    ];
+    diag.textContent = probe.map(([name, type]) => {
+      const ok = video.canPlayType(type);
+      return name.padEnd(16) + ' → ' + (ok ? ok : 'nem támogatott');
+    }).join('\n');
+  });
+
+  $('vt-file').addEventListener('change', (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    if (video.dataset.objectUrl) URL.revokeObjectURL(video.dataset.objectUrl);
+    const url = URL.createObjectURL(file);
+    video.dataset.objectUrl = url;
+    video.src = url;
+    video.load();
+    report('helyi fájl: ' + file.name + ' (' + (file.size / 1048576).toFixed(1) + ' MB)');
+  });
+
+  async function api(url) {
+    const res = await fetch(url, { headers: { Accept: 'application/json' } });
+    if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
+    return res.json();
+  }
+
+  $('vt-manifest').addEventListener('click', async () => {
+    const q = new URLSearchParams({ project: $('vt-project').value, episode: $('vt-episode').value });
+    try {
+      const info = await api('/api/dub/player?' + q);
+      $('vt-audio').innerHTML = (info.audio || []).map((a) =>
+        '<option value="' + a.id + '">' + a.label + (a.cached ? ' (kész)' : '') + '</option>').join('');
+      const v = info.video || {};
+      report('manifest: ' + v.codec + ' ' + (v.profile || '') + ' ' + (v.pix_fmt || '') +
+        ' ' + v.width + '×' + v.height + (v.hdr ? ' HDR' : '') +
+        ' · másolható: ' + (v.copy ? 'igen' : 'nem (újrakódolás)'));
+    } catch (err) {
+      report('manifest hiba: ' + err.message);
+    }
+  });
+
+  $('vt-load').addEventListener('click', () => {
+    const audio = $('vt-audio').value;
+    if (!audio) { report('előbb töltsd be a sávokat'); return; }
+    const q = new URLSearchParams({
+      project: $('vt-project').value, episode: $('vt-episode').value, audio,
+    });
+    video.src = '/api/dub/player/media?' + q;
+    video.load();
+    video.play().catch(() => {});
+    report('szerver-proxy betöltve: ' + q.toString());
+  });
+})();
+</script>
+{% endblock %}

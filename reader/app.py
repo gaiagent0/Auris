@@ -2741,6 +2741,8 @@ from core.engine_api import bp as engine_blueprint
 from core.export_api import bp as export_blueprint
 from core.voices_api import bp as voices_blueprint
 from core.reading_api import bp as reading_blueprint
+from core.dub_api import bp as dub_blueprint
+from core.lines_api import bp as lines_blueprint
 app.register_blueprint(experience_blueprint)
 app.register_blueprint(settings_blueprint)
 app.register_blueprint(engine_blueprint)
@@ -2753,6 +2755,8 @@ app.register_blueprint(production_blueprint)
 app.register_blueprint(openai_blueprint)
 app.register_blueprint(qa_blueprint)
 app.register_blueprint(assist_blueprint)
+app.register_blueprint(dub_blueprint)
+app.register_blueprint(lines_blueprint)
 
 if __name__ == '__main__':
     with app.app_context():

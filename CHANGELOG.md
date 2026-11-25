@@ -16,6 +16,13 @@ represent a new product generation or an incompatible change.
 
 #### Hozzáadva
 
+- **Szinkronstúdió a webes felületen** — a `Szinkron` (`/szinkron`) és az
+  `Ellenőrzés` (`/felulvizsgalat`) oldal a `dubstudio` projektjeit teszi
+  elérhetővé: epizódkönyvtár, intake (feliratfordítás + énekbeszéd/M&E
+  leválasztás), klaszterezés, szinkronfutás és muxolt MKV, valamint film
+  melletti, soronkénti beszélő-ellenőrzés, amely a döntéseket a következő
+  futásba írja vissza. Az Auris ezzel **hangoskönyv- és szinkronstúdió**; a
+  márkafelirat, a PWA-név, a súgó és a README is ezt a két felületet írja le.
 - **Letöltőszkript a XTTSv2-ONNX klónmodellhez** (`scripts/download_xtts.py`) —
   a gated, CC BY-NC 4.0 licencű `pltobing/XTTSv2-Streaming-ONNX` modellt tölti
   a repó `vendor/` mappájába, a motor által kért fájlokat ellenőrzi
@@ -115,6 +122,12 @@ represent a new product generation or an incompatible change.
 
 #### Added
 
+- **Sync studio in the web interface** — the `Szinkron` (`/szinkron`) and
+  `Ellenőrzés` (`/felulvizsgalat`) pages expose `dubstudio` projects: episode
+  library, intake (subtitle translation and vocal/M&E separation), clustering,
+  dub run and muxed MKV, plus a human per-line speaker review next to the film
+  that feeds the next run. Auris is therefore an **audiobook and dubbing
+  studio**; the brand line, PWA name, help page and README describe both.
 - **A downloader script for the XTTSv2-ONNX cloning model**
   (`scripts/download_xtts.py`) — fetches the gated, CC BY-NC 4.0
   `pltobing/XTTSv2-Streaming-ONNX` model into the repository's `vendor/`

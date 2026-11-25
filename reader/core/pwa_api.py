@@ -13,7 +13,7 @@ _STATIC = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 @bp.route("/manifest.webmanifest")
 def manifest():
     response = jsonify({
-        "name": "Auris – magyar hangoskönyvek",
+        "name": "Auris – hangoskönyv és szinkronfilm",
         "short_name": "Auris",
         "lang": "hu",
         "start_url": "/",
@@ -21,7 +21,7 @@ def manifest():
         "display": "standalone",
         "background_color": "#1c1a18",
         "theme_color": "#1c1a18",
-        "description": "Helyi hangoskönyv-olvasó és -készítő magyar beszédmotorokkal.",
+        "description": "Helyi hangoskönyv- és szinkronstúdió magyar beszédmotorokkal.",
         "icons": [
             {"src": "/static/icon-192.png", "sizes": "192x192", "type": "image/png"},
             {"src": "/static/icon-512.png", "sizes": "512x512", "type": "image/png",

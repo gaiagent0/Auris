@@ -1,4 +1,4 @@
-# Auris — Teljes használati útmutató (Web UI + CLI)
+# Auris — Teljes használati útmutató (hangoskönyv és szinkronfilm)
 
 > Snapdragon X Elite / Windows 11 ARM64 natív build. Frissítve: 2026-10-06.
 > Ez az útmutató a `reader/app.py` útjaielk és az `auris_cli.py` `--help`-ekből
@@ -20,7 +20,10 @@ reader\run.bat         :: induló — a TTS modell hátérterülben betölt, az 
 > a batch fájlokat. Ilyenkor a telepítőt teljes úttal futtasd
 > (`reader\setup.bat` a repo gyökeréből), vagy a változó értékét állítsd 0-ra.
 
-- Web UI: **http://127.0.0.1:7860**
+- Web UI: **http://127.0.0.1:7860** — könyvtár és hangoskönyv-készítés
+- Szinkronstúdió: **http://127.0.0.1:7860/szinkron** (film/sorozat) és
+  **http://127.0.0.1:7860/felulvizsgalat** (soronkénti emberi ellenőrzés); a
+  `dubstudio` munkafájljait használja (lásd a Súgó *Szinkronstúdió* szakaszát)
 - CLI: `reader\.venv\Scripts\python.exe reader\auris_cli.py ...`
 - A modell a `reader\models\supertonic-3\`-ba van (fp32) — induláskor hátérterülben betölt, a lap ablaktív, amíg fut.
 

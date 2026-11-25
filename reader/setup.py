@@ -54,7 +54,7 @@ def banner():
         f"""
 {BD}+------------------------------------------+{W}
 {BD}|         Auris Setup Installer            |{W}
-{BD}|   Snapdragon X Elite audiobook stack     |{W}
+{BD}|   Audiobook and dubbing stack (ARM64)    |{W}
 {BD}+------------------------------------------+{W}
 """
     )

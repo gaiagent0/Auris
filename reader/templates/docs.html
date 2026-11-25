@@ -9,6 +9,7 @@
         <a href="#overview" class="active">Áttekintés</a>
         <a href="#windows-desktop">Windows ARM64 alkalmazás</a>
         <a href="#auris">Auris funkciók</a>
+        <a href="#szinkron">Szinkronstúdió</a>
         <a href="#workflow">Munkafolyamat</a>
         <a href="#production">Produkció és felület</a>
         <a href="#speaker-review">Szereplők ellenőrzése</a>
@@ -46,7 +47,7 @@
       <div>
         <h1>Auris dokumentáció</h1>
         <p>
-          Helyi könyvolvasás, többszereplős felolvasás és audiobook-export
+          Hangoskönyv-készítés (könyvolvasás, többszereplős felolvasás, audiobook-export) és filmszinkron-stúdió
           négy választható beszédmotorral — mindegyik ONNX-en, CPU-n fut,
           videokártya nélkül. Ez az oldal a jelenleg
           implementált Auris-funkciókat és a motorok eltéréseit írja le.
@@ -175,6 +176,53 @@
             a támogató böngészők médiagombjait kezeli, de nem ígér minden mobilon
             folyamatos háttérlejátszást. A mobil olvasó csukott tartalomjegyzékkel,
             nagyobb vezérlőkkel és billentyűzetes/Esc fókuszkezeléssel indul.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="docs-section docs-section-tinted" id="szinkron">
+      <div class="docs-section-heading">
+        <span class="docs-section-index">DUB</span>
+        <div>
+          <h2>Szinkronstúdió — film és sorozat</h2>
+          <p>Angol (vagy héber) forrás → magyar szinkron, az epizódkönyvtártól a muxolt MKV-ig, emberi ellenőrzéssel.</p>
+        </div>
+      </div>
+      <div class="docs-two-column">
+        <div>
+          <h3>Szinkron oldal</h3>
+          <ul class="docs-check-list">
+            <li><strong>Projekt- és epizódkönyvtár</strong> <code>SxxExx</code> vagy <code>E12</code> felismeréssel: melyik rész kész, melyik vár anyagra.</li>
+            <li>Új epizód vagy film hozzáadása mappából, fájlból, illetve médiaszerver-mappából (a kiválasztott film a laptopra másolódik).</li>
+            <li><strong>Hiányzó anyagok pótlása</strong>: a magyar felirat fordítása helyi LLM-mel, az énekbeszéd és a zenei-effekt (M&amp;E) leválasztása <code>audio-separator</code> modellel.</li>
+            <li>Külső <strong>SRT/VTT</strong> feltöltés: angol/héber forrás fordítása, vagy kész magyar szöveg használata fordítás nélkül; YouTube URL-ből letöltés + szinkron.</li>
+            <li>Lépések: intake → prepare → cluster → dub → mux; a kész muxolt MKV a projekt <code>out/</code> mappájában.</li>
+            <li>A kész szinkron visszamásolható az eredeti fájl helyére a médiaszerveren; az első cseréről <code>.bak</code> készül.</li>
+            <li>Beépített lejátszó: forrás vagy magyar hangsáv, feliratok, lenyitható kézi korrekciós panel.</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Ellenőrzés oldal</h3>
+          <ul class="docs-check-list">
+            <li>A film és a felirat egymás mellett fut, az éppen elhangzó sor kiemelve; a sorra kattintva a lejátszó odaugrik.</li>
+            <li>Soronkénti beszélő-megjelölés magyar keresztnevekkel (nem kódokkal), szóhatár-jelöléssel (<kbd>Shift</kbd> + utolsó szó).</li>
+            <li>Egy kattintás a névre: a kijelölt rész meghallgatása az adott szereplő magyar hangján; dupla kattintás: a sor arra a hangra vált.</li>
+            <li>A döntés a <code>work/&lt;EP&gt;/review/lines.json</code>-ba íródik, és a következő szinkronfutásban felülírja a gép döntését.</li>
+            <li>A képi beszélő-ellenőrzés (ASD) bizonyítékként jelenik meg a riportban, nem kapuként.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="docs-callout">
+        <span class="docs-callout-icon" aria-hidden="true">i</span>
+        <div>
+          <strong>A szinkronstúdió a dubstudio munkafájljait használja.</strong>
+          <p>
+            Az Auris a mellette lévő <code>dubstudio</code> projektet keresi; más
+            helyen a <code>DUBSTUDIO_ROOT</code> környezeti változóval add meg. A
+            szinkronláncot a <code>dubstudio</code> CLI futtatja, az Auris a
+            felületet, a lejátszót és az emberi döntések rögzítését adja hozzá —
+            kézi megjelölés nélkül a gép döntése érvényesül.
           </p>
         </div>
       </div>
@@ -1353,7 +1401,7 @@ ffprobe -version</code></pre>
     </section>
 
     <footer class="docs-footer">
-      <span>Auris · helyi, többmotoros magyar hangoskönyv-készítés</span>
+      <span>Auris · helyi, többmotoros magyar hangoskönyv- és szinkronkészítés</span>
       <a href="#overview">Vissza az elejére ↑</a>
     </footer>
   </main>

@@ -26,9 +26,11 @@
 <body>
 <a class="skip-link" href="#main-content">Ugrás a tartalomra</a>
 <nav class="topnav" aria-label="Fő navigáció">
-  <a class="brand" href="/">Auris<span class="brand-sub">hangoskönyv</span></a>
+  <a class="brand" href="/">Auris<span class="brand-sub">hangoskönyv és szinkron</span></a>
   <span class="nav-links">
     <a href="/" id="nav-library"{% if request.path == '/' %} class="active"{% endif %}>Könyvtár</a>
+    <a href="/szinkron" id="nav-szinkron"{% if request.path == '/szinkron' %} class="active"{% endif %}>Szinkron</a>
+    <a href="/felulvizsgalat" id="nav-review"{% if request.path == '/felulvizsgalat' %} class="active"{% endif %}>Ellenőrzés</a>
     <a href="/jobs"{% if request.path == '/jobs' %} class="active"{% endif %}>Feladatok</a>
     <a href="/settings" id="nav-settings"{% if request.path == '/settings' %} class="active"{% endif %}>Beállítások</a>
     <a href="/docs" id="nav-docs"{% if request.path == '/docs' %} class="active"{% endif %}>Súgó</a>

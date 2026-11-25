@@ -1,0 +1,457 @@
+{% extends "base.html" %}
+{% block title %}Szinkron stúdió — Auris{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/css/szinkron.css">{% endblock %}
+{% block content %}
+<main class="sync-page">
+  <header class="sync-header">
+    <div>
+      <p class="sync-eyebrow">Szinkron stúdió</p>
+      <h1>Angol film és sorozat → magyar szinkron</h1>
+      <p class="sync-intro">
+        Válaszd ki a projektet, és a könyvtárban látod, melyik epizód kész,
+        melyik vár anyagra. Egy új epizódot a mappa vagy a fájl útvonalával
+        adhatsz hozzá; a kész részeket egy gombbal szinkronizálhatod. A
+        hiányzó feliratot SRT/VTT fájlból is feltöltheted, YouTube URL-ből
+        pedig letöltés + szinkron is indítható. A
+        lejátszóban a forrás és a magyar hang, valamint a feliratok között
+        válthatsz, a kézi korrekció pedig külön, lenyitható panelen van.
+      </p>
+    </div>
+    <div class="sync-badges" id="sync-badges"></div>
+  </header>
+
+  <section class="sync-steps-wrap" aria-label="Folyamat lépései">
+    <div id="sync-steps" class="sync-stepper"></div>
+  </section>
+
+  <section class="sync-section" id="panel-library" aria-label="Sorozat- és filmkönyvtár">
+    <div class="sync-section-head">
+      <h2>1. Könyvtár</h2>
+      <span class="sync-configinfo" id="library-mode"></span>
+    </div>
+    <p class="sync-hint">
+      A sorozatnál az <strong>SxxExx</strong> (vagy <strong>E12</strong>) alapján
+      ismeri fel az epizódokat. Egy új részhez elég a médiafájl: a hiányzó
+      magyar feliratot és a leválasztott énekbeszédet/M&E-t a
+      <strong>Hiányzó anyagok pótlása</strong> gomb (vagy bekapcsolt figyelés
+      esetén a háttér) készíti el. A fordítás helyi LLM-mel, a hangszétválasztás
+      az <code>audio-separator</code> UVR/MDX modellel fut.
+    </p>
+    <div class="sync-library-top">
+      <label class="sync-field">Projekt
+        <select id="sync-project" class="select-input"></select>
+      </label>
+      <span id="library-counts" class="sync-configinfo"></span>
+    </div>
+    <div id="library-list" class="sync-library" role="list"></div>
+    <div class="sync-loadbox sync-library-add">
+      <label class="sync-field sync-loadpath">Mappa vagy új epizód/film
+        <input id="library-path" class="text-input"
+               placeholder="C:\Videók\Show S05E06.mkv vagy C:\Videók\Show"
+               spellcheck="false" autocomplete="off">
+      </label>
+      <button id="library-scan" class="btn btn-ghost" type="button">Keresés</button>
+      <button id="library-pick" class="btn btn-ghost" type="button"
+              title="Videófájl kiválasztása a gépről">Fájl…</button>
+      <button id="library-pick-dir" class="btn btn-ghost" type="button"
+              title="Mappa kiválasztása a gépről">Mappa…</button>
+      <button id="library-add" class="btn btn-primary" type="button">Hozzáadás</button>
+    </div>
+    <p id="library-add-result" class="sync-loadresult" role="status" aria-live="polite"></p>
+    <details class="sync-moviebox" id="panel-mediaserver">
+      <summary>Médiaszerver — film kiválasztása és a kész szinkron visszamásolása</summary>
+      <p class="sync-hint">
+        Add meg a médiaszerver mappáját (hálózati útvonal vagy meghajtó). A
+        kiválasztott film <strong>a laptopra másolódik</strong>, a projekt saját
+        <code>data/</code> mappájába. Ha bekapcsolod a visszamásolást, a kész
+        magyar szinkron (a muxolt MKV) a szinkronfutás után
+        <strong>lecseréli az eredeti fájlt</strong> a szerveren; az első
+        cseréről <code>.bak</code> biztonsági másolat készül.
+      </p>
+      <div class="sync-loadbox">
+        <label class="sync-field sync-loadpath">Médiaszerver mappa
+          <input id="media-root" class="text-input"
+                 placeholder="\\\\NAS\\Media vagy Z:\\Filmek"
+                 spellcheck="false" autocomplete="off">
+        </label>
+        <button id="media-root-pick" class="btn btn-ghost" type="button">Mappa…</button>
+        <button id="media-root-save" class="btn btn-primary" type="button">Mentés</button>
+      </div>
+      <div class="sync-watchrow">
+        <label class="sync-check"><input id="media-deliver" type="checkbox">
+          A kész szinkront másolja vissza az eredeti fájl helyére</label>
+        <span id="media-status" class="sync-configinfo"></span>
+      </div>
+      <div class="sync-loadbox">
+        <label class="sync-field sync-loadpath">Mappa a médiaszerveren
+          <input id="media-subpath" class="text-input" spellcheck="false"
+                 autocomplete="off" placeholder="(a beállított gyökér)">
+        </label>
+        <button id="media-list" class="btn btn-ghost" type="button">Listázás</button>
+        <button id="media-up" class="btn btn-ghost" type="button" hidden>↑ Egy szinttel fel</button>
+        <button id="media-deliver-now" class="btn btn-ghost" type="button">Kész szinkron visszamásolása</button>
+      </div>
+      <div id="media-files" class="sync-library" role="list"></div>
+      <p id="media-result" class="sync-loadresult" role="status" aria-live="polite"></p>
+    </details>
+    <details class="sync-moviebox" id="panel-subtitle">
+      <summary>Felirat feltöltése — külső SRT vagy VTT</summary>
+      <p class="sync-hint">
+        Ha a médiában nincs fordítható felirat, tölts fel külön fájlt. Az
+        <strong>angol</strong> vagy <strong>héber</strong> felirat lesz a
+        fordítás forrása; a <strong>magyar</strong> feliratot a program kész
+        szinkronszövegként használja, fordítás nélkül. A feltöltés után az
+        intake és a szinkron automatikusan elindítható.
+      </p>
+      <div class="sync-loadbox">
+        <label class="sync-field sync-loadpath">Feliratfájl
+          <input id="subtitle-file" class="text-input" type="file"
+                 accept=".srt,.vtt,text/plain,text/vtt" required>
+        </label>
+        <label class="sync-field sync-field-sm">Epizód
+          <input id="subtitle-episode" class="select-input" placeholder="E04"
+                 spellcheck="false" autocomplete="off">
+        </label>
+        <label class="sync-field sync-field-sm">Nyelv
+          <select id="subtitle-lang" class="select-input">
+            <option value="eng" selected>forrás — angol</option>
+            <option value="heb">forrás — héber</option>
+            <option value="hun">kész magyar</option>
+          </select>
+        </label>
+        <button id="subtitle-upload" class="btn btn-primary" type="button">Feltöltés</button>
+      </div>
+      <div class="sync-watchrow">
+        <label class="sync-check"><input id="subtitle-replace" type="checkbox"> Meglévő felirat cseréje</label>
+        <label class="sync-check"><input id="subtitle-thenrun" type="checkbox" checked> Feltöltés után intake + szinkron</label>
+      </div>
+      <p id="subtitle-result" class="sync-loadresult" role="status" aria-live="polite"></p>
+    </details>
+    <details class="sync-moviebox">
+      <summary>Új filmprojekt — egyetlen fájlból</summary>
+      <p class="sync-hint">
+        A filmhez nem kell évadot építeni: a varázsló létrehozza a projektet,
+        a fájlt a saját <code>data/</code> mappájába teszi, lefuttatja az
+        intake-et (felirat + hang), majd elindítja az első szinkront. A
+        beállításokat a fenti kiválasztott projektből örökli.
+      </p>
+      <div class="sync-loadbox">
+        <button id="movie-pick" class="btn btn-ghost" type="button"
+                title="Filmfájl kiválasztása a gépről">Fájl…</button>
+        <label class="sync-field">Film címe
+          <input id="movie-name" class="text-input" placeholder="pl. Az utolsó párbaj"
+                 maxlength="80" autocomplete="off">
+        </label>
+        <label class="sync-field sync-loadpath">Filmfájl
+          <input id="movie-path" class="text-input"
+                 placeholder="C:\Videók\film.mkv" spellcheck="false" autocomplete="off">
+        </label>
+        <label class="sync-field sync-field-sm">Forrás nyelve
+          <select id="movie-source-lang" class="select-input">
+            <option value="heb" selected>héber</option>
+            <option value="eng">angol</option>
+          </select>
+        </label>
+        <button id="movie-create" class="btn btn-primary" type="button">Film létrehozása</button>
+      </div>
+      <p class="sync-hint">
+        A forrásnyelv a felirat fordításához kell; a film első hangsávját
+        választja szét a program. Ha a filmben más a beszéd nyelve, a
+        projekt mentése után a Beállításokban átállítható.
+      </p>
+      <p id="movie-result" class="sync-loadresult" role="status" aria-live="polite"></p>
+    </details>
+    <details class="sync-moviebox" id="panel-youtube">
+      <summary>YouTube videó — URL-ből letöltés és szinkron</summary>
+      <p class="sync-hint">
+        A program a megadott nyilvános YouTube URL-ről letölti a legfeljebb
+        1080p-s videót és az angol (kézi vagy automatikus) feliratát, majd
+        elindítja az intake-et és az első szinkront. Felirat nélküli videóhoz
+        előbb tölts fel külön SRT-t a fenti feltöltővel.
+      </p>
+      <div class="sync-loadbox">
+        <label class="sync-field sync-loadpath">YouTube URL
+          <input id="youtube-url" class="text-input" type="url"
+                 placeholder="https://www.youtube.com/watch?v=..."
+                 spellcheck="false" autocomplete="off">
+        </label>
+        <label class="sync-field">Cím (opcionális)
+          <input id="youtube-name" class="text-input" placeholder="pl. Rövid dokumentumfilm"
+                 maxlength="80" autocomplete="off">
+        </label>
+        <label class="sync-field sync-field-sm">Forrás nyelve
+          <select id="youtube-source-lang" class="select-input">
+            <option value="eng" selected>angol</option>
+            <option value="heb">héber</option>
+          </select>
+        </label>
+        <button id="youtube-start" class="btn btn-primary" type="button">Letöltés + szinkron</button>
+      </div>
+      <p id="youtube-result" class="sync-loadresult" role="status" aria-live="polite"></p>
+    </details>
+    <div class="sync-watchrow">
+      <label class="sync-check">
+        <input id="watch-toggle" type="checkbox">
+        Új részek automatikus feldolgozása
+      </label>
+      <label class="sync-field sync-field-sm">Ellenőrzés
+        <select id="watch-poll" class="select-input">
+          <option value="15">15 mp</option>
+          <option value="30" selected>30 mp</option>
+          <option value="60">1 perc</option>
+          <option value="300">5 perc</option>
+        </select>
+      </label>
+      <button id="watch-save" class="btn btn-sm btn-ghost" type="button">Figyelés mentése</button>
+      <span id="watch-info" class="sync-configinfo"></span>
+    </div>
+    <div class="sync-runbar">
+      <button id="library-intake" class="btn btn-ghost" type="button">
+        Hiányzó anyagok pótlása
+      </button>
+      <button id="library-process" class="btn btn-primary" type="button">
+        Kész részek szinkronizálása
+      </button>
+      <span class="sync-configinfo">Az intake a média megjelenése után fordít és választ szét; utána indul a szinkron.</span>
+    </div>
+  </section>
+
+  <section class="sync-section" id="panel-player" aria-label="Beépített lejátszó">
+    <div class="sync-section-head">
+      <h2>2. Lejátszó</h2>
+      <span class="sync-configinfo" id="player-status">nincs betöltött epizód</span>
+    </div>
+    <p class="sync-hint">
+      A lejátszó a kiválasztott hangsávból készít egy böngészőbarát MP4 proxyt.
+      A <strong>forrás</strong> és a <strong>kész magyar szinkron</strong> külön
+      hangsáv; a feliratok is válthatók. A proxy első betöltése néhány percig
+      tarthat, utána gyorsítótárból indul.
+    </p>
+    <video id="sync-player" class="sync-player" controls preload="metadata" playsinline></video>
+    <div id="player-prep" class="sync-playerprep" role="status" aria-live="polite" hidden>
+      <div class="sync-prepbar"><span></span></div>
+      <p id="player-prep-text">A hangsáv előkészítése…</p>
+    </div>
+    <div class="sync-player-controls">
+      <label class="sync-field">Hangsáv
+        <select id="player-audio" class="select-input" disabled>
+          <option value="">— nincs betöltött média —</option>
+        </select>
+      </label>
+      <label class="sync-field">Felirat
+        <select id="player-subtitle" class="select-input" disabled>
+          <option value="">kikapcsolva</option>
+        </select>
+      </label>
+      <button id="player-dub-sample" class="btn btn-sm btn-primary" type="button"
+              title="A kész magyar szinkronból egy rövid részlet">▶ Magyar minta</button>
+      <button id="player-reload" class="btn btn-sm btn-ghost" type="button">Újratöltés</button>
+    </div>
+  </section>
+
+  <details class="sync-section sync-advanced" id="panel-load">
+    <summary class="sync-advanced-head">Média betöltése a régi útvonalon (film / egy epizód)</summary>
+    <div class="sync-section-head">
+      <h2>Film vagy epizód betöltése</h2>
+      <span class="sync-configinfo">mkv / mp4 / mov</span>
+    </div>
+    <p class="sync-hint">
+      Ez ugyanaz, mint a könyvtárban a <strong>Hozzáadás</strong>; itt külön
+      megadhatod az epizód-azonosítót, ha a fájlnévből nem derül ki.
+    </p>
+    <div class="sync-loadbox">
+      <label class="sync-field sync-loadpath">Fájl útvonala
+        <input id="load-path" class="text-input" placeholder="C:\Videók\Show S05E06.mkv"
+               spellcheck="false" autocomplete="off">
+      </label>
+      <label class="sync-field sync-field-sm">Epizód
+        <input id="load-tag" class="select-input" placeholder="E06"
+               spellcheck="false" autocomplete="off">
+      </label>
+      <button id="load-pick" class="btn btn-ghost" type="button"
+              title="Videófájl kiválasztása a gépről">Fájl…</button>
+      <button id="load-movie" class="btn btn-primary" type="button">Betöltés</button>
+    </div>
+    <p id="load-result" class="sync-loadresult" role="status" aria-live="polite"></p>
+  </details>
+
+  <section class="sync-toolbar" id="panel-prepare" aria-label="Próba beállításai">
+    <label class="sync-field">Epizód
+      <select id="sync-episode" class="select-input"></select>
+    </label>
+    <label class="sync-field">Korábbi próba
+      <select id="sync-audit" class="select-input"></select>
+    </label>
+    <span class="sync-run">
+      <label class="sync-field sync-field-sm">Kezdés (mp)
+        <input id="sync-start" class="select-input" type="number" min="0" step="1" value="30">
+      </label>
+      <label class="sync-field sync-field-sm">Hossz (mp)
+        <input id="sync-duration" class="select-input" type="number" min="2" max="180" step="1" value="60">
+      </label>
+      <label class="sync-field sync-field-sm">Eredeti hang
+        <select id="sync-language" class="select-input">
+          <option value="en" selected>angol</option>
+          <option value="he">héber</option>
+        </select>
+      </label>
+      <button id="sync-audit-run" class="btn btn-primary" type="button">Próba futtatása</button>
+      <button id="sync-timbres" class="btn btn-ghost" type="button"
+              title="A hangok összehasonlításához szükséges mérés — egyszer kell lefuttatni">Hangszín-mérés</button>
+    </span>
+  </section>
+  <p id="sync-status" class="sync-status" role="status" aria-live="polite"></p>
+
+  <section class="sync-stats" id="sync-stats" aria-label="Összesítés"></section>
+
+  <details class="sync-section sync-advanced" id="panel-manual">
+    <summary class="sync-advanced-head">3. Kézi korrekció — beszélők és hangok (haladó)</summary>
+    <p class="sync-hint">
+      Alapból a program kitölti a szereplőket és a hangokat. Itt csak akkor
+      javíts, ha a lejátszóban hallottak alapján más szereplőt vagy hangot
+      szeretnél. A döntésed a következő epizódokra is megmarad.
+    </p>
+
+    <section class="sync-section" id="panel-review" aria-label="Beszélők">
+      <div class="sync-section-head">
+        <h2>Beszélők — ki kicsoda</h2>
+        <div class="sync-tabs" role="group" aria-label="Szűrés">
+          <button class="btn btn-sm btn-ghost is-active" data-filter="all" type="button">Mind</button>
+          <button class="btn btn-sm btn-ghost" data-filter="pending" type="button">Megnézendő</button>
+          <button class="btn btn-sm btn-ghost" data-filter="done" type="button">Kész</button>
+        </div>
+      </div>
+      <p class="sync-hint">
+        Minden kártya egy beszélő. Hallgasd meg a lejátszóban, majd dönts:
+        <strong>Elfogadom</strong>, <strong>Javítás</strong>, vagy
+        <strong>Nincs karaktere</strong>.
+      </p>
+      <div id="sync-speakers" class="sync-speakers"></div>
+    </section>
+
+    <section class="sync-section" id="panel-voices" aria-label="Hangkiosztás">
+      <div class="sync-section-head">
+        <h2>Hangok kiosztása</h2>
+        <span class="sync-configinfo" id="voices-summary"></span>
+      </div>
+      <p class="sync-hint">
+        A program minden szereplőhöz javasol hangot. Hallgasd meg a mintát (▲),
+        majd fogadd el a javaslatot, vagy válassz másikat.
+      </p>
+      <div class="sync-castzone">
+        <div class="sync-castzone-head">
+          <span class="sync-zonelabel">Döntés rád vár</span>
+          <span class="sync-zonecount" id="voices-open-count"></span>
+          <button id="voice-accept-ready" class="btn btn-sm btn-primary" type="button" hidden>
+            Biztos javaslatok elfogadása
+          </button>
+        </div>
+        <div id="voices-open" class="sync-openlist"></div>
+        <div id="voices-assigned" class="sync-openlist sync-assignedlist"></div>
+      </div>
+      <div class="sync-castzone">
+        <div class="sync-castzone-head"><span class="sync-zonelabel">Szereplők</span></div>
+        <div id="voices-main" class="sync-castlist"></div>
+        <div id="voices-side" class="sync-castlist"></div>
+      </div>
+      <div class="sync-castzone">
+        <div class="sync-castzone-head"><span class="sync-zonelabel">Hangkészlet — kattints a meghallgatáshoz</span></div>
+        <div id="voices-pool" class="sync-pool"></div>
+      </div>
+    </section>
+  </details>
+
+  <section class="sync-section sync-runsection" id="panel-run" aria-label="Futtatás">
+    <div class="sync-section-head">
+      <h2>4. Szinkron készítése</h2>
+      <span class="sync-runstate" id="sync-run-state">nincs futó feladat</span>
+    </div>
+    <p class="sync-hint">
+      A <strong>Teljes futás</strong> végigviszi a szinkront a kiválasztott
+      epizódon. Egyszerre egy feladat futhat, a napló alul látszik.
+    </p>
+    <div class="sync-runbar" role="group" aria-label="Fő műveletek">
+      <button id="run-run" class="btn btn-primary" type="button">▶ Teljes futás</button>
+      <button id="run-stop" class="btn btn-ghost" type="button" hidden>Leállítás</button>
+    </div>
+    <details class="sync-advanced">
+      <summary>Haladó — egy lépés külön, vagy speciális opciók</summary>
+      <div class="sync-runbar" role="group" aria-label="Egy lépés indítása">
+        <button id="run-intake" class="btn btn-sm btn-ghost" type="button">Intake (felirat + hang)</button>
+        <button id="run-prepare" class="btn btn-sm btn-ghost" type="button">Előkészítés (szöveg)</button>
+        <button id="run-cluster" class="btn btn-sm btn-ghost" type="button">Szereplők gyűjtése (évad)</button>
+        <button id="run-dub" class="btn btn-sm btn-ghost" type="button">Csak szinkronhang</button>
+        <button id="run-asr" class="btn btn-sm btn-ghost" type="button">Hang ellenőrzése</button>
+      </div>
+      <div class="sync-runopts">
+        <label class="sync-field sync-field-sm">Sor-limit (0 = mind)
+          <input id="run-limit" class="select-input" type="number" min="0" step="1" value="0">
+        </label>
+        <label class="sync-check"><input id="run-nomux" type="checkbox"> MKV mux nélkül</label>
+        <label class="sync-check"><input id="run-allowfail" type="checkbox"> Kapubuktatás esetén is folytasd</label>
+      </div>
+    </details>
+    <details class="sync-advanced" id="sound-panel">
+      <summary>Hang és keverés — ha valami nem szól jól</summary>
+      <p class="sync-hint">
+        Alapból minden automatikus, itt nem kell állítani. Csak akkor nyúlj
+        hozzá, ha a kész filmben halk a magyar szöveg, vagy túl hangos alatta
+        a zene.
+      </p>
+      <div class="sync-soundrow">
+        <label for="sound-duck">Zene halkítása a beszéd alatt</label>
+        <input id="sound-duck" type="range" min="0" max="12" step="0.5" value="4">
+        <span class="sync-num" id="sound-duck-val">4 dB</span>
+      </div>
+      <div class="sync-soundrow">
+        <label for="sound-over">Magyar hang a zene fölött</label>
+        <input id="sound-over" type="range" min="0" max="12" step="0.5" value="4">
+        <span class="sync-num" id="sound-over-val">4 dB</span>
+      </div>
+      <div class="sync-soundrow">
+        <label for="sound-quality">Hangminőség</label>
+        <select id="sound-quality" class="select-input">
+          <option value="auto">Automatikus (ajánlott)</option>
+          <option value="fast">Gyors — gyengébb gépen</option>
+          <option value="balanced">Kiegyensúlyozott</option>
+          <option value="best">Legjobb — lassabb</option>
+        </select>
+        <span class="sync-num" id="sound-steps"></span>
+      </div>
+      <div class="sync-config-actions">
+        <button id="sound-save" class="btn btn-sm btn-primary" type="button">Mentés</button>
+        <button id="sound-reset" class="btn btn-sm btn-ghost" type="button">Vissza automatikusra</button>
+        <span id="sound-info" class="sync-configinfo"></span>
+      </div>
+    </details>
+
+    <pre id="sync-run-log" class="sync-log" aria-label="Futás naplója" tabindex="0"></pre>
+  </section>
+
+  <details class="sync-section sync-advanced sync-setsection" aria-label="Beállítások">
+    <summary class="sync-advanced-head">5. Speciális beállítások — csak ha szükséges</summary>
+    <div class="sync-section-head">
+      <h2>Beállítások</h2>
+      <span class="sync-configinfo" id="sync-config-info"></span>
+    </div>
+    <p class="sync-hint">
+      A program belső beállításai (modellek, küszöbök). Alapból nem kell
+      hozzányúlni; minden mentés biztonsági mentést készít.
+    </p>
+    <div id="sync-config-form" class="sync-config-form"></div>
+    <div class="sync-config-actions">
+      <button id="sync-config-save" class="btn btn-primary" type="button">Beállítások mentése</button>
+      <button id="sync-config-reload" class="btn btn-ghost" type="button">Visszaolvasás</button>
+    </div>
+  </details>
+
+  <details class="sync-section sync-advanced" aria-label="Hogyan dönt a program">
+    <summary class="sync-advanced-head">Hogyan dönt a program?</summary>
+    <footer class="sync-model" id="sync-model" aria-label="Döntési modell"></footer>
+  </details>
+</main>
+<audio id="sync-audio" preload="none"></audio>
+{% endblock %}
+{% block scripts %}
+<script src="/static/js/szinkron.js"></script>
+{% endblock %}

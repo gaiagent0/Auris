@@ -1,10 +1,12 @@
-# Auris
+# Auris — hangoskönyv és szinkronfilm
 
 [![Latest release](https://img.shields.io/github/v/release/gaiagent0/Auris?label=verzi%C3%B3)](https://github.com/gaiagent0/Auris/releases/latest)
 
 Az Auris [eredeti projektjének](https://github.com/nikhilprasanth/Auris) magyar
 nyelvű forkja, **Snapdragon X Elite / Windows 11 ARM64-nál optimalizálva**.
-Magyar felülettel és súgóval, helyben futó hangoskönyv-olvasóval.
+Magyar felülettel és súgóval: helyben futó **hangoskönyv-olvasó és -készítő**,
+valamint **szinkronstúdió** filmhez és sorozathoz. Ugyanaz a magyar
+beszédmotorlánc olvassa fel a könyvet és szólaltatja meg a szinkron szereplőit.
 
 This is the Hungarian-language fork of the [original Auris project](https://github.com/nikhilprasanth/Auris), **optimized and measured for Snapdragon X Elite / Windows 11 ARM64**.
 
@@ -12,14 +14,30 @@ Current version: [`VERSION`](VERSION). See the complete bilingual
 [`CHANGELOG.md`](CHANGELOG.md) and the [`RELEASING.md`](RELEASING.md) guide for
 the versioning and release process.
 
-Local-first audiobook reader for EPUB, PDF, DOCX, TXT, PRC/MOBI, and public web articles with four selectable local
+Local-first **audiobook and dubbing studio**: an EPUB, PDF, DOCX, TXT, PRC/MOBI and public-web-article reader with four selectable local
 speech engines (Supertonic 3, Supertonic 3 sherpa-onnx int8, XTTSv2-ONNX voice cloning and Piper — all ONNX Runtime on the CPU), Hungarian-first text
 processing, character-aware voices, per-book narrator control, and duration-based estimated word highlighting.
 
-Reading, speech generation, playback, and file import run locally after setup,
+The same engine stack drives the **sync studio** for films and series: episode
+library, subtitle translation, vocal/M&E separation, diarization, voice casting,
+dub run and a human per-line speaker review. Reading, speech generation,
+playback, and file import run locally after setup,
 with no hosted TTS dependency. Web-article import requires a network connection.
 Character analysis can use a local OpenAI-compatible server without a key, or
 the optional OpenAI API with a separately billed API key.
+
+## Két felület, egy motorlánc
+
+| Felület | Mit csinál |
+|---|---|
+| **Könyvtár · Olvasó · Produkció** | hangoskönyv: import, szereplőhangok, felolvasás, minőségellenőrzés, export (M4B, EPUB3, Audiobookshelf, kiadói csomag) |
+| **Szinkron** (`/szinkron`) | film és sorozat szinkronlánca a `dubstudio` projektjei fölött: epizódkönyvtár, intake (feliratfordítás + énekbeszéd/M&E leválasztás), klaszterezés, szinkronfutás, muxolt MKV, médiaszerver-visszamásolás |
+| **Ellenőrzés** (`/felulvizsgalat`) | soronkénti, emberi beszélő-ellenőrzés a film és a felirat mellett; a döntés a következő szinkronfutásba íródik |
+
+A szinkronfelület a szomszédos `dubstudio` projektet használja (a
+`DUBSTUDIO_ROOT` környezeti változóval más helyre is állítható): a futást a
+`dubstudio` CLI végzi, az Auris a felületet, a lejátszót és az emberi
+döntések rögzítését adja hozzá.
 
 ## Snapdragon X Elite / Windows 11 ARM64 — optimalizálás és mérés
 
