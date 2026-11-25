@@ -31,6 +31,22 @@ represent a new product generation or an incompatible change.
   `projects\<slug>.json` projektjét hozza létre a gépen talált
   modellútvonalakkal, így egy friss klón a felület varázslója nélkül is
   elindítható.
+- **Egy telepítő a hangoskönyvnek és a szinkronnak** — a `reader\setup.bat`
+  (`reader\setup.py`) mostantól a szinkronlánc közös csomagjait is telepíti
+  (`transformers`, `audio-separator`), létrehozza a dubstudio hiányzó mappáit
+  (`projects`, `work/models`, `movies`, `series`), majd a `scripts/fetch_models.py`-jal
+  letölti a **két modul közös AI-modelljeit**: Supertonic 3 (sherpa-onnx int8),
+  pyannote 3.0 szegmentáló, CAM++ beszélő-embedding, a három Piper hu_HU hang és
+  az UVR/MDX leválasztó. Egy friss klónon így egy parancs után mindkét modul
+  működik; a letöltés `--skip-models`-szel (vagy `AURIS_SKIP_MODELS=1`-gyel)
+  kihagyható, és hibája nem állítja meg a telepítést.
+- **`scripts/fetch_models.py` — a közös AI-modellek letöltője** — idempotens
+  (ami megvan, kimarad), `--check`-kel hálózat nélkül ellenőriz, `--only
+  shared|sync`-kal szűkíthető, `--models-dir`-rel más célmappába tölthet. A
+  modelleket nem teszi a repóba: a szinkroné a `dubstudio\work\models\` alá, a
+  Supertonic a `reader\models\` alá kerül. A `check_dubstudio.py` a közös
+  modellek meglétét is soronként kiírja, és hiány esetén a letöltő parancsot
+  javasolja.
 - **Letöltőszkript a XTTSv2-ONNX klónmodellhez** (`scripts/download_xtts.py`) —
   a gated, CC BY-NC 4.0 licencű `pltobing/XTTSv2-Streaming-ONNX` modellt tölti
   a repó `vendor/` mappájába, a motor által kért fájlokat ellenőrzi
@@ -156,6 +172,22 @@ represent a new product generation or an incompatible change.
   present; `--json` gives machine-readable output and `--init "Name"` writes a
   dubstudio `projects\<slug>.json` with the model paths found on the machine,
   so a fresh clone can start without the interface wizard.
+- **One installer for the audiobook and the sync studio** — `reader\setup.bat`
+  (`reader\setup.py`) now installs the sync chain's shared packages
+  (`transformers`, `audio-separator`), creates the missing dubstudio folders
+  (`projects`, `work/models`, `movies`, `series`), then fetches the **AI models
+  shared by both modules** with `scripts/fetch_models.py`: Supertonic 3
+  (sherpa-onnx int8), pyannote 3.0 segmentation, CAM++ speaker embedding, the
+  three Piper hu_HU voices and the UVR/MDX separator. On a fresh clone both
+  modules work after one command; `--skip-models` (or `AURIS_SKIP_MODELS=1`)
+  omits the download, and a download failure does not abort the setup.
+- **`scripts/fetch_models.py` — shared AI model downloader** — idempotent
+  (skips what is already present), `--check` verifies offline, `--only
+  shared|sync` narrows the set and `--models-dir` selects another destination.
+  Models never enter the repository: sync models go to
+  `dubstudio\work\models\`, Supertonic to `reader\models\`. The
+  `check_dubstudio.py` check now also reports the shared models and suggests
+  the downloader command when one is missing.
 - **A downloader script for the XTTSv2-ONNX cloning model**
   (`scripts/download_xtts.py`) — fetches the gated, CC BY-NC 4.0
   `pltobing/XTTSv2-Streaming-ONNX` model into the repository's `vendor/`

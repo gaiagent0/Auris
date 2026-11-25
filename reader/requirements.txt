@@ -40,6 +40,11 @@ num2words>=0.5.13        # integer → spoken form for non-EN/ZH (and TN fallbac
 #   Note: plain `pip install WeTextProcessing` fails on Windows because pynini
 #   has no MSVC wheels and its GCC flags break the MSVC compiler.
 
+# ── Sync studio (dubstudio) — ugyanaz a venv, közös lánc ──────────────────────
+# A `setup.py` ezeket is telepíti; a szinkron Python-moduljai innen importálnak.
+transformers>=4.45       # nem-osztályozó (a beszélő neme)
+audio-separator>=0.40    # vokál / M&E leválasztás az intakenél (UVR/MDX)
+
 # ── Reader app ────────────────────────────────────────────────────────────────
 flask>=3.0
 yt-dlp>=2025.1          # YouTube-forrás letöltése a szinkronstúdióhoz

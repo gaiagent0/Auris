@@ -11,7 +11,7 @@
 
 ```bat
 cd /d "%USERPROFILE%\Auris"
-reader\setup.bat       :: csak egyszer — venv + függőségek
+reader\setup.bat       :: csak egyszer — venv + minden függőség és AI-modell
 reader\run.bat         :: indítás — a TTS modell háttérben tölt, az app rögtön nyílik
 ```
 
@@ -190,6 +190,7 @@ A **Parakeet ONNX ASR** (`nemo-parakeet-tdt-0.6b-v3`) az
 | Gyorsítótár | `reader/audio_cache/` |
 | Modellek | `reader/models/supertonic-3/` (fp32), `reader/models/supertonic-sherpa-int8/` |
 | Szinkron API | `reader/core/dub_api.py`, `lines_api.py`, `subtitle_upload.py` |
+| Közös AI-modellek | `scripts/fetch_models.py` (`--check` = ellenőrzés) |
 | Szinkron felület | `reader/templates/szinkron.html`, `felulvizsgalat.html` |
 | Doku | `reader/docs/` — **meresek.md** (mérési bizonyítékok), **arm64-install.md** (telepítés) |
 
@@ -206,13 +207,14 @@ Rövid lépések:
 
 1. **dubstudio a repo mellé** (`..\dubstudio`), vagy `DUBSTUDIO_ROOT` a
    gyökerére. A CLI-t az Auris indítja, külön nem kell futtatni.
-2. **Csomagok az Auris venv-jébe** (nincs második venv):
-   `reader\.venv\Scripts\python.exe -m pip install numpy scipy soundfile
-   onnxruntime sherpa-onnx torch transformers audio-separator`
+2. **Csomagok** — a `reader\setup.bat` már feltelepíti a közös venvbe a
+   szinkron csomagjait is (`transformers`, `audio-separator`); utólag:
+   `... -m pip install -r reader\requirements.txt`.
 3. **Programok:** `ffmpeg`, `ffprobe` a PATH-on és `espeak-ng` a Piper-hangokhoz.
-4. **Modellek:** pyannote szegmentáló, CAM++ embedding, Supertonic 3 (sherpa
-   int8), Piper hu_HU hangok, UVR/MDX leválasztó modell. Az útvonalakat a
-   projekt `models` szakasza adja meg.
+4. **Modellek** — a telepítő a `scripts\fetch_models.py`-jal letölti a közös
+   Supertonic 3-at és a szinkron modelleket (pyannote szegmentáló, CAM++
+   embedding, Piper hu_HU hangok, UVR/MDX) a `dubstudio\work\models\` alá.
+   Utólag: `... scripts\fetch_models.py` (`--check` = ellenőrzés).
 5. **Projekt:** `/szinkron` → új film varázsló, vagy
    `... scripts\check_dubstudio.py --init "Film címe" --kind movie`.
 6. **Fordítás:** OpenAI-kompatibilis végpont (alapból helyi Ollama,

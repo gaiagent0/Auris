@@ -88,6 +88,23 @@ TUNING_DEFAULTS = {
 }
 
 
+def shared_models(root: Path) -> list[tuple[str, Path]]:
+    """A két modul közös modelljei a szokásos helyükön (fetch_models.py)."""
+    models = root / "work" / "models"
+    return [
+        ("Supertonic 3 sherpa int8 (hangoskönyv + szinkron)",
+         AURIS_ROOT / "reader" / "models" / "supertonic-sherpa-int8" / "tts.json"),
+        ("pyannote 3.0 szegmentáló",
+         models / "diar" / "sherpa-onnx-pyannote-segmentation-3-0" / "model.onnx"),
+        ("CAM++ beszélő-embedding",
+         models / "3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx"),
+        ("Piper hu_HU hangok",
+         models / "piper" / "hu_HU-anna-medium.onnx"),
+        ("UVR/MDX leválasztó",
+         models / "separate" / "UVR_MDXNET_Main.onnx"),
+    ]
+
+
 def dub_root() -> Path:
     """A dubstudio gyökere: `DUBSTUDIO_ROOT`, különben az Auris melletti mappa.
 
@@ -156,6 +173,10 @@ def check(root: Path) -> dict:
         found = _binary(name)
         rows.append(_row(bool(found), f"Program: {name}",
                          found or f"nincs a PATH-on — {why}"))
+    for label, path in shared_models(root):
+        rows.append(_row(path.exists(), f"Modell: {label}",
+                         "megvan" if path.exists() else
+                         f"hiányzik: {path} — futtasd: scripts/fetch_models.py"))
 
     projects: list[dict] = []
     folder = root / "projects"

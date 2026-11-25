@@ -75,13 +75,15 @@ Kiegészítések ebben a fork-ban:
 cd /d "%USERPROFILE%"
 git clone https://github.com/gaiagent0/Auris.git
 cd Auris
-reader\setup.bat          # ARM64-nál a natív venv + minden függőség (sherpa-onnx is)
+reader\setup.bat          # venv + minden függőség és modell (hangoskönyv + szinkron)
 reader\run.bat            # http://127.0.0.1:7860
 ```
 
 - A `setup.bat` a Snapdragon-ra a **natív ARM64 Python 3.12**, ONNX Runtime 1.30
-  és `sherpa-onnx` (win_arm64 wheel) telepíti; a Supertonic + sherpa-Supertonic
-  modellok letöltik az első betöltéssel.
+  és `sherpa-onnx` (win_arm64 wheel) telepíti, valamint a szinkronlánc közös
+  csomagjait (`transformers`, `audio-separator`). A Supertonic modelleket és a
+  szinkron AI-modelljeit a `scripts/fetch_models.py` tölti le; a telepítő ezt
+  automatikusan lefuttatja (`--skip-models`-szel kihagyható).
 - A leggyorsabb motor a javasolt (`auto` → `supertonic_sherpa`); a Beállításokban
   `tts_engine=supertonic_sherpa`-ra állíthatd, ha explicit jelöltet akarod.
 - **A natív venv az elsődleges út Windowson**: nincs konténer-réteg, és a
@@ -122,7 +124,11 @@ reader\setup.bat
 
 A `setup.bat` létrehozza a `reader\.venv` környezetet, és feltelepíti az ONNX
 motor-készletet (Supertonic 3, sherpa-onnx, XTTSv2-ONNX szöveg-pipeline, Piper),
-az opcionális CPU-s PyTorch-ot (Whisper QA), majd letölti a magyar spaCy-modellt.
+az opcionális CPU-s PyTorch-ot (Whisper QA) és a szinkronlánc közös csomagjait
+(`transformers`, `audio-separator`), letölti a magyar spaCy-modellt, majd a
+`scripts/fetch_models.py`-jal letölti a **két modul közös AI-modelljeit**. Ez az
+egyetlen telepítési lépés: a hangoskönyv és a szinkron ugyanazt a venv-et és
+ugyanazokat a modelleket használja.
 Két csomagnak nincs Windows ARM64 wheel-je, ezért a telepítő kezeli őket:
 `pymupdf` a `1.28.2`-re van rögzítve, a spaCy/thinc pedig kihagyva (a karakter-
 felismerés szabályalapú módba esik vissza, minden más import-formátum marad).
@@ -161,6 +167,9 @@ Az `auto`-javaslat és az összes motor képessége a Beállításokban látszik
 | **XTTSv2-ONNX klón** | **gated HF-repó, kézi letöltés** | ~2,2 GB | egyszer, lásd az 5. lépést |
 | Piper magyar hangok | Settingsből (`piper-tts`) | ~60 MB/hang | a választott hangnál |
 | Parakeet ASR (QA) | Hugging Face (`istupakov/parakeet-tdt-0.6b-v3-onnx`) | ~230 MB | az első minőségellenőrzésnél |
+| pyannote 3.0 szegmentáló + CAM++ embedding (szinkron) | k2-fsa/sherpa-onnx GitHub-kiadás (`speaker-segmentation-models`, `speaker-recongition-models`) | ~34 MB | a telepítő (`scripts/fetch_models.py`) letölti |
+| Piper hu_HU hangok (szinkron) | Hugging Face (`rhasspy/piper-voices`, `hu/hu_HU`) | ~190 MB | a telepítő letölti |
+| UVR/MDX leválasztó (szinkron) | `TRvlvr/model_repo` GitHub-kiadás (`all_public_uvr_models`) | ~50 MB | a telepítő letölti |
 
 A letöltött modellek a `reader/models/` alatt maradnak, így az újraépítés és
 frissítés sem tölti le őket újra. A Docker-porthoz lásd a 7. lépést.
@@ -218,7 +227,8 @@ nélkül is működik**.
 | MP3/M4B export hibás | nincs `ffmpeg` | telepíts és tedd a PATH-ra |
 | a Docker Engine nem indul | WSL2 háttér-motor hiba | [`docs/docker-wsl.md`](docs/docker-wsl.md), egy parancsban: `bash scripts/windows/docker-desktop-repair.sh restart` |
 | a `/szinkron` oldal: „Nincs dubstudio projekt” | nincs `projects\*.json`, vagy rossz a `DUBSTUDIO_ROOT` | `scripts\check_dubstudio.py --init "Név"`, majd újraindítás — lásd [`docs/SZINKRON-TELEPITES.md`](docs/SZINKRON-TELEPITES.md) |
-| a szinkronnál `ModuleNotFoundError` / nincs `audio-separator` | a csomagok nincsenek az Auris venv-ben | `reader\.venv\Scripts\python.exe -m pip install sherpa-onnx torch transformers audio-separator`, majd újraindítás |
+| a szinkronnál `ModuleNotFoundError` / nincs `audio-separator` | a csomagok nincsenek az Auris venv-ben | `reader\.venv\Scripts\python.exe -m pip install -r reader\requirements.txt`, majd újraindítás |
+| a szinkron „hiányzó modell” hibát ad | a modellek nincsenek letöltve, vagy más helyen vannak | `reader\.venv\Scripts\python.exe scripts\fetch_models.py`, majd a projekt `models` útvonalainak ellenőrzése |
 
 További mélyebb útmutatók: [`docs/HASZNÁLATI-ÚTMUTATÓ.md`](docs/HASZNÁLATI-ÚTMUTATÓ.md)
 (Web UI + CLI), [`docs/SZINKRON-TELEPITES.md`](docs/SZINKRON-TELEPITES.md)
@@ -242,15 +252,18 @@ reader\.venv\Scripts\python.exe scripts\check_dubstudio.py
    (`projects\`, `work\`, `movies\`); más helyen a `DUBSTUDIO_ROOT`
    környezeti változó adja meg. A dubstudio CLI-t az Auris indítja, külön nem
    kell futtatni.
-2. **Csomagok az Auris venv-jébe** (nincs második venv):
-   `reader\.venv\Scripts\python.exe -m pip install numpy scipy soundfile
-   onnxruntime sherpa-onnx torch transformers audio-separator`.
+2. **Csomagok** — a `reader\setup.bat` már feltelepíti mindet a **közös**
+   venvbe (nincs második venv): `numpy scipy soundfile onnxruntime sherpa-onnx
+   torch transformers audio-separator`. Utólag:
+   `... -m pip install -r reader\requirements.txt`.
 3. **Programok:** `ffmpeg` és `ffprobe` a PATH-on, valamint `espeak-ng` a
    Piper-hangok fonémázásához.
-4. **Modellek:** pyannote szegmentáló és CAM++ beszélő-embedding, Supertonic 3
-   (sherpa-onnx int8 — az Auris ezt már letöltötte), Piper hu_HU hangok és az
-   `audio-separator` UVR-modellje. Az útvonalakat a projekt `models` szakasza
-   adja meg, nem kell a repóba tenni őket.
+4. **Modellek** — a telepítő a `scripts/fetch_models.py`-jal letölti a közös
+   Supertonic 3-at és a szinkron saját modelljeit (pyannote szegmentáló, CAM++
+   embedding, Piper hu_HU hangok, UVR/MDX) a `dubstudio\work\models\` alá.
+   Utólag bármikor: `... scripts\fetch_models.py` (`--check` ellenőrzés,
+   `--only sync` csak a szinkron, `--models-dir` más célmappa). Az útvonalakat a
+   projekt `models` szakasza adja meg, a modellek nem kerülnek a repóba.
 5. **Projekt:** a felület varázslója (`/szinkron` → új film), vagy
    `... scripts\check_dubstudio.py --init "Film címe" --kind movie`
    (sorozatnál `--kind series --season N`); a média a projekt `data\` mappájába
@@ -393,7 +406,7 @@ Or directly:
 python reader/setup.py
 ```
 
-The installer creates `reader/.venv`, installs the ONNX engine set (Supertonic 3, sherpa-onnx, XTTSv2-ONNX pipeline, Piper), optional CPU PyTorch for the Whisper QA backend, spaCy, and the reader dependencies, then downloads the Hungarian spaCy model when network access is available.
+The installer creates `reader/.venv`, installs the ONNX engine set (Supertonic 3, sherpa-onnx, XTTSv2-ONNX pipeline, Piper), optional CPU PyTorch for the Whisper QA backend, the sync-chain packages (`transformers`, `audio-separator`), spaCy, and the reader dependencies, then downloads the Hungarian spaCy model when network access is available. Finally it fetches the AI models shared by both modules with `scripts/fetch_models.py` (Supertonic 3, pyannote segmentation, CAM++ embedding, Piper hu_HU voices, UVR/MDX separator); pass `--skip-models` to omit that download.
 
 Two packages have no Windows ARM64 wheel, so the installer skips or pins them
 there: `pymupdf` is pinned to `1.28.2` (the last release with a win_arm64
@@ -458,6 +471,10 @@ Every engine runs locally through ONNX Runtime; there is no hosted dependency.
   Cloning needs a reference recording uploaded in Voice Studio.
 - **Piper** — preset Hungarian voices; the `piper-tts` package can be installed
   from Settings.
+- **Sync studio models** — pyannote 3.0 segmentation, CAM++ speaker embedding,
+  the three Piper hu_HU voices and the UVR/MDX separator are downloaded by
+  `scripts/fetch_models.py` into `dubstudio/work/models/` (the installer runs it
+  automatically). Re-run it with `--check` after moving the dubstudio folder.
 
 ### Model path overrides
 
@@ -622,6 +639,11 @@ the reference. Best results:
 
 ## Offline installs
 
+The shared AI models are fetched from the network, so `AURIS_OFFLINE=1`
+skips them; copy `reader/models/` and the dubstudio `work/models/` folder
+from a machine that already has them, or run `scripts/fetch_models.py`
+once with network access.
+
 Local wheels are not used by default.
 
 If you intentionally maintain your own wheel cache, opt in explicitly:
@@ -655,7 +677,8 @@ Auris/
 |-- LICENSE
 |-- wheels/          ← offline wheel cache (optional)
 |-- scripts/
-|   `-- check_dubstudio.py  ← a szinkronlánc környezetellenőrzése + projektindítás
+|   |-- check_dubstudio.py  ← a szinkronlánc környezetellenőrzése + projektindítás
+|   `-- fetch_models.py     ← a két modul közös AI-modelljeinek letöltése
 `-- reader/
     |-- app.py
     |-- setup.py     ← cross-platform installer (called by setup.bat / setup.sh)

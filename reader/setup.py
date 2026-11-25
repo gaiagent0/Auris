@@ -14,6 +14,7 @@ Environment:
     AURIS_WHEELS_DIR=...     Override the local wheel directory path.
 """
 
+import argparse
 import os
 import platform
 import re
@@ -180,6 +181,10 @@ ARM64_BASE_DEPS = (
     "pyphen>=0.15",
     "trafilatura>=2.2,<3",
     "onnx-asr==0.12.0",
+    # A szinkronlánc (dubstudio) ugyanezt a venv-et használja; ezek a csomagok
+    # a hangoskönyv-modulban is megvannak, csak a szinkron importálja őket.
+    "transformers>=4.45",
+    "audio-separator>=0.40",
 )
 
 
@@ -369,6 +374,45 @@ def install_hungarian_spacy_model():
         warn("Install it later from Settings -> Character detection.")
 
 
+def prepare_sync_stack(skip_models=False):
+    """A szinkronlánc mappái és a két modul közös AI-modelljei.
+
+    A dubstudio külön projekt, ezért csak akkor nyúlunk hozzá, ha a szokásos
+    helyén (vagy a DUBSTUDIO_ROOT alatt) megvan: létrehozzuk a hiányzó
+    mappákat, majd letöltjük a modelleket a `scripts/fetch_models.py`-jal.
+    A letöltés hibája nem állítja meg a telepítést: az Auris utána is indul.
+    """
+    step("Preparing the sync studio (shared models)")
+    dub = Path(os.environ.get("DUBSTUDIO_ROOT")
+               or (REPO_DIR.parent / "dubstudio")).resolve()
+    if dub.is_dir():
+        for name in ("projects", "work/models", "movies", "series"):
+            (dub / name).mkdir(parents=True, exist_ok=True)
+        ok(f"dubstudio folders ready: {dub}")
+    else:
+        warn(f"No dubstudio next to Auris ({dub}); only the shared model is fetched.")
+        warn("Place the dubstudio project there, or set DUBSTUDIO_ROOT.")
+
+    script = REPO_DIR / "scripts" / "fetch_models.py"
+    if not script.is_file():
+        warn("scripts/fetch_models.py not found; skipping the model download.")
+        return
+    if skip_models or os.environ.get("AURIS_SKIP_MODELS", "").strip().lower() in {
+            "1", "true", "yes"}:
+        warn("Model download skipped (--skip-models / AURIS_SKIP_MODELS).")
+        info(f"Fetch them later: {script}")
+        return
+    if STRICT_OFFLINE:
+        warn("Strict offline mode: model download skipped.")
+        info(f"Fetch them later with network access: {script}")
+        return
+    try:
+        run([sys.executable, str(script)])
+    except subprocess.CalledProcessError:
+        warn("The model download did not finish; the app still works without it.")
+        warn(f"Retry later: {script}")
+
+
 def print_summary(hw_tag):
     device_label = {
         "arm64_onnx": "Snapdragon X Elite (ARM64, ONNX Runtime)",
@@ -400,11 +444,21 @@ def print_summary(hw_tag):
 
   Model path is configured in Settings.
   The spaCy model can also be installed later from Settings.
+
+  Sync studio : {BD}scripts\\check_dubstudio.py{W}  (status and projects)
+                {BD}scripts\\fetch_models.py{W}      (shared AI models)
 """
     )
 
 
-def main():
+def main(argv=None):
+    parser = argparse.ArgumentParser(
+        description="Auris installer (audiobook and sync studio).")
+    parser.add_argument(
+        "--skip-models", action="store_true",
+        help="skip the shared AI model download (can be run later with "
+             "scripts/fetch_models.py)")
+    args = parser.parse_args(argv)
     banner()
     os.chdir(APP_DIR)
     check_python_version()
@@ -439,6 +493,7 @@ def main():
     install_reader_deps(hw_tag)
     install_spacy_model()
     install_hungarian_spacy_model()
+    prepare_sync_stack(skip_models=args.skip_models)
     verify_torch(hw_tag)
     print_summary(hw_tag)
 

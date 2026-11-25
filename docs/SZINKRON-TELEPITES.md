@@ -5,10 +5,12 @@
 > a klaszterezést, a szintézist és a muxolást az ő CLI-je végzi, az Auris a
 > felületet, a lejátszót és az emberi döntések rögzítését adja hozzá.
 >
-> Ez az útmutató a friss klón utáni állapotból indul: a hangoskönyv-rész a
-> `reader\setup.bat`-tal már működik, a szinkronhoz viszont ezek a lépések
-> kellenek. Minden parancs a **repo gyökeréből** fut, az Auris venv-jével
-> (`reader\.venv\Scripts\python.exe`).
+> Ez az útmutató a friss klón utáni állapotból indul. A `reader\setup.bat`
+> **már a közös telepítő**: feltelepíti a hangoskönyv és a szinkron közös
+> Python-csomagjait, és letölti a közös AI-modelleket is. Ami utána kell, az a
+> **dubstudio projekt elhelyezése**, a két külső program (`ffmpeg`, `espeak-ng`)
+> és a projekt létrehozása. Minden parancs a **repo gyökeréből** fut, az Auris
+> venv-jével (`reader\.venv\Scripts\python.exe`).
 
 ---
 
@@ -19,10 +21,12 @@ reader\.venv\Scripts\python.exe scripts\check_dubstudio.py
 ```
 
 A program soronként kiírja, hogy megvan-e a dubstudio, a Python csomagok, az
-`ffmpeg`/`ffprobe`, az `espeak-ng`, az `audio-separator`, a projektek és a
-projektfájlokban hivatkozott modellek. Kilépési kódja `1`, ha bármi hiányzik;
-`--json`-nal gépi kimenetet ad. A hiányzó tételeket az alábbi szakaszok
-pótolják.
+`ffmpeg`/`ffprobe`, az `espeak-ng`, az `audio-separator`, a **közös modellek**
+(Supertonic, pyannote, CAM++, Piper, UVR), a projektek és a projektfájlokban
+hivatkozott modellek. Kilépési kódja `1`, ha bármi hiányzik; `--json`-nal gépi
+kimenetet ad. A hiányzó tételeket az alábbi szakaszok pótolják — a csomagokat
+és a modelleket a `reader\setup.bat` (illetve a `scripts\fetch_models.py`)
+telepíti.
 
 ---
 
@@ -52,23 +56,26 @@ projektfájl és a média könyvtárai az első használatkor létrejönnek.
 
 ---
 
-## 2. Python csomagok az Auris venv-jébe
+## 2. Python csomagok — a telepítő elvégzi
 
-A szinkronlánc ugyanazt a virtuális környezetet használja, mint az Auris — nem
-kell második venv:
+A szinkronlánc **ugyanazt** a virtuális környezetet használja, mint az Auris —
+nincs második venv. A `reader\setup.bat` (azaz a `reader\setup.py`) a
+hangoskönyv csomagjai mellé ezeket is telepíti:
+
+| Csomag | Mihez kell | Ki használja |
+|---|---|---|
+| `onnxruntime` | Supertonic, diarizáció, embedding modellek futtatása | hangoskönyv + szinkron |
+| `sherpa-onnx` | pyannote szegmentáló + Supertonic TTS | hangoskönyv + szinkron |
+| `numpy`, `scipy`, `soundfile` | tömbkezelés, újramintavételezés, WAV I/O | hangoskönyv + szinkron |
+| `torch` | a nem-osztályozó modell és a Whisper QA | hangoskönyv + szinkron |
+| `transformers` | a beszélő nemét adó modell betöltése | szinkron |
+| `audio-separator` | vokál és zene+effekt (M&E) szétválasztás az intakenél | szinkron |
+
+Ha a telepítést később futtatod (vagy csak a csomagokat akarod pótolni):
 
 ```bat
-reader\.venv\Scripts\python.exe -m pip install ^
-  numpy scipy soundfile onnxruntime sherpa-onnx torch transformers audio-separator
+reader\.venv\Scripts\python.exe -m pip install -r reader\requirements.txt
 ```
-
-| Csomag | Mihez kell |
-|---|---|
-| `onnxruntime` | Supertonic, a diarizáció és az embedding modellek futtatása |
-| `sherpa-onnx` | pyannote szegmentáló + Supertonic TTS (a szinkronhangok) |
-| `numpy`, `scipy`, `soundfile` | tömbkezelés, újramintavételezés, WAV I/O |
-| `torch`, `transformers` | a nem-osztályozó modell (a beszélő neme) |
-| `audio-separator` | vokál és zene+effekt (M&E) szétválasztás az intakenél |
 
 Az `audio-separator` a venv `Scripts\` mappájába kerül; az intake ott is keresi,
 nem kell a PATH-ra tenni. A telepítés után **indítsd újra** az Aurist: a
@@ -93,23 +100,37 @@ espeak-ng --version
 
 ---
 
-## 4. Modellek
+## 4. Modellek — a telepítő letölti
 
 A modellek helyét a **projektfájl `models` szakasza** adja meg (abszolút vagy a
-projekt `root`-jához viszonyított útvonal). Amit a lánc használ:
+projekt `root`-jához viszonyított útvonal). A letöltést a `scripts\fetch_models.py`
+végzi, amit a `reader\setup.bat` automatikusan lefuttat; külön:
+
+```bat
+:: minden közös + szinkron modell (ami megvan, kimarad)
+reader\.venv\Scripts\python.exe scripts\fetch_models.py
+
+:: csak ellenőrzés, hálózat nélkül
+reader\.venv\Scripts\python.exe scripts\fetch_models.py --check
+
+:: csak a szinkron modellek, más célmappába
+reader\.venv\Scripts\python.exe scripts\fetch_models.py --only sync --models-dir D:\AI\dubstudio\work\models
+```
 
 | Kulcs | Modell | Honnan | Méret |
 |---|---|---|---|
-| `supertonic` | Supertonic 3 sherpa-onnx int8 (10 hang) | az Auris első használatkor letölti a `reader\models\supertonic-sherpa-int8\` alá; a szinkron ezt a mappát használja | ~139 MB |
-| `diar_segmentation` | pyannote segmentation 3.0 (sherpa-onnx) | `k2-fsa/sherpa-onnx` kiadások: `sherpa-onnx-pyannote-segmentation-3-0` | ~6 MB |
-| `embedding` / `diar_embedding` | CAM++ / 3D-Speaker ERes2Net beszélő-embedding (`3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx`) | ugyanonnét, illetve a 3D-Speaker modelljei | ~30 MB |
-| `piper` | Piper hu_HU hangok (`anna`, `berta`, `imre`) | a Piper magyar modelljei (`.onnx` + `.onnx.json`) | ~60 MB/hang |
-| `espeak` | az `espeak-ng` futtatható fájlja | 3. szakasz | — |
-| `intake.separate.model_dir` | `UVR_MDXNET_Main.onnx` (vokál leválasztás) | az `audio-separator` modelllistája (első futásnál letölthető) | ~50 MB |
+| `supertonic` | Supertonic 3 sherpa-onnx int8 (10 hang) | Hugging Face; a szkript a `reader\models\supertonic-sherpa-int8\` alá tölti — **ugyanaz a motor**, mint a hangoskönyvben | ~139 MB |
+| `diar_segmentation` | pyannote segmentation 3.0 (sherpa-onnx) | `k2-fsa/sherpa-onnx` kiadás: `sherpa-onnx-pyannote-segmentation-3-0.tar.bz2` → `work\models\diar\` | ~6 MB |
+| `embedding` / `diar_embedding` | CAM++ / 3D-Speaker ERes2Net beszélő-embedding (`3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx`) | ugyanonnan: `speaker-recongition-models` → `work\models\` | ~28 MB |
+| `piper` | Piper hu_HU hangok (`anna`, `berta`, `imre`) | Hugging Face `rhasspy/piper-voices` → `work\models\piper\` | ~63 MB/hang |
+| `espeak` | az `espeak-ng` futtatható fájlja | 3. szakasz (külső program) | — |
+| `intake.separate.model_dir` | `UVR_MDXNET_Main.onnx` (vokál leválasztás) | `TRvlvr/model_repo` kiadás → `work\models\separate\` | ~50 MB |
 | – | nem-osztályozó (`alefiury/wav2vec2-large-xlsr-53-gender-recognition-librispeech`) | Hugging Face, az első futásnál automatikusan | ~1 GB |
 
 A modelleket nem kell a repóba tenni: a `work\models\` (vagy egy közös
-modellmappa) elég, a projektfájlban csak az útvonal szerepel.
+modellmappa) elég, a projektfájlban csak az útvonal szerepel. A szkript a
+letöltés után kiírja a használandó útvonalakat; a
+`check_dubstudio.py --init` ezekkel tölti ki az új projekt `models` szakaszát.
 
 ---
 
@@ -226,8 +247,8 @@ ezért bukó kapu esetén is elkészülnek a fájlok, de a folyamat hibakóddal 
 | Tünet | Ok | Megoldás |
 |---|---|---|
 | a `/szinkron` oldal: „Nincs dubstudio projekt” | nincs `projects\*.json`, vagy rossz a `DUBSTUDIO_ROOT` | `check_dubstudio.py --init "Név"`, illetve állítsd be a változót; majd indítsd újra az Aurist |
-| `ModuleNotFoundError: sherpa_onnx` / `torch` | a csomagok a másik (rendszer-)Pythonban vannak | a pip a `reader\.venv\Scripts\python.exe`-val fusson (2. szakasz) |
-| az intake: „Nincs audio-separator” | a csomag nincs a venvben | `... -m pip install audio-separator`, majd újraindítás |
+| `ModuleNotFoundError: sherpa_onnx` / `torch` / `audio_separator` | a csomagok nincsenek az Auris venvjében | `reader\.venv\Scripts\python.exe -m pip install -r reader\requirements.txt`, majd újraindítás |
+| a futás „hiányzó modell” hibát ad | a modellek nincsenek letöltve | `... scripts\fetch_models.py`, majd `--check`; a projekt `models` útvonalai legyenek a letöltött helyek |
 | az intake nem talál feliratot | nincs szöveges felirat a fájlban | tölts fel SRT/VTT-t a felületen (a képfelirat nem fordítható) |
 | nincs hang a szinkronban | a `models` útvonalai rosszak | `check_dubstudio.py` megmondja, melyik fájl hiányzik |
 | a Piper-hangok nem szólalnak meg | nincs `espeak-ng`, vagy a `models.piper` mappa üres | 3–4. szakasz |

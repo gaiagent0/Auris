@@ -231,12 +231,14 @@
         <div>
           <strong>Telepítés friss klónon.</strong>
           <p>
-            A dubstudio külön projekt, ezért a szinkronhoz külön lépések kellenek:
-            a <code>dubstudio</code> a repo mellé (vagy <code>DUBSTUDIO_ROOT</code>),
-            a csomagok az Auris venv-jébe (<code>sherpa-onnx</code>, <code>torch</code>,
-            <code>transformers</code>, <code>audio-separator</code>), <code>ffmpeg</code>
-            és <code>espeak-ng</code> a PATH-ra, valamint a modellek (pyannote,
-            CAM++, Supertonic, Piper) és egy projektfájl. Az állapotot a
+            A dubstudio külön projekt, ezért a szinkronhoz a <code>dubstudio</code>
+            a repo mellé kell (vagy <code>DUBSTUDIO_ROOT</code>). A Python-csomagokat
+            (<code>sherpa-onnx</code>, <code>torch</code>, <code>transformers</code>,
+            <code>audio-separator</code>) és a közös AI-modelleket (Supertonic,
+            pyannote, CAM++, Piper, UVR) a <code>reader\setup.bat</code> telepíti a
+            <code>scriptsetch_models.py</code>-jal; külön csak az
+            <code>ffmpeg</code>/<code>ffprobe</code> és az <code>espeak-ng</code> kell
+            a PATH-ra, valamint egy projektfájl. Az állapotot a
             <code>scripts\check_dubstudio.py</code> írja ki, új projektet a
             <code>--init "Film címe"</code> kapcsolóval hoz; a teljes útmutató a
             repó <code>docs/SZINKRON-TELEPITES.md</code> fájljában van.
