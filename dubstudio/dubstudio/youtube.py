@@ -237,6 +237,62 @@ def _json3_to_srt(text: str) -> str:
     return _number_srt(blocks)
 
 
+_SENTENCE_END = re.compile(r"[.!?\u2026:;]['\"\u201d\u2019)\]]*$")
+
+
+def _merge_fragments(srt: str, *, max_chars: int = 100,
+                     max_gap: float = 0.45) -> str:
+    """A YouTube automatikus feliratának töredékeit mondatokká vonja össze.
+
+    Az automatikus felirat 2–5 szavas töredékekre vágja a beszédet („Google
+    just turned Gemini Notebook into” / „a website builder. You drop in”),
+    ezért egy-egy fordítás és egy-egy szinkronhang sem mond értelmes mondatot.
+    A szomszédos sorokat addig vonjuk össze, amíg a szöveg nem ér véget
+    mondatvégi írásjellel; az időzítés az első sor elejétől az utolsó végéig
+    tart, így a magyar szinkron a teljes mondatra kap időkeretet.
+    """
+    cues: list[list] = []
+    for chunk in str(srt or "").strip().split("\n\n"):
+        lines = [line for line in chunk.splitlines() if line.strip()]
+        if len(lines) < 2 or "-->" not in lines[1]:
+            continue
+        left, _, right = lines[1].partition("-->")
+        start = _seconds(left)
+        end = _seconds(right)
+        text = " ".join(line.strip() for line in lines[2:]).strip()
+        if not text:
+            continue
+        cues.append([start, max(end, start), text])
+    merged: list[list] = []
+    for start, end, text in cues:
+        if merged:
+            prev = merged[-1]
+            joined = f"{prev[2]} {text}"
+            if (start - prev[1] <= max_gap and len(joined) <= max_chars
+                    and not _SENTENCE_END.search(prev[2])):
+                prev[2] = joined
+                prev[1] = max(prev[1], end)
+                continue
+        merged.append([start, end, text])
+    # a gördülő felirat sorai átfedik egymást; a szinkronhang nem beszélhet
+    # egyszerre két sorral, ezért a következő mondat elejénél elvágjuk
+    for index, cue in enumerate(merged[:-1]):
+        following = merged[index + 1][0]
+        if cue[0] < following < cue[1]:
+            cue[1] = following
+    return _number_srt([f"{_stamp(start)} --> {_stamp(end)}\n{text}"
+                        for start, end, text in merged])
+
+
+def _seconds(stamp: str) -> float:
+    """SRT-időbélyeg → másodperc."""
+    match = _TS.search(str(stamp or ""))
+    if not match:
+        return 0.0
+    return (int(match.group(1) or 0) * 3600 + int(match.group(2)) * 60
+            + int(match.group(3)) + int(match.group(4)) / 1000.0)
+
+
 def _number_srt(blocks: list[str]) -> str:
     """A kész blokkokat sorszámozza és SRT-szöveget ad vissza."""
     if not blocks:
@@ -432,7 +488,9 @@ def download(project, tag: str, url: str, *, source_lang: str = "eng") -> dict:
     duration = info.get("duration")
     print(f"[youtube] {title or info.get('id')} ({(duration or 0) // 60} perc)",
           flush=True)
-    srt = _download_subtitle(_caption_candidates(info, code), code)
+    # a nyers automatikus felirat töredékes — mondatokká összevonva megy a
+    # fordítónak és a szinkronhangnak
+    srt = _merge_fragments(_download_subtitle(_caption_candidates(info, code), code))
 
     stage = project.data_dir / f"_youtube_{tag}"
     if stage.exists():

@@ -159,6 +159,24 @@ class IntakeTest(unittest.TestCase):
         self.assertIn("single subtitle line", prompts[2])
         self.assertIn("2. [2.8s] I am fine, thank you.", prompts[2])
 
+    def test_single_line_retry_accepts_a_renumbered_answer(self):
+        """Egyetlen sort kérve a modell néha 1-re számozza a választ — ez is jó."""
+        self._source()
+        prompts = []
+
+        def fake_chat(cfg, system, prompt):
+            prompts.append(prompt)
+            if len(prompts) <= 2:      # első kör és a hiányzókat kérő második
+                return {"lines": [{"id": 1, "text": "Üdv"}]}
+            return {"lines": [{"id": 1, "text": "Jól vagyok"}]}
+
+        cfg = intake.settings(self.project)["translate"]
+        with patch.object(intake, "_chat_json", side_effect=fake_chat):
+            result = intake.translate_subtitles(self.project, "E01", cfg=cfg)
+        self.assertEqual(result["translated"], 2)
+        out = (self.base / "subs" / "E01_hun.srt").read_text(encoding="utf-8")
+        self.assertIn("Jól vagyok", out)
+
     def test_translate_keeps_sound_only_cues_without_translation(self):
         path = self.base / "subs" / "E01_eng.srt"
         path.write_text(

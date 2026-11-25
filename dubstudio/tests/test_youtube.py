@@ -110,6 +110,32 @@ class ConvertTest(unittest.TestCase):
         self.assertEqual(youtube._convert(b"<xml/>", "ttml"), "")
 
 
+class MergeFragmentsTest(unittest.TestCase):
+
+    def test_fragments_are_joined_into_sentences(self):
+        srt = ("1\n00:00:00,000 --> 00:00:02,400\nGoogle just turned Gemini Notebook into\n\n"
+               "2\n00:00:02,400 --> 00:00:04,300\na website builder. You drop in\n\n"
+               "3\n00:00:04,300 --> 00:00:09,300\nyour notes. Then it builds it.\n")
+        merged = youtube._merge_fragments(srt)
+        self.assertEqual(merged.count("--> "), 2)
+        self.assertIn("Google just turned Gemini Notebook into a website builder.", merged)
+
+    def test_merged_cues_do_not_overlap(self):
+        srt = ("1\n00:00:00,000 --> 00:00:04,300\nfirst fragment\n\n"
+               "2\n00:00:02,400 --> 00:00:06,199\nsecond fragment.\n\n"
+               "3\n00:00:06,000 --> 00:00:09,300\nthird one.\n")
+        merged = youtube._merge_fragments(srt)
+        stamps = [line for line in merged.splitlines() if "-->" in line]
+        self.assertEqual(len(stamps), 2)
+        for previous, following in zip(stamps, stamps[1:]):
+            end = previous.split("--> ")[1]
+            start = following.split(" -->")[0]
+            self.assertLessEqual(end, start)
+
+    def test_empty_input_stays_empty(self):
+        self.assertEqual(youtube._merge_fragments(""), "")
+
+
 class RetryTest(unittest.TestCase):
 
     def test_rate_limited_candidate_is_skipped_and_next_wins(self):

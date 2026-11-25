@@ -271,11 +271,14 @@ def _chat_json(cfg: dict, system: str, prompt: str) -> dict:
     model = str(cfg.get("model") or "").strip()
     if not model:
         raise IntakeError("A fordító LLM modellje nincs beállítva.")
+    # A „gondolkodó” (reasoning) modellek (pl. qwen3.5) alapból a válasz
+    # helyett gondolkodást adnak vissza; a fordításnál ezt kikapcsoljuk.
     payload = {
         "model": model,
         "temperature": 0,
         "stream": False,
         "max_tokens": int(cfg.get("max_tokens") or 4096),
+        "reasoning_effort": "none",
         "messages": [
             {"role": "system", "content": system},
             {"role": "user", "content": prompt},
@@ -291,12 +294,25 @@ def _chat_json(cfg: dict, system: str, prompt: str) -> dict:
             key = os.environ.get(env_name, "").strip()
     if key:
         headers["Authorization"] = f"Bearer {key}"
-    request = urllib.request.Request(
-        _endpoint(base), data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
-        headers=headers, method="POST")
+    def _do_request(body_payload):
+        req = urllib.request.Request(
+            _endpoint(base), data=json.dumps(body_payload, ensure_ascii=False).encode("utf-8"),
+            headers=headers, method="POST")
+        with urllib.request.urlopen(req, timeout=float(cfg.get("timeout") or 300)) as resp:
+            return resp.read().decode("utf-8", errors="replace")
+
     try:
-        with urllib.request.urlopen(request, timeout=float(cfg.get("timeout") or 300)) as resp:
-            raw = resp.read().decode("utf-8", errors="replace")
+        try:
+            raw = _do_request(payload)
+        except urllib.error.HTTPError as exc:
+            detail = exc.read().decode("utf-8", errors="replace").strip()
+            # Egyes szerverek nem ismerik a reasoning_effort mezőt — újrapróbáljuk nélküle.
+            if exc.code in (400, 422) and "reasoning_effort" in detail.lower() and \
+                    "reasoning_effort" in payload:
+                payload.pop("reasoning_effort", None)
+                raw = _do_request(payload)
+            else:
+                raise IntakeError(f"Fordító HTTP {exc.code}: {detail[-500:]}") from exc
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="replace").strip()
         raise IntakeError(f"Fordító HTTP {exc.code}: {detail[-500:]}") from exc
@@ -307,7 +323,12 @@ def _chat_json(cfg: dict, system: str, prompt: str) -> dict:
         ) from exc
     try:
         data = json.loads(raw)
-        content = data["choices"][0]["message"]["content"]
+        msg = data["choices"][0]["message"]
+        content = msg.get("content")
+        # Egyes gondolkodó modellek a választ a "reasoning" mezőbe teszik —
+        # ha a content üres, onnan vesszük.
+        if not content:
+            content = msg.get("reasoning") or msg.get("reasoning_content")
     except (ValueError, KeyError, IndexError, TypeError) as exc:
         raise IntakeError("A fordító LLM válasza nem OpenAI-kompatibilis.") from exc
     if isinstance(content, list):
@@ -429,7 +450,10 @@ def _translate_batch(cfg: dict, rows: list[tuple[int, str]], source_lang: str,
                 result[idx] = text
     # utolsó próba soronként: egyetlen makacs sor (többnyire egy hosszú,
     # szűk időrésbe szorított cue) miatt ne álljon meg az egész film
-    for idx, text in [(i, t) for i, t in rows if i not in result]:
+    # (a csak zörejjelző sorokat nem kérjük: azokat lentebb változatlanul
+    # vesszük át, a modell pedig hajlamos más szöveget adni rájuk)
+    for idx, text in [(i, t) for i, t in rows
+                      if i not in result and _has_speech(t)]:
         try:
             single = _chat_json(
                 cfg, _SYSTEM,
@@ -438,14 +462,25 @@ def _translate_batch(cfg: dict, rows: list[tuple[int, str]], source_lang: str,
                 f"{idx}. {_slot_hint(limits.get(idx))}{text}")
         except IntakeError:
             continue
-        for item in single.get("lines") or []:
+        items = [item for item in (single.get("lines") or []) if isinstance(item, dict)]
+        value = ""
+        for item in items:
             try:
                 got = int(item.get("id"))
             except (TypeError, ValueError):
+                got = None
+            text_value = _clean_translation(item.get("text"))
+            if not text_value:
                 continue
-            value = _clean_translation(item.get("text"))
-            if got == idx and value:
-                result[idx] = value
+            if got == idx:
+                value = text_value
+                break
+            # egyetlen sort kértünk, de a modell néha újraszámoz (id 1) —
+            # ilyenkor az egyetlen visszakapott fordítást fogadjuk el
+            if len(items) == 1:
+                value = text_value
+        if value:
+            result[idx] = value
     # a zörejjelzős cue-kat (``[music]``) a modell jogosan hagyja üresen: nincs
     # bennük beszélt szöveg, ezért fordítás nélkül, változatlanul átvesszük őket
     for idx, text in rows:
