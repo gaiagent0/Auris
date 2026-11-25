@@ -93,3 +93,10 @@ reader/tests/
 
 # a helyi futtatás naplója (nem a repo tartalma)
 auris-run*.log
+
+# ── dubstudio beépített modul (futásidőbeli mappák) ─────────────────────────
+dubstudio/projects/
+dubstudio/work/
+dubstudio/movies/
+dubstudio/series/
+dubstudio/out/

@@ -377,21 +377,20 @@ def install_hungarian_spacy_model():
 def prepare_sync_stack(skip_models=False):
     """A szinkronlánc mappái és a két modul közös AI-modelljei.
 
-    A dubstudio külön projekt, ezért csak akkor nyúlunk hozzá, ha a szokásos
-    helyén (vagy a DUBSTUDIO_ROOT alatt) megvan: létrehozzuk a hiányzó
-    mappákat, majd letöltjük a modelleket a `scripts/fetch_models.py`-jal.
-    A letöltés hibája nem állítja meg a telepítést: az Auris utána is indul.
+    A dubstudio a repó része (`dubstudio/`), a kód a repóval érkezik. Itt
+    hozzuk létre a futásidőbeli mappákat (projektek, munka, filmek), majd
+    letöltjük a modelleket a `scripts/fetch_models.py`-jal. A letöltés hibája
+    nem állítja meg a telepítést: az Auris utána is indul.
     """
     step("Preparing the sync studio (shared models)")
     dub = Path(os.environ.get("DUBSTUDIO_ROOT")
-               or (REPO_DIR.parent / "dubstudio")).resolve()
-    if dub.is_dir():
-        for name in ("projects", "work/models", "movies", "series"):
-            (dub / name).mkdir(parents=True, exist_ok=True)
-        ok(f"dubstudio folders ready: {dub}")
-    else:
-        warn(f"No dubstudio next to Auris ({dub}); only the shared model is fetched.")
-        warn("Place the dubstudio project there, or set DUBSTUDIO_ROOT.")
+               or (REPO_DIR / "dubstudio")).resolve()
+    # A dubstudio most már az Auris repó része: a kód (dubstudio/dubstudio/)
+    # a repóval együtt érkezik, a futásidőbeli mappákat (projektek, munka,
+    # filmek) a telepítő hozza létre, ha még nem léteznek.
+    for name in ("projects", "work", "work/models", "movies", "series", "out"):
+        (dub / name).mkdir(parents=True, exist_ok=True)
+    ok(f"dubstudio folders ready: {dub}")
 
     script = REPO_DIR / "scripts" / "fetch_models.py"
     if not script.is_file():

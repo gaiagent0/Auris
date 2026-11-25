@@ -34,12 +34,13 @@ the optional OpenAI API with a separately billed API key.
 | **Szinkron** (`/szinkron`) | film és sorozat szinkronlánca a `dubstudio` projektjei fölött: epizódkönyvtár, intake (feliratfordítás + énekbeszéd/M&E leválasztás), klaszterezés, szinkronfutás, muxolt MKV, médiaszerver-visszamásolás |
 | **Ellenőrzés** (`/felulvizsgalat`) | soronkénti, emberi beszélő-ellenőrzés a film és a felirat mellett; a döntés a következő szinkronfutásba íródik |
 
-A szinkronfelület a szomszédos `dubstudio` projektet használja (a
-`DUBSTUDIO_ROOT` környezeti változóval más helyre is állítható): a futást a
-`dubstudio` CLI végzi, az Auris a felületet, a lejátszót és az emberi
-döntések rögzítését adja hozzá. A szinkron telepítése és beállítása külön
-lépéssor: [`docs/SZINKRON-TELEPITES.md`](docs/SZINKRON-TELEPITES.md), az
-állapotot a `scripts/check_dubstudio.py` ellenőrzi.
+A szinkronfelület a repóba épített **dubstudio** modult használja
+(`dubstudio/`; a `DUBSTUDIO_ROOT` környezeti változóval más helyre is
+állítható): a futást a `dubstudio` CLI végzi, az Auris a felületet, a
+lejátszót és az emberi döntések rögzítését adja hozzá. A telepítő a
+futásidőbeli mappákat (`projects`, `work`, `movies`, `series`) létrehozza.
+Telepítés és beállítás: [`docs/SZINKRON-TELEPITES.md`](docs/SZINKRON-TELEPITES.md),
+az állapotot a `scripts/check_dubstudio.py` ellenőrzi.
 
 ## Snapdragon X Elite / Windows 11 ARM64 — optimalizálás és mérés
 
@@ -208,7 +209,7 @@ Máshova letöltöd? `--dest D:\modell\XTTSv2-Streaming-ONNX`, majd állítsd be
 | `VOICEAI_SHERPA_SUPERTONIC` | a sherpa-Supertonic int8 könyvtár (alapból `reader/models/supertonic-sherpa-int8/`) |
 | `VOICEAI_SILERO_VAD` | a Silero VAD ONNX a QA-hoz |
 | `AURIS_DATA_DIR` | a könyvek/modellek tárolója (a desktop app alapból `%LOCALAPPDATA%\Auris`) |
-| `DUBSTUDIO_ROOT` | a szinkronlánc (dubstudio) gyökere; alapból az Auris melletti `dubstudio\` |
+| `DUBSTUDIO_ROOT` | a szinkronlánc (dubstudio) gyökere; alapból a repón belüli `dubstudio\` |
 | `HF_TOKEN` | Hugging Face-token a gated letöltésekhez |
 
 Beállítás nélkül minden a repó mellett keres, így **egy friss klón konfiguráció
@@ -238,20 +239,22 @@ További mélyebb útmutatók: [`docs/HASZNÁLATI-ÚTMUTATÓ.md`](docs/HASZNÁLA
 
 ## Szinkronstúdió — telepítés és beállítás
 
-A szinkronfelület a **dubstudio** láncot használja, amely **külön projekt**:
-nem része ennek a repónak. Friss klónnál a `/szinkron` oldal addig „Nincs
-dubstudio projekt” üzenetet mutat, amíg az alábbi lépések nincsenek meg; a
-teljes útmutató a [`docs/SZINKRON-TELEPITES.md`](docs/SZINKRON-TELEPITES.md).
+A szinkronfelület a **dubstudio** láncot használja, amely **a repó része**
+(`dubstudio/`). A telepítő létrehozza a futásidőbeli mappákat (`projects`,
+`work`, `movies`, `series`, `out`). Friss klónnál a `/szinkron` oldal addig
+„Nincs dubstudio projekt” üzenetet mutat, amíg nincs projekt; a teljes útmutató
+a [`docs/SZINKRON-TELEPITES.md`](docs/SZINKRON-TELEPITES.md).
 Az aktuális állapotot bármikor kiírja:
 
 ```bat
 reader\.venv\Scripts\python.exe scripts\check_dubstudio.py
 ```
 
-1. **dubstudio a repo mellé.** Az Auris a szomszédos `dubstudio\` mappát keresi
-   (`projects\`, `work\`, `movies\`); más helyen a `DUBSTUDIO_ROOT`
-   környezeti változó adja meg. A dubstudio CLI-t az Auris indítja, külön nem
-   kell futtatni.
+1. **dubstudio a repóban.** A kód a `dubstudio\dubstudio\` alatt van, a
+   futásidőbeli mappák (`projects\`, `work\`, `movies\`, `series\`) a
+   `dubstudio\` alatt jönnek létre; más helyen a `DUBSTUDIO_ROOT` környezeti
+   változó adja meg. A dubstudio CLI-t az Auris indítja, külön nem kell
+   futtatni.
 2. **Csomagok** — a `reader\setup.bat` már feltelepíti mindet a **közös**
    venvbe (nincs második venv): `numpy scipy soundfile onnxruntime sherpa-onnx
    torch transformers audio-separator`. Utólag:
@@ -679,6 +682,13 @@ Auris/
 |-- scripts/
 |   |-- check_dubstudio.py  ← a szinkronlánc környezetellenőrzése + projektindítás
 |   `-- fetch_models.py     ← a két modul közös AI-modelljeinek letöltése
+|-- dubstudio/       ← a szinkronlánc (a repó része)
+|   |-- dubstudio/   ← Python csomag (CLI, klaszterezés, szintézis, mux)
+|   |-- tests/
+|   |-- docs/
+|   |-- projects/    ← futásidőben: projektenként egy JSON
+|   |-- work/        ← futásidőben: munkafájlok, modellek, kimenet
+|   `-- movies/      ← futásidőben: filmforrások
 `-- reader/
     |-- app.py
     |-- setup.py     ← cross-platform installer (called by setup.bat / setup.sh)

@@ -218,7 +218,7 @@
         <div>
           <strong>A szinkronstúdió a dubstudio munkafájljait használja.</strong>
           <p>
-            Az Auris a mellette lévő <code>dubstudio</code> projektet keresi; más
+            Az Auris a repóban lévő <code>dubstudio</code> mappát használja; más
             helyen a <code>DUBSTUDIO_ROOT</code> környezeti változóval add meg. A
             szinkronláncot a <code>dubstudio</code> CLI futtatja, az Auris a
             felületet, a lejátszót és az emberi döntések rögzítését adja hozzá —
@@ -231,8 +231,10 @@
         <div>
           <strong>Telepítés friss klónon.</strong>
           <p>
-            A dubstudio külön projekt, ezért a szinkronhoz a <code>dubstudio</code>
-            a repo mellé kell (vagy <code>DUBSTUDIO_ROOT</code>). A Python-csomagokat
+            A dubstudio a repó része (<code>dubstudio\</code>); a futtatáshoz
+            szükséges mappákat (<code>projects</code>, <code>work</code>,
+            <code>movies</code>, <code>series</code>) a telepítő hozza létre
+            (vagy <code>DUBSTUDIO_ROOT</code> adja meg a helyüket). A Python-csomagokat
             (<code>sherpa-onnx</code>, <code>torch</code>, <code>transformers</code>,
             <code>audio-separator</code>) és a közös AI-modelleket (Supertonic,
             pyannote, CAM++, Piper, UVR) a <code>reader\setup.bat</code> telepíti a

@@ -125,7 +125,8 @@ CUDA-szondázás előtt**, és `arm64_onnx` ágra vált:
 4. **Ellenőrzi** a natív runtime-ot: `onnxruntime` provider-listával, nem
    torchaudio-importtal.
 5. **Telepíti a szinkronlánc közös csomagjait** (`transformers`,
-   `audio-separator`), létrehozza a dubstudio hiányzó mappáit, majd a
+   `audio-separator`), létrehozza a repóba épített dubstudio futásidőbeli
+   mappáit (`projects`, `work`, `movies`, `series`), majd a
    `scripts/fetch_models.py`-jal letölti a két modul közös AI-modelljeit
    (Supertonic, pyannote, CAM++, Piper, UVR).
 6. A végén kiírja, hogy a **Supertonic 3 vagy a MOSS-TTS-Nano** érhető el.

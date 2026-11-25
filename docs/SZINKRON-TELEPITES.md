@@ -1,16 +1,16 @@
 # Szinkronstúdió — telepítés és beállítás friss klónon
 
 > Az Auris `/szinkron` és `/felulvizsgalat` oldala a **dubstudio** szinkronláncot
-> használja. A dubstudio **külön projekt**, nem része az Auris repónak: a futást,
-> a klaszterezést, a szintézist és a muxolást az ő CLI-je végzi, az Auris a
-> felületet, a lejátszót és az emberi döntések rögzítését adja hozzá.
+> használja. A dubstudio **a repó része** (`dubstudio/`): a futást, a
+> klaszterezést, a szintézist és a muxolást a CLI-je végzi, az Auris a felületet,
+> a lejátszót és az emberi döntések rögzítését adja hozzá.
 >
 > Ez az útmutató a friss klón utáni állapotból indul. A `reader\setup.bat`
-> **már a közös telepítő**: feltelepíti a hangoskönyv és a szinkron közös
-> Python-csomagjait, és letölti a közös AI-modelleket is. Ami utána kell, az a
-> **dubstudio projekt elhelyezése**, a két külső program (`ffmpeg`, `espeak-ng`)
-> és a projekt létrehozása. Minden parancs a **repo gyökeréből** fut, az Auris
-> venv-jével (`reader\.venv\Scripts\python.exe`).
+> **a közös telepítő**: létrehozza a `dubstudio` futásidőbeli mappáit,
+> feltelepíti a hangoskönyv és a szinkron közös Python-csomagjait, és letölti a
+> közös AI-modelleket is. Ami utána kell, az a két külső program (`ffmpeg`,
+> `espeak-ng`) és a projekt létrehozása. Minden parancs a **repo gyökeréből**
+> fut, az Auris venv-jével (`reader\.venv\Scripts\python.exe`).
 
 ---
 
@@ -30,29 +30,33 @@ telepíti.
 
 ---
 
-## 1. A dubstudio elhelyezése
+## 1. A dubstudio helye
 
-Az Auris alapból a **mellette lévő** `dubstudio` mappát keresi:
+A szinkronlánc **a repó része**, a kód a `dubstudio\dubstudio\` alatt van:
 
 ```text
-<valahol>\
-|-- auris\          ← ez a repó
-`-- dubstudio\      ← a szinkronlánc (külön projekt)
-    |-- dubstudio\  ← a Python csomag
-    |-- projects\   ← projektenként egy JSON
-    |-- work\       ← munkafájlok, kimenet (out\)
-    `-- movies\     ← filmforrások (a projekt root-ja)
+auris\                 ← ez a repó
+|-- dubstudio\         ← a szinkronlánc
+|   |-- dubstudio\     ← a Python csomag (CLI, klaszterezés, szintézis, mux)
+|   |-- tests\
+|   |-- docs\
+|   |-- projects\      ← futásidőben: projektenként egy JSON
+|   |-- work\          ← futásidőben: munkafájlok, modellek, kimenet (out\)
+|   `-- movies\        ← futásidőben: filmforrások (a projekt root-ja)
+`-- reader\            ← a hangoskönyv és a webes felület
 ```
 
-Ha máshol van, állítsd be a `DUBSTUDIO_ROOT` környezeti változót a dubstudio
-gyökerére (ugyanazt a feloldást használja a felület és az ellenőrző szkript):
+A `projects\`, `work\`, `movies\`, `series\` és `out\` mappát nem a repó
+tartalmazza: a `reader\setup.bat` (azaz a `reader\setup.py`
+`prepare_sync_stack()` lépése) hozza létre, üresen. Kézzel is pótolhatók.
+
+Ha a szinkronláncot máshol akarod tartani, állítsd be a `DUBSTUDIO_ROOT`
+környezeti változót a gyökerére (ugyanazt a feloldást használja a felület, az
+ellenőrző szkript és a modellletöltő):
 
 ```bat
 set DUBSTUDIO_ROOT=D:\AI\dubstudio
 ```
-
-A dubstudio `projects\`, `work\` és `movies\` mappája jöhet üresen is: a
-projektfájl és a média könyvtárai az első használatkor létrejönnek.
 
 ---
 
@@ -219,7 +223,7 @@ felületre feltöltött magyar SRT-t az intake fordítás nélkül használja.
 ```bat
 :: 1. a hangok és a modellek elérhetősége (a dubstudio saját ellenőrzése)
 cd dubstudio
-..\auris\reader\.venv\Scripts\python.exe -m dubstudio voices
+..\reader\.venv\Scripts\python.exe -m dubstudio voices
 cd ..
 
 :: 2. a környezet és a projektek

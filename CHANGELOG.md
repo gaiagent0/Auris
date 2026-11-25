@@ -31,6 +31,14 @@ represent a new product generation or an incompatible change.
   `projects\<slug>.json` projektjét hozza létre a gépen talált
   modellútvonalakkal, így egy friss klón a felület varázslója nélkül is
   elindítható.
+- **A dubstudio a repó része** — a szinkronlánc Python csomagja, tesztjei és
+  dokumentációja bekerült a repóba (`dubstudio/`), így egy friss klón mindent
+  tartalmaz, ami a `/szinkron` oldalhoz kell. A futásidőbeli mappákat
+  (`projects`, `work`, `movies`, `series`, `out`) a telepítő hozza létre, a
+  modellek továbbra sem kerülnek a repóba. A `DUBSTUDIO_ROOT` feloldás az új
+  helyre mutat; a belső útvonalak (`reader/core/dub_api.py`,
+  `scripts/check_dubstudio.py`, `scripts/fetch_models.py`, a csomag Auris-
+  olvasó hivatkozásai) is ehhez igazodnak.
 - **Egy telepítő a hangoskönyvnek és a szinkronnak** — a `reader\setup.bat`
   (`reader\setup.py`) mostantól a szinkronlánc közös csomagjait is telepíti
   (`transformers`, `audio-separator`), létrehozza a dubstudio hiányzó mappáit
@@ -172,6 +180,14 @@ represent a new product generation or an incompatible change.
   present; `--json` gives machine-readable output and `--init "Name"` writes a
   dubstudio `projects\<slug>.json` with the model paths found on the machine,
   so a fresh clone can start without the interface wizard.
+- **The dubstudio is part of the repository** — the sync chain's Python
+  package, tests and documentation now live in the repo (`dubstudio/`), so a
+  fresh clone contains everything the `/szinkron` page needs. The runtime
+  folders (`projects`, `work`, `movies`, `series`, `out`) are created by the
+  installer; the models still never enter the repository. The
+  `DUBSTUDIO_ROOT` resolution points at the new place, and the internal paths
+  (`reader/core/dub_api.py`, `scripts/check_dubstudio.py`,
+  `scripts/fetch_models.py`, the package's Auris reader references) follow it.
 - **One installer for the audiobook and the sync studio** — `reader\setup.bat`
   (`reader\setup.py`) now installs the sync chain's shared packages
   (`transformers`, `audio-separator`), creates the missing dubstudio folders

@@ -31,7 +31,7 @@ bp = Blueprint("dub", __name__)
 
 DUB_ROOT = Path(
     os.environ.get("DUBSTUDIO_ROOT")
-    or (Path(__file__).resolve().parents[3] / "dubstudio")
+    or (Path(__file__).resolve().parents[2] / "dubstudio")
 ).resolve()
 
 _TAG_RE = re.compile(r"^[A-Z]\d{2,3}$")

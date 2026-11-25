@@ -1,0 +1,8 @@
+# közbenső és kimeneti fájlok (nagyok, újragenerálhatók)
+work/
+out/
+movies/
+series/
+projects/
+__pycache__/
+*.pyc

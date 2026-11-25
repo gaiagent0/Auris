@@ -2,10 +2,10 @@
 """A szinkronstúdió környezetének ellenőrzése, és új dubstudio projekt indítása.
 
 A szinkronfelület (`/szinkron`, `/felulvizsgalat`) a **dubstudio** láncot
-használja, amely külön projekt. Ez a szkript azt mondja meg, mi hiányzik ahhoz,
-hogy egy friss klónon működjön: hol van a dubstudio, megvannak-e a Python
-csomagok, az ffmpeg/ffprobe, az espeak-ng, az `audio-separator`, a modellek és
-a projektfájl.
+használja, amely a repó része (`dubstudio/`, a `DUBSTUDIO_ROOT`-tal máshova is
+állítható). Ez a szkript azt mondja meg, mi hiányzik ahhoz, hogy egy friss
+klónon működjön: megvan-e a dubstudio kódja, a Python csomagok, az
+ffmpeg/ffprobe, az espeak-ng, az `audio-separator`, a modellek és a projektfájl.
 
 Használat (a repo gyökeréből, az Auris venv-jével):
 
@@ -106,13 +106,13 @@ def shared_models(root: Path) -> list[tuple[str, Path]]:
 
 
 def dub_root() -> Path:
-    """A dubstudio gyökere: `DUBSTUDIO_ROOT`, különben az Auris melletti mappa.
+    """A dubstudio gyökere: `DUBSTUDIO_ROOT`, különben a repón belüli `dubstudio/`.
 
     Ugyanaz a feloldás, amit a `reader/core/dub_api.py` használ, hogy a
     szkript és a felület ugyanazt a könyvtárat lássa.
     """
     return Path(os.environ.get("DUBSTUDIO_ROOT")
-                or (AURIS_ROOT.parent / "dubstudio")).resolve()
+                or (AURIS_ROOT / "dubstudio")).resolve()
 
 
 def slugify(name: str) -> str:
@@ -163,7 +163,7 @@ def check(root: Path) -> dict:
     rows: list[dict] = []
     rows.append(_row(AURIS_ROOT.is_dir(), "Auris repo", str(AURIS_ROOT)))
     rows.append(_row(root.is_dir(), "dubstudio gyökér",
-                     f"{root} (DUBSTUDIO_ROOT / az Auris mellett)"))
+                     f"{root} (DUBSTUDIO_ROOT / a repón belüli dubstudio)"))
     pkg_dir = root / "dubstudio"
     rows.append(_row((pkg_dir / "cli.py").is_file(),
                      "dubstudio csomag", str(pkg_dir)))
@@ -292,10 +292,8 @@ def main(argv: list[str] | None = None) -> int:
         name = args.init.strip()
         if not name:
             parser.error("a --init egy projektnevet vár")
+        (root / "projects").mkdir(parents=True, exist_ok=True)
         dest = root / "projects" / f"{slugify(name)}.json"
-        if not (root / "projects").is_dir():
-            print(f"Nincs dubstudio projektmappa: {root / 'projects'}", file=sys.stderr)
-            return 2
         if dest.exists():
             print(f"Már létezik ilyen projekt: {dest}", file=sys.stderr)
             return 2

@@ -120,7 +120,7 @@ MODELS: tuple[Model, ...] = (
 def dub_root() -> Path:
     """A dubstudio gyökere — ugyanaz a feloldás, mint a felületen."""
     return Path(os.environ.get("DUBSTUDIO_ROOT")
-                or (AURIS_ROOT.parent / "dubstudio")).resolve()
+                or (AURIS_ROOT / "dubstudio")).resolve()
 
 
 def _dest(model: Model, models_dir: Path) -> Path:

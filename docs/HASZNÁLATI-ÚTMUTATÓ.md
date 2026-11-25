@@ -198,15 +198,17 @@ A **Parakeet ONNX ASR** (`nemo-parakeet-tdt-0.6b-v3`) az
 
 ## 6. Szinkronstúdió — film és sorozat
 
-A szinkronfelület a **dubstudio** láncot használja, amely **külön projekt**
-(nem része az Auris repónak). A részletes útmutató:
+A szinkronfelület a **dubstudio** láncot használja, amely **a repó része**
+(`dubstudio/`). A részletes útmutató:
 [`SZINKRON-TELEPITES.md`](SZINKRON-TELEPITES.md); az állapotot a
 `scripts\check_dubstudio.py` írja ki.
 
 Rövid lépések:
 
-1. **dubstudio a repo mellé** (`..\dubstudio`), vagy `DUBSTUDIO_ROOT` a
-   gyökerére. A CLI-t az Auris indítja, külön nem kell futtatni.
+1. **A dubstudio a repóban van** (`dubstudio\dubstudio\`); a `projects`,
+   `work`, `movies`, `series` mappákat a telepítő hozza létre. Más helyen a
+   `DUBSTUDIO_ROOT` adja meg a gyökeret. A CLI-t az Auris indítja, külön nem
+   kell futtatni.
 2. **Csomagok** — a `reader\setup.bat` már feltelepíti a közös venvbe a
    szinkron csomagjait is (`transformers`, `audio-separator`); utólag:
    `... -m pip install -r reader\requirements.txt`.
@@ -263,5 +265,6 @@ docker compose up -d --build
   [`docker-wsl.md`](docker-wsl.md) — vagy egy parancsban:
   `bash scripts/windows/docker-desktop-repair.sh restart`.
 
-> A Docker-kép az Aurist futtatja; a szinkronstúdióhoz a dubstudio és a
-> modelljei külön kellenek (6. szakasz), ezért a szinkron út a natív telepítés.
+> A Docker-kép az Aurist futtatja; a szinkronstúdióhoz a dubstudio modelljei
+> és a külső programok (ffmpeg, espeak-ng) is kellenek (6. szakasz), ezért a
+> szinkron út a natív telepítés.
