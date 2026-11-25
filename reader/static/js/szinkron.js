@@ -67,7 +67,6 @@
       `<option value="${esc(p.id || p.name)}">${esc(p.name)}${
         nameCount[p.name] > 1 ? ` · ${esc(p.id || p.name)}` : ''}</option>`).join('');
     const wanted = state.projects.find((p) => (p.id || p.name) === selected)
-      || state.projects.find((p) => /nollm/i.test(p.id || ''))
       || state.projects[0];
     state.project = wanted ? (wanted.id || wanted.name) : null;
     if (state.project) sel.value = state.project;
@@ -76,13 +75,14 @@
   async function loadProjects() {
     const payload = await Auris.api('/api/dub/projects');
     state.projects = payload.projects || [];
+    // friss klón: üres projects/ — a film-varázsló (lent) hozza létre az elsőt
+    renderProjectOptions(state.project);
     if (!state.projects.length) {
-      setStatus('Nincs dubstudio projekt. Hozz létre egyet a projects/ mappában.', 'error');
+      setStatus('Még nincs projekt. Hozz létre egyet az „Új film” űrlappal — '
+        + 'a beállítások a dubstudio alapértékeiből jönnek.', 'busy');
+      fillEpisodes();
       return;
     }
-    // a Fauda-projektnél a helyi LLM nélküli változat a biztonságos alap;
-    // más projekteknél marad az első
-    renderProjectOptions(state.project);
     await loadLibrary();
     fillEpisodes();
     await loadPlayer();

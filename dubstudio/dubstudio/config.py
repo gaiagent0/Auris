@@ -6,6 +6,7 @@ nyers epizódok, a feliratok, a leválasztott M&E sáv és a TTS-modellek.
 from __future__ import annotations
 
 import json
+import os
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -154,6 +155,36 @@ class Project:
             if hits:
                 return hits[0]
         raise FileNotFoundError(f"nincs epizódfájl ({self.data_dir}, S{self.season:02d}E{ep:02d})")
+
+
+def resolve_project(value: str | Path | None = None) -> Path:
+    """A használandó projektfájl feloldása (a repó nem tartalmaz készt).
+
+    Sorrend: a megadott érték → ``DUBSTUDIO_PROJECT`` → az egyetlen
+    ``projects/*.json`` a ``DUBSTUDIO_ROOT`` (vagy a csomag) alatt. Ha nincs
+    vagy több van, ``FileNotFoundError``-t ad használható üzenettel.
+    """
+    for raw in (value, os.environ.get("DUBSTUDIO_PROJECT")):
+        if not raw:
+            continue
+        path = Path(str(raw)).expanduser()
+        if not path.is_file():
+            raise FileNotFoundError(f"nincs ilyen projektfájl: {path}")
+        return path.resolve()
+    root = Path(os.environ.get("DUBSTUDIO_ROOT") or APP_ROOT)
+    folder = root / "projects"
+    found = sorted(folder.glob("*.json")) if folder.is_dir() else []
+    if len(found) == 1:
+        return found[0].resolve()
+    if not found:
+        init = APP_ROOT.parent / "scripts" / "check_dubstudio.py"
+        raise FileNotFoundError(
+            "nincs projekt a projects/ mappában. Hozz létre egyet:\n"
+            f"  {sys.executable} {init} --init \"Film címe\"\n"
+            "vagy a felületen: /szinkron → új film")
+    names = ", ".join(p.stem for p in found)
+    raise FileNotFoundError(
+        f"több projekt van ({names}); add meg a --project opcióval.")
 
 
 def load_project(path: str | Path) -> Project:

@@ -1,5 +1,9 @@
 """Parancssor: ``python -m dubstudio <parancs> [opciók]``.
 
+A projektet a ``--project`` (projektfájl), a ``DUBSTUDIO_PROJECT`` környezeti
+változó, vagy — ha a ``projects/`` mappában pontosan egy JSON van — maga a
+parancs választja ki; beégetett projekt nincs a repóban.
+
 Példák:
   python -m dubstudio voices                      # a 13 hang és elérhetőségük
   python -m dubstudio prepare E05                 # feliratok + hang-identitás
@@ -13,12 +17,10 @@ import argparse
 import sys
 from pathlib import Path
 
-from .config import load_project
+from .config import load_project, resolve_project
 from .pipeline import Pipeline
 from .registry import Registry, recall_threshold, share_threshold
 from .voices import CATALOG, VoiceBank
-
-DEFAULT_PROJECT = Path(__file__).resolve().parents[1] / "projects" / "fauda.json"
 
 
 def _pipeline(args) -> Pipeline:
@@ -33,8 +35,9 @@ def _tags(args) -> list[str]:
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="dubstudio", description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--project", default=str(DEFAULT_PROJECT),
-                    help="a projekt JSON (alapértelmezés: projects/fauda.json)")
+    ap.add_argument("--project", default=None,
+                    help="a projekt JSON (alapértelmezés: a projects/ egyetlen "
+                         "projektje, illetve a DUBSTUDIO_PROJECT)")
     ap.add_argument("-q", "--quiet", action="store_true")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
@@ -142,6 +145,11 @@ def main(argv=None) -> int:
     sp.add_argument("--note", default="")
 
     args = ap.parse_args(argv)
+    try:
+        args.project = str(resolve_project(args.project))
+    except FileNotFoundError as exc:
+        print(f"[dubstudio] {exc}", file=sys.stderr)
+        return 2
 
     if args.cmd == "voices":
         p = load_project(args.project)

@@ -55,7 +55,7 @@ környezeti változót a gyökerére (ugyanazt a feloldást használja a felüle
 ellenőrző szkript és a modellletöltő):
 
 ```bat
-set DUBSTUDIO_ROOT=D:\AI\dubstudio
+set DUBSTUDIO_ROOT=D:\dubstudio
 ```
 
 ---
@@ -118,7 +118,7 @@ reader\.venv\Scripts\python.exe scripts\fetch_models.py
 reader\.venv\Scripts\python.exe scripts\fetch_models.py --check
 
 :: csak a szinkron modellek, más célmappába
-reader\.venv\Scripts\python.exe scripts\fetch_models.py --only sync --models-dir D:\AI\dubstudio\work\models
+reader\.venv\Scripts\python.exe scripts\fetch_models.py --only sync --models-dir D:\dubstudio\work\models
 ```
 
 | Kulcs | Modell | Honnan | Méret |
@@ -154,7 +154,9 @@ reader\.venv\Scripts\python.exe scripts\check_dubstudio.py --init "Sorozat neve"
 
 A szkript a dubstudio `projects\<slug>.json` fájlját írja a gépen talált
 modellútvonalakkal, a mért alapbeállításokkal (`tuning`, `gate`) és a helyi LLM
-fordítóval. Utána a fájl szabadon szerkeszthető — a Beállítások fül a felületen
+fordítóval. Ugyanezt a projektgyárat használja a felület varázslója és a
+dubstudio CLI is; a CLI a projektet `--project` → `DUBSTUDIO_PROJECT` → az
+egyetlen `projects\*.json` sorrendben keresi (a repóban nincs beégetett projekt). Utána a fájl szabadon szerkeszthető — a Beállítások fül a felületen
 is ugyanezt a JSON-t módosítja (`models`, `tuning`, `gate`, `llm`, `asr`).
 
 A fontosabb mezők:
@@ -250,7 +252,7 @@ ezért bukó kapu esetén is elkészülnek a fájlok, de a folyamat hibakóddal 
 
 | Tünet | Ok | Megoldás |
 |---|---|---|
-| a `/szinkron` oldal: „Nincs dubstudio projekt” | nincs `projects\*.json`, vagy rossz a `DUBSTUDIO_ROOT` | `check_dubstudio.py --init "Név"`, illetve állítsd be a változót; majd indítsd újra az Aurist |
+| a `/szinkron` oldal: „Még nincs projekt” | nincs `projects\*.json`, vagy rossz a `DUBSTUDIO_ROOT` | hozz létre egyet az „Új film” űrlappal, vagy `check_dubstudio.py --init "Név"`; rossz `DUBSTUDIO_ROOT` esetén állítsd be, majd indítsd újra az Aurist |
 | `ModuleNotFoundError: sherpa_onnx` / `torch` / `audio_separator` | a csomagok nincsenek az Auris venvjében | `reader\.venv\Scripts\python.exe -m pip install -r reader\requirements.txt`, majd újraindítás |
 | a futás „hiányzó modell” hibát ad | a modellek nincsenek letöltve | `... scripts\fetch_models.py`, majd `--check`; a projekt `models` útvonalai legyenek a letöltött helyek |
 | az intake nem talál feliratot | nincs szöveges felirat a fájlban | tölts fel SRT/VTT-t a felületen (a képfelirat nem fordítható) |

@@ -31,7 +31,7 @@ import numpy as np
 
 from . import audio, lightasd
 from .asd import corr_sig, decide_light, mouth_spans, speak_spans
-from .config import APP_ROOT, load_project
+from .config import APP_ROOT, load_project, resolve_project
 
 #: YuNet arcdetektor (~230 KB ONNX) — a ``work/`` gitignore-olt, így a
 #: modell letöltése kézi lépés (lásd docs/asd.md).
@@ -335,7 +335,7 @@ def main(argv: list[str]) -> int:
         del rest[i:i + 2]
     if net_kind not in ("light", "corr"):
         raise SystemExit(f"ismeretlen --net: {net_kind}")
-    p = load_project("projects/biohackers.json")
+    p = load_project(resolve_project())
     ep = p.ep_dir(tag)
     utt = json.loads((ep / "utterances.json").read_text(encoding="utf-8"))
     if rest and rest[0] == "--suspicious":

@@ -7,7 +7,7 @@ modell javaslatait teszi átláthatóvá, és az emberi döntéseket ugyanabba a
 ``review.json`` állapotba írja, amit a parancssor is használ.
 
 A projekt útvonala a ``DUBSTUDIO_ROOT`` környezeti változóval írható felül;
-alapértelmezés a repó melletti ``dubstudio`` könyvtár.
+alapértelmezés a repón belüli ``dubstudio`` könyvtár.
 """
 from __future__ import annotations
 
@@ -98,6 +98,15 @@ def _youtube():
         sys.path.insert(0, root)
     from dubstudio import youtube
     return youtube
+
+
+def _newproject():
+    """Az új projekt gyára (modellek, küszöbök, kapuk egy helyen)."""
+    root = str(DUB_ROOT)
+    if root not in sys.path:
+        sys.path.insert(0, root)
+    from dubstudio import newproject
+    return newproject
 
 
 def _project_key(name: str | None) -> str:
@@ -493,7 +502,13 @@ def _movie_project_doc(template, name: str, slug: str, source_lang: str) -> dict
     A modellek abszolút útvonalat kapnak, mert az új film gyökere más lesz,
     mint a sabloné. A hangfelismerés/fordítás beállításai öröklődnek, a
     vokál/M&E pedig az intake alaphelyére kerül (``work/<EP>/``).
+
+    **Sablon nélkül** (üres ``projects/``, azaz friss klón) a dubstudio
+    ``newproject`` gyára adja az alapértékeket — így az első film is
+    működőképes beállításokkal jön létre.
     """
+    if template is None:
+        return _newproject().project_doc(name, "movie", 1, source_lang)
     models = {}
     for key, value in (template.models or {}).items():
         try:
@@ -593,8 +608,10 @@ def create_movie_project():
     dest = DUB_ROOT / "projects" / f"{slug}.json"
     if dest.exists():
         return jsonify({"error": f"Már van ilyen projekt: {slug}."}), 409
-    template = _project(body.get("template") or None)
-    lang = str(body.get("source_lang") or template.source_lang or "heb").strip().lower()
+    # üres projects/ (friss klón): nincs sablon, a dubstudio gyára adja az alapot
+    template = _project(body.get("template") or None) if _project_names() else None
+    default_lang = template.source_lang if template is not None else "eng"
+    lang = str(body.get("source_lang") or default_lang or "heb").strip().lower()
     lang = "heb" if lang in ("he", "heb", "héber") else "eng"
     doc = _movie_project_doc(template, name, slug, lang)
     try:
@@ -667,7 +684,8 @@ def upload_subtitle():
 def create_youtube_project():
     """YouTube URL-ből filmprojekt: letöltés, felirat, majd automatikus szinkron.
 
-    A projektet a kiválasztott sablonból hozza létre (mint a filmvarázsló), a
+    A projektet a kiválasztott sablonból hozza létre (mint a filmvarázsló;
+sablon nélkül a dubstudio gyára adja az alapot), a
     letöltést és az intake+szinkron láncot pedig külön háttérfolyamat végzi,
     hogy a hosszú videó ne blokkolja a webes kérést.
     """
@@ -685,7 +703,8 @@ def create_youtube_project():
     dest = DUB_ROOT / "projects" / f"{slug}.json"
     if dest.exists():
         return jsonify({"error": f"Már van ilyen projekt: {slug}."}), 409
-    template = _project(body.get("template") or None)
+    # üres projects/ esetén sablon nélkül, a dubstudio gyárából épül a projekt
+    template = _project(body.get("template") or None) if _project_names() else None
     lang = str(body.get("source_lang") or "eng").strip().lower()
     lang = "heb" if lang in ("he", "heb", "héber") else "eng"
     doc = _movie_project_doc(template, name, slug, lang)

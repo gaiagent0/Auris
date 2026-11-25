@@ -2,7 +2,8 @@
 
 ## Python environment
 
-- Use `D:\AI\Auris\reader\.venv` as the project's Python environment.
+- Use the repo-local venv (`reader\.venv`, created by `reader\setup.bat`) as the
+  project's Python environment.
 - Run Python commands from the repository root with
   `reader\.venv\Scripts\python.exe`, or from `reader` with
   `.venv\Scripts\python.exe`.

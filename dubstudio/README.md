@@ -24,8 +24,8 @@ zene+effekt sávra, és **mérhető kapukkal** ellenőrzi az eredményt.
 ## Miért épült újra
 
 A korábbi lánc a beszélőt **diarizációs szegmensek átfedéséből** tippelte, és
-a hangot **epizódonként, klaszterenként** osztotta. A mérés (Fauda S05E05) ezt
-igazolta:
+a hangot **epizódonként, klaszterenként** osztotta. A mérés (egy 10 részes
+sorozat egy epizódja) ezt igazolta:
 
 | hiba | mérés a régi láncon |
 |---|---|

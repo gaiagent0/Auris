@@ -551,7 +551,7 @@ def cluster(utts: list[Utterance], tuning: dict | None = None,
               f"azonos nemű szereplőbe ({merged_frag} megnyilatkozás)")
 
     # ── 6. kapu-vezérelt összevonás ───────────────────────────────────
-    # A mérés (Fauda S05E05) kimutatta: az egymás után következő, koszinusz
+    # A mérés kimutatta: az egymás után következő, koszinusz
     # >= cos_same hasonlóságú megszólalások gyakran két klaszterben végződnek
     # (átlag-linkage + Viterbi szétválaszt), és így két különböző magyar hangon
     # szólnak — ez a „színész több hangon beszél" hallható hiba. Ezeket a
@@ -1755,7 +1755,7 @@ def violations(utts: list[Utterance], tuning: dict | None = None,
 # ── Kalibrált beszélő-verifikáció (AS-Norm + döntési sáv) ─────────────────
 #
 # A nyers koszinusz egyetlen küszöbe nem működik: ugyanaz a színész 0,82-nél
-# is szétválik, más színészek 0,60-nál összemosódnak (mért, Detour 1945).
+# is szétválik, más színészek 0,60-nál összemosódnak (saját mérésen).
 # A verifikátor cohort-alapú AS-Norm-mal kalibrál, és same/different/uncertain
 # döntést ad. A döntési modell (Jev/Laya/Kev) csak az uncertain sávban
 # (0,35–0,65) szól bele; a nyers hangot ez a modell dolgozza fel.

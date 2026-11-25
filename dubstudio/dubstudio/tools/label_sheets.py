@@ -13,6 +13,7 @@ Használat:
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -24,7 +25,7 @@ from PIL import Image, ImageDraw  # noqa: E402
 
 from dubstudio import lightasd  # noqa: E402
 from dubstudio.asd_visual import MODEL, Yunet, frames, track_faces  # noqa: E402
-from dubstudio.config import load_project  # noqa: E402
+from dubstudio.config import load_project, resolve_project  # noqa: E402
 
 SIZE = "1280x720"
 COLS = 9            # időminta soronként
@@ -104,11 +105,12 @@ def filmstrip(net: Yunet, src: Path, start: float, dur: float, tag: str,
 
 
 def main(argv: list[str]) -> int:
-    p = load_project("projects/biohackers.json")
-    ep = p.ep_dir("E04")
+    p = load_project(resolve_project())
+    tag = os.environ.get("DUBSTUDIO_EP", "E01").upper()
+    ep = p.ep_dir(tag)
     rows = json.loads((ep / "visual" / "asd.json").read_text(encoding="utf-8"))
     want = {int(a) for a in argv} if argv else set(range(len(rows)))
-    hits = sorted(Path(p.data_dir).glob("*E04*.mkv"))
+    hits = sorted(Path(p.data_dir).glob(f"*{tag}*"))
     if not hits:
         raise FileNotFoundError(p.data_dir)
     net = Yunet(MODEL)

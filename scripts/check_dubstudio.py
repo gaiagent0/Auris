@@ -23,10 +23,8 @@ import argparse
 import importlib.util
 import json
 import os
-import re
 import shutil
 import sys
-import unicodedata
 from pathlib import Path
 
 AURIS_ROOT = Path(__file__).resolve().parents[1]
@@ -50,42 +48,18 @@ BINARIES = [
     ("espeak-ng", "Piper-hangok IPA fonémázása"),
 ]
 
-#: a projekt `models` szakaszának kulcsai és a hozzájuk tartozó fájlnév
-MODEL_KEYS = {
-    "embedding": "3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx",
-    "diar_embedding": "3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx",
-    "diar_segmentation": "diar/sherpa-onnx-pyannote-segmentation-3-0/model.onnx",
-    "supertonic": "supertonic-sherpa-int8/",
-    "piper": "piper/",
-}
+def newproject(root: Path):
+    """A dubstudio projektgyára (a csomag importja a repóból vagy a DUBSTUDIO_ROOT-ból).
 
-GATE_DEFAULTS = {
-    "voice_switch_max": 0,
-    "voice_switch_ratio_max": 0.0,
-    "one_voice_per_utt_max": 0,
-    "gender_conflict_max": 0,
-    "coverage_min": 1.0,
-    "scene_conflict_max": 0,
-    "main_shared_max": 0,
-    "fit_over_ratio_max": 0.02,
-    "fit_max_over_s": 0.6,
-    "asr_cer_max": {"parakeet": 0.3, "whisper": 0.6, "default": 0.6},
-    "voice_overlap_max": 2,
-    "scene_minor_ratio_max": 0.01,
-}
-
-TUNING_DEFAULTS = {
-    "gap_merge": 0.9,
-    "gap_cont": 2.2,
-    "cos_same": 0.24,
-    "cos_diff": 0.12,
-    "sim_same": 0.24,
-    "link_cos": 0.25,
-    "viterbi_pen": 0.3,
-    "main_share_min": 0.04,
-    "sim_gender": 0.17,
-    "recall_cos": 0.5,
-}
+    Az alapértékek (modellek, küszöbök, kapuk) egy helyen, a
+    ``dubstudio/newproject.py``-ban vannak, hogy a felület varázslója és ez a
+    szkript ugyanazt írja.
+    """
+    base = str(root)
+    if base not in sys.path:
+        sys.path.insert(0, base)
+    from dubstudio import newproject as factory
+    return factory
 
 
 def shared_models(root: Path) -> list[tuple[str, Path]]:
@@ -113,12 +87,6 @@ def dub_root() -> Path:
     """
     return Path(os.environ.get("DUBSTUDIO_ROOT")
                 or (AURIS_ROOT / "dubstudio")).resolve()
-
-
-def slugify(name: str) -> str:
-    """Projekt-azonosító: ékezet nélküli, kisbetűs, kötőjeles (max 48)."""
-    folded = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode()
-    return re.sub(r"[^a-z0-9]+", "-", folded.lower()).strip("-")[:48] or "film"
 
 
 def _row(ok: bool, label: str, detail: str = "") -> dict:
@@ -202,63 +170,6 @@ def check(root: Path) -> dict:
     return {"root": str(root), "checks": rows, "projects": projects}
 
 
-def _model_defaults(models_dir: Path, auris_models: Path) -> dict:
-    """A `models` szakasz alapértékei a gépen megtalálható helyekről."""
-    espeak = shutil.which("espeak-ng") or ""
-    return {
-        "embedding": str(models_dir / MODEL_KEYS["embedding"]),
-        "diar_embedding": str(models_dir / MODEL_KEYS["diar_embedding"]),
-        "diar_segmentation": str(models_dir / MODEL_KEYS["diar_segmentation"]),
-        "supertonic": str(auris_models / "supertonic-sherpa-int8"),
-        "piper": str(models_dir / "piper"),
-        "espeak": espeak,
-    }
-
-
-def project_doc(name: str, kind: str, season: int, models_dir: Path,
-                auris_models: Path, source_lang: str) -> dict:
-    """Egy új projekt JSON-ja (a dubstudio `_movie_project_doc` sémája szerint)."""
-    slug = slugify(name)
-    root = f"../movies/{slug}" if kind == "movie" else f"../series/{slug}"
-    return {
-        "name": name,
-        "season": season,
-        "kind": kind,
-        "root": root,
-        "cache_dir": f"../work/{slug}",
-        "data_dir": "data",
-        "subs_dir": "subs",
-        "vocals_globs": ["{tag}/vocals.wav"],
-        "me_globs": ["{tag}/me.wav"],
-        "source_lang": source_lang,
-        "original_audio": 0,
-        "tts_sr": 44100,
-        "models": _model_defaults(models_dir, auris_models),
-        "tuning": dict(TUNING_DEFAULTS),
-        "gate": dict(GATE_DEFAULTS),
-        "llm": {"enabled": False, "base": "http://127.0.0.1:11434",
-                "model": "qwen3.5:9b", "batch": 10, "timeout": 180,
-                "required": False},
-        "asr": {"mode": "parakeet", "batch": 1, "confirm_max": 30},
-        "intake": {
-            "translate": {"enabled": True, "base": "http://127.0.0.1:11434/v1",
-                          "model": "ministral-3:8b", "api_key": "",
-                          "api_key_env": "", "batch": 20, "timeout": 300,
-                          "max_tokens": 4096, "source_lang": source_lang},
-            "separate": {"enabled": True, "model": "UVR_MDXNET_Main.onnx",
-                         "model_dir": str(models_dir / "separate"),
-                         "audio_stream": 0, "second_pass": False,
-                         "sample_rate": 44100, "timeout": 3600},
-        },
-        "diarization": {"enabled": True, "num_speakers": 0, "threshold": 0.5,
-                        "min_turn": 0.3, "merge_gap": 0.6, "island_max": 0.8,
-                        "min_duration_on": 0.15, "min_duration_off": 0.25,
-                        "attach_gap": 2.0, "num_threads": 4},
-        "series": {"auto_process": False, "poll_s": 30},
-        "media_server": {"path": "", "deliver": False},
-    }
-
-
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="A szinkronstúdió (dubstudio) környezetének ellenőrzése.")
@@ -292,13 +203,19 @@ def main(argv: list[str] | None = None) -> int:
         name = args.init.strip()
         if not name:
             parser.error("a --init egy projektnevet vár")
+        try:
+            factory = newproject(root)
+        except ImportError as exc:
+            print(f"A dubstudio csomag nem importálható ({root}): {exc}",
+                  file=sys.stderr)
+            return 2
         (root / "projects").mkdir(parents=True, exist_ok=True)
-        dest = root / "projects" / f"{slugify(name)}.json"
+        dest = root / "projects" / f"{factory.slugify(name)}.json"
         if dest.exists():
             print(f"Már létezik ilyen projekt: {dest}", file=sys.stderr)
             return 2
-        doc = project_doc(name, args.kind, args.season, models_dir,
-                          auris_models, args.source_lang)
+        doc = factory.project_doc(name, args.kind, args.season,
+                                  args.source_lang, models_dir, auris_models)
         dest.write_text(json.dumps(doc, ensure_ascii=False, indent=1) + "\n",
                         encoding="utf-8")
         created = str(dest)

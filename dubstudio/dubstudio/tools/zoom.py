@@ -8,6 +8,7 @@ dekódolunk (2× nagyítás), így a száj tényleg látszik.
 """
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -18,13 +19,14 @@ from PIL import Image, ImageDraw  # noqa: E402
 
 from dubstudio import lightasd  # noqa: E402
 from dubstudio.asd_visual import frames  # noqa: E402
-from dubstudio.config import load_project  # noqa: E402
+from dubstudio.config import load_project, resolve_project  # noqa: E402
 
 
 def main(argv: list[str]) -> int:
     t, face, cx, cy, size, end = (float(a) for a in argv[:6])
-    p = load_project("projects/biohackers.json")
-    src = sorted(Path(p.data_dir).glob("*E04*.mkv"))[0]
+    p = load_project(resolve_project())
+    tag = os.environ.get("DUBSTUDIO_EP", "E01").upper()
+    src = sorted(Path(p.data_dir).glob(f"*{tag}*"))[0]
     dur = end - t
     cols = 9
     x, fps = frames(src, t, dur, size="1920x1080", fps=cols / max(dur, 0.5))
@@ -36,7 +38,7 @@ def main(argv: list[str]) -> int:
                           expand=2.0)
         out.paste(Image.fromarray(c).convert("RGB"), (i * cell, 18))
         d.text((i * cell + 3, 3), f"{t + i / fps:.2f}s", fill=(240, 240, 245))
-    path = p.ep_dir("E04") / "visual" / "labels" / f"zoom_{t:.2f}_{int(face)}.png"
+    path = p.ep_dir(tag) / "visual" / "labels" / f"zoom_{t:.2f}_{int(face)}.png"
     out.save(path)
     print(path)
     return 0

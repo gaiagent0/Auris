@@ -9,7 +9,7 @@ visszakövethető legyen, miért úgy döntöttünk.
 > magját (diarizáció → klaszterezés → hangzár → szintézis → keverés → QA) az
 > építés közben nem bántottuk: kutatás-vezérrelt változtatás csak új mérés
 > után jöhet (M-számozott mérések az Aurisban:
-> `auris/reader/docs/meresek.md`).
+> `reader/docs/meresek.md`).
 
 ---
 

@@ -39,6 +39,10 @@ A szinkronfelület a repóba épített **dubstudio** modult használja
 állítható): a futást a `dubstudio` CLI végzi, az Auris a felületet, a
 lejátszót és az emberi döntések rögzítését adja hozzá. A telepítő a
 futásidőbeli mappákat (`projects`, `work`, `movies`, `series`) létrehozza.
+A repóban **nincs kész projekt, film vagy forgatókönyv**: az első projekt a
+`/szinkron` oldal „Új film” űrlapjával (vagy
+`reader\.venv\Scripts\python.exe scripts\check_dubstudio.py --init "Cím"`
+paranccsal) készül, működő alapbeállításokkal (modellek, küszöbök, kapuk).
 Telepítés és beállítás: [`docs/SZINKRON-TELEPITES.md`](docs/SZINKRON-TELEPITES.md),
 az állapotot a `scripts/check_dubstudio.py` ellenőrzi.
 

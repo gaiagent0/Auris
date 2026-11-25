@@ -72,11 +72,10 @@ bizonyíték, nem kapu. A küszöb 0,65-ről 0,45-re került a lenti mérés ala
 
 ## Kézi ground truth — a 15 hosszú gyanús sor (S02E04)
 
-A címke a `work/biohackers/E04/visual/labels/` kontaktlapjai alapján készült:
-soronként 12 teljes képkocka időrendben (befoglalt arcokkal) + arconként 9
-nagyított arckivágás. A bizonytalan sorokon külön nagyított szájcsík
-(`dubstudio/tools/zoom.py`). A címkék:
-`work/biohackers/E04/visual/labels/truth.json`.
+A címke a `work/<EP>/visual/labels/` kontaktlapjai alapján készült: soronként
+12 teljes képkocka időrendben (befoglalt arcokkal) + arconként 9 nagyított
+arckivágás. A bizonytalan sorokon külön nagyított szájcsík
+(`dubstudio/tools/zoom.py`). A címkék: `work/<EP>/visual/labels/truth.json`.
 
 * `arc` — a látható arcok egyikének mozog a szája (7 sor)
 * `kivul` — a beszélő arca nem látszik (2 sor: éjszakai autó, hangposta)
@@ -155,9 +154,11 @@ Sebesség: ~1 videómásodperc/másodperc CPU-n (15 sor ≈ 4 perc). Teljes
 epizódra (~43 perc) tehát ~40 perc — ezért fut csak kérésre, nem a
 szinkronlánc részeként.
 
-Kimenet: `work/biohackers/E04/visual/asd.json` (soronként minden arc
-`prob`-bal, jelenléttel, beszéd-intervallummal, mérettel) és
-`visual/bench_light-asd-*.json` (a ground truthos mérés).
+Kimenet: `work/<EP>/visual/asd.json` (soronként minden arc `prob`-bal,
+jelenléttel, beszéd-intervallummal, mérettel) és `visual/bench_light-asd-*.json`
+(a ground truthos mérés). Az epizódot a `DUBSTUDIO_EP` környezeti változó
+adja (alap: `E01`), a projektet a `DUBSTUDIO_PROJECT` vagy az egyetlen
+`projects/*.json`.
 
 ## Korlátok
 

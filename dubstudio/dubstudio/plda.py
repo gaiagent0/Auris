@@ -1,7 +1,7 @@
 """PLDA (Probabilistic Linear Discriminant Analysis) beszélő-verifikáció.
 
 A nyers koszinusz egyetlen küszöbe nem működik: ugyanaz a színész 0,82-nél
-is szétválik, más színészek 0,60-nál összemosódnak (mért, Detour 1945).
+is szétválik, más színészek 0,60-nál összemosódnak (saját mérésen).
 Az AS-Norm (verify_pair) cohort-alapú z-score-t ad; a PLDA ezt
 principiálisabbá teszi: a cohort-ból megtanulja a **beszélő-közötti** és
 **beszélő-beli** szórást (between/within-class scatter), LDA-projekcióval
@@ -53,7 +53,7 @@ from .embeddings import cosine
 
 #: Alap-küszöbök a null-eloszlásból mért szórásban (z).
 #:
-#: **Mérésből** (Detour E01, 27 477 target / 11 606 non-target pár,
+#: **Mérésből** (egy filmes epizód, 27 477 target / 11 606 non-target pár,
 #: keresztvalidált, nyers diarizációs címkékkel): a non-target eloszlás a
 #: tanító null-eloszláshoz képest +0,56 szórással eltolódik és 1,46 szórású
 #: (a tanító null-eloszlás **in-sample**, ezért optimista — ezt a mérés

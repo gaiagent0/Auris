@@ -15,6 +15,7 @@ Használat:
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -22,9 +23,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from dubstudio import asd, audio, lightasd  # noqa: E402
 from dubstudio.asd_visual import MODEL, Yunet, analyze  # noqa: E402
-from dubstudio.config import load_project  # noqa: E402
+from dubstudio.config import load_project, resolve_project  # noqa: E402
 
-EP = "E04"
+#: az epizód, amin a mérés fut (a repó nem tartalmaz beégetett epizódot)
+EP = os.environ.get("DUBSTUDIO_EP", "E01").upper()
 WEIGHTS = ("light-asd-ava.model", "light-asd-talkset.model")
 
 
@@ -39,7 +41,7 @@ def verdict_class(r: dict) -> str:
 
 
 def run(weight: str, rows: list[dict], truth: dict) -> list[dict]:
-    p = load_project("projects/biohackers.json")
+    p = load_project(resolve_project())
     ep = p.ep_dir(EP)
     src = sorted(Path(p.data_dir).glob(f"*{EP}*.mkv"))[0]
     net = Yunet(MODEL)
@@ -100,7 +102,7 @@ def report(name: str, rows: list[dict]) -> dict:
 
 
 def main(argv: list[str]) -> int:
-    p = load_project("projects/biohackers.json")
+    p = load_project(resolve_project())
     labels = json.loads((p.ep_dir(EP) / "visual" / "labels" / "truth.json")
                         .read_text(encoding="utf-8"))
     truth = {r["t"]: r for r in labels["rows"]}

@@ -850,7 +850,7 @@ csak a mérőprogram helyét kell átírni:
 
 ```
 cd <repo>/reader/docs/meresi-adatok/f5-tts
-D:/VoiceAI/apps/hu-voice-ai/venv-x64/Scripts/python.exe piper_hu_probe.py   # emulált + phonem-ID-k
+<x64-venv>/Scripts/python.exe piper_hu_probe.py                # emulált + phonem-ID-k
 <repo>/reader/.venv/Scripts/python.exe piper_hu_native.py      # natív ARM64 ORT
 cd <repo>/reader
 .venv/Scripts/python.exe scripts/asr_check_wavs.py --json <...>/cases.json
@@ -924,7 +924,7 @@ D:\<projekt>\envs\xtts-probe\venv-arm64\Scripts\python.exe xtts_hu_probe.py --mo
 
 :: WER/CER
 cd "<repo>\auris\reader"
-.venv/Scripts/python.exe scripts/asr_check_wavs.py --json D:/VoiceAI/out/xtts/cases_int8.json --language hu
+.venv/Scripts/python.exe scripts/asr_check_wavs.py --json <esetek>.json --language hu
 ```
 
 **Két mérési figyelmeztetés:**
