@@ -23,6 +23,14 @@ represent a new product generation or an incompatible change.
   melletti, soronkénti beszélő-ellenőrzés, amely a döntéseket a következő
   futásba írja vissza. Az Auris ezzel **hangoskönyv- és szinkronstúdió**; a
   márkafelirat, a PWA-név, a súgó és a README is ezt a két felületet írja le.
+- **`scripts/check_dubstudio.py` — a szinkronlánc környezetellenőrzése** —
+  soronként kiírja, megvan-e a dubstudio, a Python csomagok (`sherpa-onnx`,
+  `torch`, `transformers`, `audio-separator`…), a `ffmpeg`/`ffprobe`, az
+  `espeak-ng`, a projektek és a projektfájlokban hivatkozott modellek; `--json`
+  kimenete gépi feldolgozásra való, `--init "Név"` pedig a dubstudio
+  `projects\<slug>.json` projektjét hozza létre a gépen talált
+  modellútvonalakkal, így egy friss klón a felület varázslója nélkül is
+  elindítható.
 - **Letöltőszkript a XTTSv2-ONNX klónmodellhez** (`scripts/download_xtts.py`) —
   a gated, CC BY-NC 4.0 licencű `pltobing/XTTSv2-Streaming-ONNX` modellt tölti
   a repó `vendor/` mappájába, a motor által kért fájlokat ellenőrzi
@@ -105,6 +113,19 @@ represent a new product generation or an incompatible change.
 
 #### Dokumentáció
 
+- **Szinkron-telepítési útmutató friss klónhoz** (`docs/SZINKRON-TELEPITES.md`)
+  — a dubstudio elhelyezése (`DUBSTUDIO_ROOT`), a Python csomagok az Auris
+  venv-jében, az `ffmpeg`/`ffprobe`/`espeak-ng`, a modellek (pyannote, CAM++,
+  Supertonic, Piper, UVR/MDX, nem-osztályozó), a projektfájl mezői, a fordítás
+  beállítása (helyi Ollama vagy `api_key_env`-pel hivatkozott távoli kulcs),
+  az első futás ellenőrzése és egy hibaelhárítási táblázat. A README külön
+  „Szinkronstúdió — telepítés és beállítás” szekciót, a beépített súgó pedig
+  telepítési calloutot kapott; a `DUBSTUDIO_ROOT` bekerült a környezeti
+  változók táblázatába.
+- **A használati útmutató újraírva** — a korábbi szöveg több helyen értelmetlen
+  szavakat és elgépeléseket tartalmazott (`útjaielk`, `teitel`, `színkron`);
+  a szinkronstúdió saját szakaszt kapott, a CLI-leírás a valódi `--help`
+  kimenetéhez igazodik.
 - **A Docker-út valós viselkedése leírva** — az útmutató kimondja, hogy a
   sherpa-Supertonic int8 modell a konténerben az első hanggeneráláskor
   automatikusan letöltődik a `docker-data\models\` alá (~139 MB, a HF
@@ -128,6 +149,13 @@ represent a new product generation or an incompatible change.
   dub run and muxed MKV, plus a human per-line speaker review next to the film
   that feeds the next run. Auris is therefore an **audiobook and dubbing
   studio**; the brand line, PWA name, help page and README describe both.
+- **`scripts/check_dubstudio.py` — sync-chain environment check** — reports
+  line by line whether the dubstudio, the Python packages (`sherpa-onnx`,
+  `torch`, `transformers`, `audio-separator`…), `ffmpeg`/`ffprobe`,
+  `espeak-ng`, the projects and the models referenced by each project file are
+  present; `--json` gives machine-readable output and `--init "Name"` writes a
+  dubstudio `projects\<slug>.json` with the model paths found on the machine,
+  so a fresh clone can start without the interface wizard.
 - **A downloader script for the XTTSv2-ONNX cloning model**
   (`scripts/download_xtts.py`) — fetches the gated, CC BY-NC 4.0
   `pltobing/XTTSv2-Streaming-ONNX` model into the repository's `vendor/`
@@ -212,6 +240,19 @@ represent a new product generation or an incompatible change.
 
 #### Documentation
 
+- **A sync installation guide for a fresh clone**
+  (`docs/SZINKRON-TELEPITES.md`) — where the dubstudio goes
+  (`DUBSTUDIO_ROOT`), the Python packages in the Auris venv,
+  `ffmpeg`/`ffprobe`/`espeak-ng`, the models (pyannote, CAM++, Supertonic,
+  Piper, UVR/MDX, gender classifier), the project file's fields, translation
+  setup (local Ollama or a remote key referenced through `api_key_env`), the
+  first-run checks and a troubleshooting table. The README gained a dedicated
+  "Sync studio — installation and setup" section, the built-in help an
+  installation callout, and `DUBSTUDIO_ROOT` joined the environment table.
+- **The Hungarian usage guide was rewritten** — several passages contained
+  garbled words and typos (`útjaielk`, `teitel`, `színkron`); the sync studio
+  has its own section and the CLI description follows the real `--help`
+  output.
 - **The Docker path's real behaviour is written down** — the guide states
   that inside the container the sherpa-Supertonic int8 model is downloaded
   on the first generation into `docker-data/models/` (~139 MB, HF cache in

@@ -1,17 +1,18 @@
 # Auris — Teljes használati útmutató (hangoskönyv és szinkronfilm)
 
-> Snapdragon X Elite / Windows 11 ARM64 natív build. Frissítve: 2026-10-06.
-> Ez az útmutató a `reader/app.py` útjaielk és az `auris_cli.py` `--help`-ekből
-> származik — minden parancs és URL valósan futtatható ezen a gépen.
+> Snapdragon X Elite / Windows 11 ARM64 natív build. Frissítve: 2026-11-25.
+> Az útmutató a `reader/app.py` útvonalaiból, az `auris_cli.py` és a
+> `python -m dubstudio` `--help`-eiből származik — minden parancs és URL
+> valósan futtatható ezen a gépen.
 
 ---
 
-## 0. Első induló
+## 0. Első indítás
 
 ```bat
 cd /d "%USERPROFILE%\Auris"
 reader\setup.bat       :: csak egyszer — venv + függőségek
-reader\run.bat         :: induló — a TTS modell hátérterülben betölt, az app rögtön nyit
+reader\run.bat         :: indítás — a TTS modell háttérben tölt, az app rögtön nyílik
 ```
 
 > **Ha a `setup.bat` a „not recognized as an internal or external command”
@@ -23,62 +24,57 @@ reader\run.bat         :: induló — a TTS modell hátérterülben betölt, az 
 - Web UI: **http://127.0.0.1:7860** — könyvtár és hangoskönyv-készítés
 - Szinkronstúdió: **http://127.0.0.1:7860/szinkron** (film/sorozat) és
   **http://127.0.0.1:7860/felulvizsgalat** (soronkénti emberi ellenőrzés); a
-  `dubstudio` munkafájljait használja (lásd a Súgó *Szinkronstúdió* szakaszát)
+  `dubstudio` munkafájljait használja — a telepítés a 6. szakaszban
 - CLI: `reader\.venv\Scripts\python.exe reader\auris_cli.py ...`
-- A modell a `reader\models\supertonic-3\`-ba van (fp32) — induláskor hátérterülben betölt, a lap ablaktív, amíg fut.
+- A Supertonic modell a `reader\models\supertonic-3\` alatt van (fp32);
+  induláskor háttérben töltődik, a felület addig is használható.
 
-**Kulcs-beállítások (Settings → Beszédmotorok):** `tts_engine=auto` (→ Supertonic 3),
-`supertonic_batch=4`, `supertonic_steps=10`, `supertonic_variant=fp32`.
-> A `tts_engine`-t **ne írd át tartósan** `supertonic`-ra — az auto a hardver-javaslatot
-> adja, és a végpont-végpont futtatás ebből a beállításból szól.
+**Kulcs-beállítások (Settings → Beszédmotorok):** `tts_engine=auto`
+(→ `supertonic_sherpa`), `supertonic_batch=4`, `supertonic_steps=10`,
+`supertonic_variant=fp32`.
+
+> A `tts_engine`-t **ne írd át tartósan** `supertonic`-ra — az `auto` a
+> hardver-javaslatot adja, és a végpont-végpont futtatás ebből indul.
 
 ---
 
 ## 1. Web UI — a teljes folyamat
 
-Mind a képek a **http://127.0.0.1:7860**-on futnak.
+Minden oldal a **http://127.0.0.1:7860** alatt fut.
 
-| Kép | Útvjal | Mi van itt |
+| Oldal | Útvonal | Mi van itt |
 |---|---|---|
-| Könyvtár | `/` | imported könyvek listája, import-form, export-jobs |
-| Olvasó | `/reader/<id>` | a könyv felolvasása, hang lejátszás, felirat színkron |
-| Hangstúdió | `/voice-studio/<id>` | szereplő hangjai, referenciahang-kiválasztás, klón |
-| Beállítások | `/settings` | motor, batch, lépésszám, hangprofilok, LLM-kapcsolat |
-| Dokumentáció | `/docs` | a beépített útmutató a felületen |
-| Állapotnapló | `/api/jobs` + `/jobs` | export- és generálási feladatok |
+| Könyvtár | `/` | importált könyvek, import-űrlap, export-feladatok |
+| Olvasó | `/reader/<id>` | felolvasás, lejátszás, felirat, szókiemelés |
+| Hangstúdió | `/voice-studio/<id>` | szereplőhangok, referenciahang, klónozás |
+| Produkció | `/production/<id>` | lépéssor, fejezetenkénti állapot, export |
+| Ellenőrzés | `/qa/<id>` | minőségellenőrzés, változatok, jóváhagyás |
+| Beállítások | `/settings` | motor, batch, lépésszám, hangprofilok, LLM |
+| Feladatok | `/jobs` | generálás, export, újraelemzés állapota |
+| Dokumentáció | `/docs` | a beépített útmutató |
+| Szinkron | `/szinkron` | film/sorozat szinkronlánca (dubstudio) |
+| Felülvizsgálat | `/felulvizsgalat` | soronkénti beszélő-ellenőrzés |
 
 ### 1.1 Munkafolyamat (első könyv)
 
-1. **Könyvtár (`/`)** → „Import book" → EPUB/PDF/DOCX/TXT fájl.
-   - Import parancssorból: `python auris_cli.py import konyv.epub --wait` (a `--wait` a
-     szereplőelemzésre várja; nálad lezárdalom meg a felületen).
-2. **Hangstúdió (`/voice-studio/<id>`)** → karakterenként hang kiválasztás.
-   - Beépített: F1–F5 (női), M1–M5 (férfi).
-   - Klón: „Upload WAV reference" → az XTTSv2-ONNX úton a hang klónozódik (lásd §3).
-3. **Olvasó (`/reader/<id>`)** → a fejezet felolvasása, hang lejátszás.
-4. **Export** → WAV/MP3/Opus/FLAC/M4B, opcionális SRT/ASS felirat, fejezetkiválasztás.
-
-### 1.2 A beépített API (a frontend használja ezt)
-
-| Móds | Útvjal | Szolgál |
-|---|---|---|
-| POST | `/api/books/import` | import |
-| GET | `/api/books` | könyvlista |
-| PUT/DELETE | `/api/books/<id>` | könyv javítás/törlés |
-| GET | `/api/books/<id>/chapters` | fejezetek |
-| POST | `/api/tts/generate` | hanggenerálás |
-| GET | `/api/tts/status` | TTS-modell állapota |
-| POST | `/api/tts/load` | modell betöltése |
-| GET | `/api/audio/<cache_key>` | a gyorsítótárazott WAV |
-| GET | `/api/jobs` / POST `/api/jobs/<id>/cancel` | export-feladatok |
-| GET | `/docs` | dokumentáció |
+1. **Könyvtár (`/`)** → „Könyv hozzáadása” → EPUB/PDF/DOCX/TXT/PRC/MOBI vagy
+   nyilvános cikk URL-je.
+2. **Hangstúdió (`/voice-studio/<id>`)** → szereplőnként (és a narrátornál)
+   hang választása. Beépített: F1–F5 (női), M1–M5 (férfi); klón: feltöltött
+   referencia WAV az XTTSv2-ONNX motornál (lásd 3. szakasz).
+3. **Produkció (`/production/<id>`)** → a teljes könyv vagy a kijelölt
+   fejezetek generálása; a haladás a Feladatok oldalon követhető.
+4. **Ellenőrzés (`/qa/<id>`)** → visszahallgatás, hibás mondatok, változatok,
+   jóváhagyás.
+5. **Export** → WAV/MP3/Opus/FLAC/M4B, opcionális SRT/ASS felirat,
+   fejezetkiválasztás, kiadási csomag.
 
 ---
 
 ## 2. CLI — pontosan
 
-Az `auris` (`reader\auris_cli.py`) parancssor, `--server`-rel a futó szerverhozzósz. Ha
-nem fut szerver, `--start` indíta be belsőleg (a szövegfik virágon felhasználja).
+Az `auris` (`reader\auris_cli.py`) parancssor; `--server`-rel egy futó
+szerverhez csatlakozik, `--start`-tal maga indítja el a szervert, ha nem fut.
 
 ```bat
 set AURIS=reader\.venv\Scripts\python.exe reader\auris_cli.py
@@ -86,47 +82,63 @@ set AURIS=reader\.venv\Scripts\python.exe reader\auris_cli.py
 ```
 
 ### 2.1 `books`
+
 ```bat
 "%AURIS%" books
 ```
-A könyvek listája (id, teitel, állapota).
+
+A könyvek listája (azonosító, cím, állapot).
 
 ### 2.2 `import`
+
+```bat
+auris import [--title T] [--author A] [--language L] [--mode single|characters] [--wait] FÁJL
 ```
-auris import [--title T] [--author A] [--language L] [--mode single|characters] [--wait] FILE
-```
-- `file` — EPUB/PDF/DOCX/TXT/MOBI/PRC.
-- `--wait` — a szereplőelemzés **befejezéséhez** (nálad lezárdalom meg).
-- Kimenet: könyv-ID, amit a többi parancsból használhatod.
+
+- `FÁJL` — EPUB/PDF/DOCX/TXT/PRC/MOBI.
+- `--wait` — megvárja a szereplőelemzés végét.
+- Kimenet: a könyv azonosítója, amit a többi parancs használ.
 
 ### 2.3 `generate`
+
+```bat
+auris generate [--chapters 1,3,5-8 | all] KÖNYV_ID
 ```
-auris generate [--chapters 1,3,5-8 | all] BOOK_ID
-```
-A megadott fejezetek hangját elkészíti. A gyorsítótárazott mondatokot nem generálja újra.
+
+A megadott fejezetek hangját elkészíti; a már kész (gyorsítótárazott)
+mondatokat nem generálja újra.
 
 ### 2.4 `qa` — minőségellenőrzés
+
+```bat
+auris qa [--chapter N] [--no-asr] [--no-regenerate] KÖNYV_ID
 ```
-auris qa [--chapter N] [--no-asr] [--no-regenerate] BOOK_ID
-```
-Visszaírja ASR-rel (magyar), számolja WER/CER, jelzi a vágás/hosszú szünet/túl gyors vagy
-lassú mondatokot. A `--no-asr` a visszaírást kihagyja, a `--no-regenerate` a hibás mondatokot
-nem generálja újra.
+
+Beszédfelismeréssel visszaolvassa a hangot, WER/CER-t számol, és jelzi a
+vágást, a hosszú szünetet, a túl gyors vagy túl lassú mondatokat. A `--no-asr`
+kihagyja a visszaolvasást, a `--no-regenerate` nem generálja újra a hibás
+mondatokat.
 
 ### 2.5 `export`
-```
+
+```bat
 auris export [--format wav|mp3|m4b|opus|flac] [--subtitles none|srt|ass]
              [--package none|epub3|audiobookshelf|acx|daw] [--chapters 1,3,5-8]
-             [--intro] [--outro] [--sample] [--upload] BOOK_ID
+             [--intro] [--outro] [--sample] [--upload] KÖNYV_ID
 ```
-- `--package audiobookshelf` — Audiobookshelf-compatibilis mappastruktúra; `--upload` feltölti.
-- `--sample` — egy rövid bemutató minta (az export beállítások vétele).
+
+- `--package audiobookshelf` — Audiobookshelf-kompatibilis mappastruktúra;
+  `--upload` feltölti a Beállításokban megadott szerverre.
+- `--sample` — rövid bemutató minta az exportbeállításokkal.
 
 ### 2.6 `speak` — gyors teszt
-```
+
+```bat
 auris speak [-o OUT] [--voice F1] [--format mp3|wav|opus|flac|aac] [--speed 1.0] [--language hu] "Szöveg"
 ```
-Egy szöveget szintetizálja fájlba — a leggyorsabb mód a motor ellenőrzésére:
+
+Egy szöveget szintetizál fájlba — a leggyorsabb mód a motor ellenőrzésére:
+
 ```bat
 "%AURIS%" speak --format wav -o teszt.wav "Szia, ez egy teszt a magyar motoron."
 ```
@@ -137,48 +149,88 @@ Egy szöveget szintetizálja fájlba — a leggyorsabb mód a motor ellenőrzés
 
 | Hangforrás | Mi ez | Kimenet |
 |---|---|---|
-| **Beépített Supertonic** | F1–F5, M1–M5 | `tts_engine=auto`, beállítási mezőben |
-| **Sherpa-onnx Supertonic int8** | **a leggyorsabb motor** (RTF 0,14); a Snapdragon `auto`-javaslat; választható a `tts_engine=supertonic_sherpa` Beállításokban | modell automatikus HF-letöltés `reader/models/supertonic-sherpa-int8/` (+ `sherpa-onnx` a deps-ben) |
-| **Magyar Piper-hang** (anna, berta, imre) | külső ONNX, `reader/models/piper/` (vagy a `piper_models_dir` beállítás) | ONNX Runtime-tal fut, de a phonemizálás ARM64-en nyitott kérdés |
-| **XTTSv2-ONNX klón** | a **legjobb klónozó**: magyar zero-shot, tiszta ONNX, WER 0,18 %, 45,4 perc/óra | referencia WAV a Hangstúdióban; a modell a `VOICEAI_XTTS_DIR` által megadott könyvtárban (CC BY-NC 4.0) |
+| **Beépített Supertonic** | F1–F5 (női), M1–M5 (férfi) | `tts_engine=auto`, választás a Beállításokban |
+| **Sherpa-onnx Supertonic int8** | **a leggyorsabb motor** (mért RTF 0,14), a Snapdragon `auto`-javaslata; `tts_engine=supertonic_sherpa` | modell automatikus HF-letöltés a `reader\models\supertonic-sherpa-int8\` alá |
+| **Magyar Piper-hangok** (anna, berta, imre) | külső ONNX, `reader\models\piper\` (vagy a `piper_models_dir` beállítás) | ONNX Runtime; a fonémázás ARM64-en nyitott kérdés |
+| **XTTSv2-ONNX klón** | a klónozó motor: magyar zero-shot, tiszta ONNX, WER 0,18 % | referencia WAV a Hangstúdióban; a modell a `vendor\XTTSv2-Streaming-ONNX\` vagy a `VOICEAI_XTTS_DIR` alatt (CC BY-NC 4.0) |
 
-**Klón-korlát:** a sherpa-onnx Supertonic a referenciahang-klónozást **nem támogatja**
-(fixed-voice, voice.bin). A custom hangklónhoz az **XTTSv2-ONNX** a követendő út.
+**Klón-korlát:** a sherpa-onnx Supertonic a referenciahang-klónozást **nem
+támogatja** (fix hangkészlet). Saját hang klónozásához az **XTTSv2-ONNX** a
+követendő út.
+
+A készülék-audit (ASD) és a Parakeet ASR a filmes ellenőrzéshez is használatos;
+ezek a `reader\docs\meresek.md` bejegyzéseiben szerepelnek.
 
 ---
 
 ## 4. Mérés és ellenőrzés
 
-- **WER/CER a magyar korpuszon** (24 mondat): `reader\.venv\Scripts\python.exe -m core.hu_wer`
-- **ASR-ellenőrzés tetszőleges WAV-készletre**: `reader\scripts\asr_check_wavs.py --json cases.json --wav-dir <dir>`
-- **Serial vs batchelt minták** (emberi ellenőrzésre): `reader\scripts\export_test_samples.py`
+- **WER/CER a magyar korpuszon** (24 mondat):
+  `reader\.venv\Scripts\python.exe -m core.hu_wer` (a `reader` mappából)
+- **ASR-ellenőrzés tetszőleges WAV-készletre**:
+  `reader\scripts\asr_check_wavs.py --json cases.json --wav-dir <mappa>`
+- **Serial vs batchelt minták** (emberi ellenőrzésre):
+  `reader\scripts\export_test_samples.py`
 - **Teljes anyag**: `reader\docs\meresek.md` (M-01…M-45)
 
-A **Parakeet ONNX ASR** (`nemo-parakeet-tdt-0.6b-v3`) a `onnx_asr` resolver-jével a
-**`istupakov/parakeet-tdt-0.6b-v3-onnx`** HF-repóról betölt (25 európai nyelv, magyarral,
-licenc CC-BY-4.0). Első használtnál automatikusan tölte be.
+A **Parakeet ONNX ASR** (`nemo-parakeet-tdt-0.6b-v3`) az
+`istupakov/parakeet-tdt-0.6b-v3-onnx` Hugging Face repóról töltődik be
+(25 európai nyelv, köztük magyar; CC-BY-4.0).
 
 ---
 
-## 5. Hasznos fájlokon
+## 5. Fontos fájlok
 
 | Mi | Hol |
 |---|---|
-| App-fejlop | `reader/app.py` |
+| App belépési pont | `reader/app.py` |
 | CLI | `reader/auris_cli.py` |
-| Hangmotor | `reader/core/local_engines.py` (SupertonicEngine, generate_many) |
+| Hangmotorok | `reader/core/local_engines.py` (Supertonic, generate_many) |
 | ASR/VAD | `reader/core/qa.py` (Transcriber, vad_speech_spans) |
 | Gyorsítótár | `reader/audio_cache/` |
-| Modellok | `reader/models/supertonic-3/` (fp32), `...-int8/` |
-| Doku | `reader/docs/` — **meresek.md** (bizonyítékkatalógus), **arm64-install.md** (telepítés és mérés) |
+| Modellek | `reader/models/supertonic-3/` (fp32), `reader/models/supertonic-sherpa-int8/` |
+| Szinkron API | `reader/core/dub_api.py`, `lines_api.py`, `subtitle_upload.py` |
+| Szinkron felület | `reader/templates/szinkron.html`, `felulvizsgalat.html` |
+| Doku | `reader/docs/` — **meresek.md** (mérési bizonyítékok), **arm64-install.md** (telepítés) |
 
 ---
 
-## 6. Docker — a hordozható alternatíva
+## 6. Szinkronstúdió — film és sorozat
+
+A szinkronfelület a **dubstudio** láncot használja, amely **külön projekt**
+(nem része az Auris repónak). A részletes útmutató:
+[`SZINKRON-TELEPITES.md`](SZINKRON-TELEPITES.md); az állapotot a
+`scripts\check_dubstudio.py` írja ki.
+
+Rövid lépések:
+
+1. **dubstudio a repo mellé** (`..\dubstudio`), vagy `DUBSTUDIO_ROOT` a
+   gyökerére. A CLI-t az Auris indítja, külön nem kell futtatni.
+2. **Csomagok az Auris venv-jébe** (nincs második venv):
+   `reader\.venv\Scripts\python.exe -m pip install numpy scipy soundfile
+   onnxruntime sherpa-onnx torch transformers audio-separator`
+3. **Programok:** `ffmpeg`, `ffprobe` a PATH-on és `espeak-ng` a Piper-hangokhoz.
+4. **Modellek:** pyannote szegmentáló, CAM++ embedding, Supertonic 3 (sherpa
+   int8), Piper hu_HU hangok, UVR/MDX leválasztó modell. Az útvonalakat a
+   projekt `models` szakasza adja meg.
+5. **Projekt:** `/szinkron` → új film varázsló, vagy
+   `... scripts\check_dubstudio.py --init "Film címe" --kind movie`.
+6. **Fordítás:** OpenAI-kompatibilis végpont (alapból helyi Ollama,
+   `http://127.0.0.1:11434/v1`, `ministral-3:8b`). Távoli szolgáltatásnál a
+   projektfájlba csak a kulcs környezeti változójának **nevét** írd
+   (`"api_key_env": "OPENROUTER_API_KEY"`).
+
+A futás sorrendje: **intake** (felirat + vokál/M&E) → **prepare** (beszélőfordulók)
+→ **cluster** (szereplők, hangzár) → **dub** (terv, szintézis, keverés) → **mux**
+(`work\out\*.mkv`) → **QA-kapuk**. A kész szinkron a `/felulvizsgalat` oldalon
+soronként ellenőrizhető; a döntés a következő futásba íródik.
+
+---
+
+## 7. Docker — a hordozható alternatíva
 
 A fenti lépések a **natív venv**-et használják; ez az ajánlott út a Snapdragondon.
-Ha másik gépen (x64 Linux szerver, másik ARM64 gép) akarod futtatni az Aurist,
-akkor a Docker a megfelelő:
+Másik gépen (x64 Linux szerver, más ARM64 gép) a Docker a megfelelő:
 
 ```bat
 docker compose up -d --build
@@ -187,14 +239,13 @@ docker compose up -d --build
 
 - A kép **CPU-only**: minden motor ONNX Runtime-on fut, nem kell NVIDIA.
 - A modellek a `docker-data\models` mappából jönnek bind mounttal, így a
-  hoszton letöltött modellek azonnal használhatók, és a konténer újraépítésekor
-  nem kell újra letölteni őket.
+  hoszton letöltött modellek azonnal használhatók, és a konténer
+  újraépítésekor nem kell újra letölteni őket.
 - **A modell bekötése a konténerben is automatikus** — az első hanggeneráláskor
-  a sherpa-Supertonic int8 modell (~139 MB) letöltődik a
-  `docker-data\models\supertonic-sherpa-int8\` mappába, a Hugging Face
-  gyorsítótár pedig a `huggingface` named volume-ba kerül. Nem kell előre
-  modellt másolni a képet építő gépre; a letöltést a `docker compose logs -f`
-  mutatja.
+  a sherpa-Supertonic int8 modell (~139 MB) a
+  `docker-data\models\supertonic-sherpa-int8\` mappába töltődik, a Hugging Face
+  gyorsítótárat pedig a `huggingface` named volume tartja. A letöltést a
+  `docker compose logs -f` mutatja.
 - A könyvek, exportok és a hangcache a `docker-data\` alatt marad.
 - **Ha a 7860-as port foglalt** (például a natív `run.bat` app fut rajta),
   írj egy `docker-compose.override.yml`-t a repó gyökerébe (gitignore-olt):
@@ -207,5 +258,8 @@ docker compose up -d --build
   A `!override` lecseréli az alap portlistát (nem fűzi hozzá). Így a két út
   egyszerre futhat: natív a 7860-on, konténer a 7862-n.
 - Ha a Docker Engine nem indul el, a javítási lépések:
-  [`docs/docker-wsl.md`](docker-wsl.md) — vagy egy parancsban:
+  [`docker-wsl.md`](docker-wsl.md) — vagy egy parancsban:
   `bash scripts/windows/docker-desktop-repair.sh restart`.
+
+> A Docker-kép az Aurist futtatja; a szinkronstúdióhoz a dubstudio és a
+> modelljei külön kellenek (6. szakasz), ezért a szinkron út a natív telepítés.

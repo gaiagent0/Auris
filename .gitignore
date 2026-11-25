@@ -90,3 +90,6 @@ reader/docs/meresi-adatok/npu-qnn/out_*/
 # A reader/tests/ nem része ennek a repónak: saját .git-tel klónolva
 # (gaiagent0/auris-tests), ide a working tree-be csak beágyazva lakik.
 reader/tests/
+
+# a helyi futtatás naplója (nem a repo tartalma)
+auris-run*.log

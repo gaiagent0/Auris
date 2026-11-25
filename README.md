@@ -37,7 +37,9 @@ the optional OpenAI API with a separately billed API key.
 A szinkronfelület a szomszédos `dubstudio` projektet használja (a
 `DUBSTUDIO_ROOT` környezeti változóval más helyre is állítható): a futást a
 `dubstudio` CLI végzi, az Auris a felületet, a lejátszót és az emberi
-döntések rögzítését adja hozzá.
+döntések rögzítését adja hozzá. A szinkron telepítése és beállítása külön
+lépéssor: [`docs/SZINKRON-TELEPITES.md`](docs/SZINKRON-TELEPITES.md), az
+állapotot a `scripts/check_dubstudio.py` ellenőrzi.
 
 ## Snapdragon X Elite / Windows 11 ARM64 — optimalizálás és mérés
 
@@ -197,6 +199,7 @@ Máshova letöltöd? `--dest D:\modell\XTTSv2-Streaming-ONNX`, majd állítsd be
 | `VOICEAI_SHERPA_SUPERTONIC` | a sherpa-Supertonic int8 könyvtár (alapból `reader/models/supertonic-sherpa-int8/`) |
 | `VOICEAI_SILERO_VAD` | a Silero VAD ONNX a QA-hoz |
 | `AURIS_DATA_DIR` | a könyvek/modellek tárolója (a desktop app alapból `%LOCALAPPDATA%\Auris`) |
+| `DUBSTUDIO_ROOT` | a szinkronlánc (dubstudio) gyökere; alapból az Auris melletti `dubstudio\` |
 | `HF_TOKEN` | Hugging Face-token a gated letöltésekhez |
 
 Beállítás nélkül minden a repó mellett keres, így **egy friss klón konfiguráció
@@ -214,10 +217,49 @@ nélkül is működik**.
 | nincs karakter-felismerés | spaCy nincs ARM64-re | szándékos: szabályalapú felismerésre vált, minden más működik |
 | MP3/M4B export hibás | nincs `ffmpeg` | telepíts és tedd a PATH-ra |
 | a Docker Engine nem indul | WSL2 háttér-motor hiba | [`docs/docker-wsl.md`](docs/docker-wsl.md), egy parancsban: `bash scripts/windows/docker-desktop-repair.sh restart` |
+| a `/szinkron` oldal: „Nincs dubstudio projekt” | nincs `projects\*.json`, vagy rossz a `DUBSTUDIO_ROOT` | `scripts\check_dubstudio.py --init "Név"`, majd újraindítás — lásd [`docs/SZINKRON-TELEPITES.md`](docs/SZINKRON-TELEPITES.md) |
+| a szinkronnál `ModuleNotFoundError` / nincs `audio-separator` | a csomagok nincsenek az Auris venv-ben | `reader\.venv\Scripts\python.exe -m pip install sherpa-onnx torch transformers audio-separator`, majd újraindítás |
 
 További mélyebb útmutatók: [`docs/HASZNÁLATI-ÚTMUTATÓ.md`](docs/HASZNÁLATI-ÚTMUTATÓ.md)
-(Web UI + CLI), [`reader/docs/arm64-install.md`](reader/docs/arm64-install.md)
+(Web UI + CLI), [`docs/SZINKRON-TELEPITES.md`](docs/SZINKRON-TELEPITES.md)
+(a szinkron telepítése és beállítása),
+[`reader/docs/arm64-install.md`](reader/docs/arm64-install.md)
 (telepítés és mérések), [`docs/docker-wsl.md`](docs/docker-wsl.md) (Docker/WSL).
+
+## Szinkronstúdió — telepítés és beállítás
+
+A szinkronfelület a **dubstudio** láncot használja, amely **külön projekt**:
+nem része ennek a repónak. Friss klónnál a `/szinkron` oldal addig „Nincs
+dubstudio projekt” üzenetet mutat, amíg az alábbi lépések nincsenek meg; a
+teljes útmutató a [`docs/SZINKRON-TELEPITES.md`](docs/SZINKRON-TELEPITES.md).
+Az aktuális állapotot bármikor kiírja:
+
+```bat
+reader\.venv\Scripts\python.exe scripts\check_dubstudio.py
+```
+
+1. **dubstudio a repo mellé.** Az Auris a szomszédos `dubstudio\` mappát keresi
+   (`projects\`, `work\`, `movies\`); más helyen a `DUBSTUDIO_ROOT`
+   környezeti változó adja meg. A dubstudio CLI-t az Auris indítja, külön nem
+   kell futtatni.
+2. **Csomagok az Auris venv-jébe** (nincs második venv):
+   `reader\.venv\Scripts\python.exe -m pip install numpy scipy soundfile
+   onnxruntime sherpa-onnx torch transformers audio-separator`.
+3. **Programok:** `ffmpeg` és `ffprobe` a PATH-on, valamint `espeak-ng` a
+   Piper-hangok fonémázásához.
+4. **Modellek:** pyannote szegmentáló és CAM++ beszélő-embedding, Supertonic 3
+   (sherpa-onnx int8 — az Auris ezt már letöltötte), Piper hu_HU hangok és az
+   `audio-separator` UVR-modellje. Az útvonalakat a projekt `models` szakasza
+   adja meg, nem kell a repóba tenni őket.
+5. **Projekt:** a felület varázslója (`/szinkron` → új film), vagy
+   `... scripts\check_dubstudio.py --init "Film címe" --kind movie`
+   (sorozatnál `--kind series --season N`); a média a projekt `data\` mappájába
+   kerül.
+
+A fordítás OpenAI-kompatibilis végponttal megy (alapból helyi Ollama:
+`http://127.0.0.1:11434/v1`, `ministral-3:8b`). Távoli szolgáltatásnál a
+projektfájlba csak a kulcs **környezeti változójának nevét** írd
+(`"api_key_env": "OPENROUTER_API_KEY"`), a kulcsot soha.
 
 ## Screenshots
 
@@ -612,6 +654,8 @@ Auris/
 |-- README.md
 |-- LICENSE
 |-- wheels/          ← offline wheel cache (optional)
+|-- scripts/
+|   `-- check_dubstudio.py  ← a szinkronlánc környezetellenőrzése + projektindítás
 `-- reader/
     |-- app.py
     |-- setup.py     ← cross-platform installer (called by setup.bat / setup.sh)

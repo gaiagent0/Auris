@@ -1,0 +1,252 @@
+# Szinkronstúdió — telepítés és beállítás friss klónon
+
+> Az Auris `/szinkron` és `/felulvizsgalat` oldala a **dubstudio** szinkronláncot
+> használja. A dubstudio **külön projekt**, nem része az Auris repónak: a futást,
+> a klaszterezést, a szintézist és a muxolást az ő CLI-je végzi, az Auris a
+> felületet, a lejátszót és az emberi döntések rögzítését adja hozzá.
+>
+> Ez az útmutató a friss klón utáni állapotból indul: a hangoskönyv-rész a
+> `reader\setup.bat`-tal már működik, a szinkronhoz viszont ezek a lépések
+> kellenek. Minden parancs a **repo gyökeréből** fut, az Auris venv-jével
+> (`reader\.venv\Scripts\python.exe`).
+
+---
+
+## 0. Gyors ellenőrzés — mi hiányzik?
+
+```bat
+reader\.venv\Scripts\python.exe scripts\check_dubstudio.py
+```
+
+A program soronként kiírja, hogy megvan-e a dubstudio, a Python csomagok, az
+`ffmpeg`/`ffprobe`, az `espeak-ng`, az `audio-separator`, a projektek és a
+projektfájlokban hivatkozott modellek. Kilépési kódja `1`, ha bármi hiányzik;
+`--json`-nal gépi kimenetet ad. A hiányzó tételeket az alábbi szakaszok
+pótolják.
+
+---
+
+## 1. A dubstudio elhelyezése
+
+Az Auris alapból a **mellette lévő** `dubstudio` mappát keresi:
+
+```text
+<valahol>\
+|-- auris\          ← ez a repó
+`-- dubstudio\      ← a szinkronlánc (külön projekt)
+    |-- dubstudio\  ← a Python csomag
+    |-- projects\   ← projektenként egy JSON
+    |-- work\       ← munkafájlok, kimenet (out\)
+    `-- movies\     ← filmforrások (a projekt root-ja)
+```
+
+Ha máshol van, állítsd be a `DUBSTUDIO_ROOT` környezeti változót a dubstudio
+gyökerére (ugyanazt a feloldást használja a felület és az ellenőrző szkript):
+
+```bat
+set DUBSTUDIO_ROOT=D:\AI\dubstudio
+```
+
+A dubstudio `projects\`, `work\` és `movies\` mappája jöhet üresen is: a
+projektfájl és a média könyvtárai az első használatkor létrejönnek.
+
+---
+
+## 2. Python csomagok az Auris venv-jébe
+
+A szinkronlánc ugyanazt a virtuális környezetet használja, mint az Auris — nem
+kell második venv:
+
+```bat
+reader\.venv\Scripts\python.exe -m pip install ^
+  numpy scipy soundfile onnxruntime sherpa-onnx torch transformers audio-separator
+```
+
+| Csomag | Mihez kell |
+|---|---|
+| `onnxruntime` | Supertonic, a diarizáció és az embedding modellek futtatása |
+| `sherpa-onnx` | pyannote szegmentáló + Supertonic TTS (a szinkronhangok) |
+| `numpy`, `scipy`, `soundfile` | tömbkezelés, újramintavételezés, WAV I/O |
+| `torch`, `transformers` | a nem-osztályozó modell (a beszélő neme) |
+| `audio-separator` | vokál és zene+effekt (M&E) szétválasztás az intakenél |
+
+Az `audio-separator` a venv `Scripts\` mappájába kerül; az intake ott is keresi,
+nem kell a PATH-ra tenni. A telepítés után **indítsd újra** az Aurist: a
+`/szinkron` oldal a dubstudio moduljait a szerver indításakor importálja.
+
+---
+
+## 3. Programok
+
+| Program | Mihez kell | Telepítés |
+|---|---|---|
+| `ffmpeg` + `ffprobe` | hangsáv kinyerés, `atempo`, MKV mux | <https://ffmpeg.org/download.html>, majd PATH |
+| `espeak-ng` | a Piper-hangok IPA fonémázása | <https://github.com/espeak-ng/espeak-ng/releases> (Windows-telepítő) |
+
+Ellenőrzés:
+
+```bat
+ffmpeg -version
+ffprobe -version
+espeak-ng --version
+```
+
+---
+
+## 4. Modellek
+
+A modellek helyét a **projektfájl `models` szakasza** adja meg (abszolút vagy a
+projekt `root`-jához viszonyított útvonal). Amit a lánc használ:
+
+| Kulcs | Modell | Honnan | Méret |
+|---|---|---|---|
+| `supertonic` | Supertonic 3 sherpa-onnx int8 (10 hang) | az Auris első használatkor letölti a `reader\models\supertonic-sherpa-int8\` alá; a szinkron ezt a mappát használja | ~139 MB |
+| `diar_segmentation` | pyannote segmentation 3.0 (sherpa-onnx) | `k2-fsa/sherpa-onnx` kiadások: `sherpa-onnx-pyannote-segmentation-3-0` | ~6 MB |
+| `embedding` / `diar_embedding` | CAM++ / 3D-Speaker ERes2Net beszélő-embedding (`3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx`) | ugyanonnét, illetve a 3D-Speaker modelljei | ~30 MB |
+| `piper` | Piper hu_HU hangok (`anna`, `berta`, `imre`) | a Piper magyar modelljei (`.onnx` + `.onnx.json`) | ~60 MB/hang |
+| `espeak` | az `espeak-ng` futtatható fájlja | 3. szakasz | — |
+| `intake.separate.model_dir` | `UVR_MDXNET_Main.onnx` (vokál leválasztás) | az `audio-separator` modelllistája (első futásnál letölthető) | ~50 MB |
+| – | nem-osztályozó (`alefiury/wav2vec2-large-xlsr-53-gender-recognition-librispeech`) | Hugging Face, az első futásnál automatikusan | ~1 GB |
+
+A modelleket nem kell a repóba tenni: a `work\models\` (vagy egy közös
+modellmappa) elég, a projektfájlban csak az útvonal szerepel.
+
+---
+
+## 5. Projekt létrehozása
+
+Egy film vagy sorozat **egy projekt**. Két út van:
+
+**A felületen:** `/szinkron` → új film varázsló (név, fájl, forrásnyelv) — ez
+létrehozza a projektet, elhelyezi a médiát és elindítja az intake-et.
+
+**Parancssorból** (ha kézzel akarod szerkeszteni):
+
+```bat
+reader\.venv\Scripts\python.exe scripts\check_dubstudio.py --init "Film címe" --kind movie
+reader\.venv\Scripts\python.exe scripts\check_dubstudio.py --init "Sorozat neve" --kind series --season 2 --source-lang heb
+```
+
+A szkript a dubstudio `projects\<slug>.json` fájlját írja a gépen talált
+modellútvonalakkal, a mért alapbeállításokkal (`tuning`, `gate`) és a helyi LLM
+fordítóval. Utána a fájl szabadon szerkeszthető — a Beállítások fül a felületen
+is ugyanezt a JSON-t módosítja (`models`, `tuning`, `gate`, `llm`, `asr`).
+
+A fontosabb mezők:
+
+| Mező | Jelentés |
+|---|---|
+| `root` | a film/sorozat gyökere (itt van `data\`, `subs\`) |
+| `cache_dir` | a munkakönyvtár (`work\<projekt>`): `out\`, `cast-*.json`, epizódmappák |
+| `data_dir`, `subs_dir` | a médiafájlok, illetve a `subs\<EP>_<nyelv>.srt` feliratok |
+| `vocals_globs`, `me_globs` | hol van a leválasztott énekbeszéd, illetve a zene+effekt sáv |
+| `source_lang` | `eng` vagy `heb` — a fordítás forrása |
+| `original_audio` | melyik hangsáv a forrás (0 = első) |
+| `models` | a modellek útvonalai (4. szakasz) |
+| `tuning`, `gate` | a klaszterezés küszöbei és a QA-kapuk (a mért alapértékek) |
+| `llm` | szövegellenőrző pont a szintézis előtt (opcionális) |
+| `asr` | a kész hangsáv visszaellenőrzése (`parakeet`, `whisper`, `hybrid`) |
+| `intake` | feliratfordítás és hangsáv-szétválasztás beállításai |
+| `diarization` | pyannote szegmentálás: küszöb, minimális forduló, `num_speakers` (0 = automatikus) |
+| `series` | sorozatfigyelő (`auto_process`, `poll_s`) |
+| `media_server` | NAS-mappa: innen másol a projekt, ide másolja vissza a kész szinkront |
+
+A projekt `data\` mappájába kerül a média (`S01E05 - név.mkv` sorozatnál, a film
+egyetlen fájlja filmnél); a `subs\` mappába az `<EP>_eng.srt` / `<EP>_heb.srt`
+forrás és a `<EP>_hun.srt` kész magyar felirat.
+
+---
+
+## 6. Fordítás beállítása
+
+Az intake a feliratot OpenAI-kompatibilis végponttal fordítja. Alapértelmezés a
+helyi Ollama:
+
+```json
+"intake": { "translate": {
+  "enabled": true, "base": "http://127.0.0.1:11434/v1",
+  "model": "ministral-3:8b", "batch": 20, "timeout": 300
+}}
+```
+
+- **Helyi szerver:** Ollama (`http://127.0.0.1:11434/v1`) vagy LM Studio
+  (`http://127.0.0.1:1234/v1`), API-kulcs nélkül. A modell neve a szerveren
+  futó modell; a kimenet JSON, ezért érdemes nem „gondolkodó” modellt választani.
+- **Távoli szolgáltatás** (pl. OpenRouter): a kulcsot **ne** írd a projektfájlba,
+  csak a környezeti változó nevét add meg:
+
+  ```json
+  "translate": {
+    "enabled": true, "base": "https://openrouter.ai/api/v1",
+    "model": "google/gemini-2.5-flash", "api_key_env": "OPENROUTER_API_KEY",
+    "source_lang": "eng", "max_tokens": 8192
+  }
+  ```
+
+  ```bat
+  set OPENROUTER_API_KEY=...
+  reader\run.bat
+  ```
+
+Ha a magyar felirat már kész (`subs\<EP>_hun.srt`), a fordítás kimarad; a
+felületre feltöltött magyar SRT-t az intake fordítás nélkül használja.
+
+---
+
+## 7. Első futás — ellenőrzés
+
+```bat
+:: 1. a hangok és a modellek elérhetősége (a dubstudio saját ellenőrzése)
+cd dubstudio
+..\auris\reader\.venv\Scripts\python.exe -m dubstudio voices
+cd ..
+
+:: 2. a környezet és a projektek
+reader\.venv\Scripts\python.exe scripts\check_dubstudio.py
+```
+
+Ezután indítsd az Aurist (`reader\run.bat`), és nyisd meg a
+<http://127.0.0.1:7860/szinkron> oldalt. A sorrend:
+
+1. **Új epizód/film** — médiafájl vagy mappaválasztó; a projekt `data\` mappájába
+   kerül (hardlink, ha lehet).
+2. **Hiányzó anyag** — felirat (fordítás) és vokál/M&E leválasztás (`intake`).
+3. **Előkészítés és klaszterezés** — beszélőfordulók, szereplők, hangzár.
+4. **Szinkron** — terv → szintézis → keverés → mux (`work\out\*.mkv`), QA-kapukkal.
+5. **Ellenőrzés** (`/felulvizsgalat`) — soronkénti emberi döntés; a következő
+   futás ezt használja.
+
+A kapuk a projekt `gate` szakaszában állíthatók; a futás a mux után méri őket,
+ezért bukó kapu esetén is elkészülnek a fájlok, de a folyamat hibakóddal áll meg.
+
+---
+
+## 8. Hibaelhárítás
+
+| Tünet | Ok | Megoldás |
+|---|---|---|
+| a `/szinkron` oldal: „Nincs dubstudio projekt” | nincs `projects\*.json`, vagy rossz a `DUBSTUDIO_ROOT` | `check_dubstudio.py --init "Név"`, illetve állítsd be a változót; majd indítsd újra az Aurist |
+| `ModuleNotFoundError: sherpa_onnx` / `torch` | a csomagok a másik (rendszer-)Pythonban vannak | a pip a `reader\.venv\Scripts\python.exe`-val fusson (2. szakasz) |
+| az intake: „Nincs audio-separator” | a csomag nincs a venvben | `... -m pip install audio-separator`, majd újraindítás |
+| az intake nem talál feliratot | nincs szöveges felirat a fájlban | tölts fel SRT/VTT-t a felületen (a képfelirat nem fordítható) |
+| nincs hang a szinkronban | a `models` útvonalai rosszak | `check_dubstudio.py` megmondja, melyik fájl hiányzik |
+| a Piper-hangok nem szólalnak meg | nincs `espeak-ng`, vagy a `models.piper` mappa üres | 3–4. szakasz |
+| `ffmpeg` hiba a muxnál | nincs `ffmpeg`/`ffprobe` a PATH-on | 3. szakasz |
+| a fordítás üres/hibás JSON | a modell „gondolkodó”, vagy kicsi a `max_tokens` | válassz nem-reasoning modellt, növeld a `max_tokens`-t |
+| a QA `one_voice_per_utt` kapuja bukik | egy mondaton belül két hang szól (kézi szóhatár-vágás) | a `/felulvizsgalat` oldalon ellenőrizd a sort, vagy lazítsd a `gate` értékét |
+
+---
+
+## 9. Amit az Auris ad hozzá
+
+- `/szinkron` — projekt- és epizódkönyvtár, intake/futás indítása, beállítások,
+  beépített lejátszó (forrás vagy magyar hangsáv, feliratok).
+- `/felulvizsgalat` — film és felirat egymás mellett, soronkénti beszélő-döntés
+  magyar keresztnevekkel; a döntés a `work\<EP>\review\lines.json`-ba íródik.
+- Médiaszerver-visszamásolás — a kész MKV az eredeti fájl helyére (első cseréről
+  `.bak` készül).
+- Automatikus futás — a `series.auto_process` bekapcsolásával az új epizódok
+  maguktól elindulnak, ha minden anyag megvan.
+
+A szinkronlánc részletei (klaszterezés, hangzár, kapuk, riport) a dubstudio
+`README.md`-jében vannak.
