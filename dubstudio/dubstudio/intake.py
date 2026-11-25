@@ -30,6 +30,7 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from . import media as media_mod
 from . import subs
@@ -46,11 +47,12 @@ _LANG_ALIASES = {
 _DEFAULTS = {
     "translate": {
         "enabled": True,
-        # Ollama és LM Studio is ezt az OpenAI-kompatibilis végpontot adja
+        # Ollama és LM Studio is ezt az OpenAI-kompatibilis végpontot adja;
+        # csak helyi (loopback) végpont fogadható el — lásd ``_endpoint``
         "base": "http://127.0.0.1:11434/v1",
-        # a gondolkodó modellek (qwen3.5) az OpenAI-végponton a tokenkeret
-        # nagy részét reasoning-re költik; a ministral gyorsan ad tiszta JSON-t
-        "model": "ministral-3:8b",
+        # a gépén telepített helyi modell neve (a textcheck/llm alapértéke is);
+        # a kimenet JSON, ezért nem „gondolkodó” modell javasolt
+        "model": "qwen3.5:9b",
         "api_key": "",
         "api_key_env": "",
         "batch": 20,
@@ -226,10 +228,21 @@ def _separator_env() -> dict | None:
     return env
 
 
+#: A feliratfordítás csak helyi modellt használhat: a repó nem küld
+#: feliratszöveget külső szolgáltatásnak.
+_LOCAL_LLM_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
+
+
 def _endpoint(base: str) -> str:
     value = str(base or "").strip().rstrip("/")
     if not value:
         raise IntakeError("A fordító LLM alap-URL-je üres.")
+    host = (urlsplit(value).hostname or "").lower()
+    if host not in _LOCAL_LLM_HOSTS:
+        raise IntakeError(
+            "A feliratfordítás csak helyi LLM-et használhat "
+            f"(127.0.0.1 vagy localhost), a beállított végpont külső: {value}. "
+            "Indítsd el a modellt helyben (Ollama: http://127.0.0.1:11434/v1).")
     if value.endswith("/chat/completions"):
         return value
     if value.endswith("/v1"):
@@ -348,6 +361,10 @@ def _slot_hint(seconds: float | None) -> str:
 
 _SLOT_ECHO = re.compile(r"^\s*\[\d+(?:[.,]\d+)?\s*s\]\s*", re.IGNORECASE)
 
+#: csak zörejjelzőt (``[music]``, ``(laughs)``, ``♪``) tartalmazó sor: nincs
+#: benne beszélt szöveg, ezért nem fordítható és nem is kell fordítani
+_NO_SPEECH = re.compile(r"^(?:\[[^\]]*\]|\([^)]*\)|♪+|[\s\W_])*$")
+
 
 def _clean_translation(text: object) -> str:
     """Normalise a returned line and drop an echoed slot hint.
@@ -358,6 +375,11 @@ def _clean_translation(text: object) -> str:
     """
     line = " ".join(str(text or "").split())
     return _SLOT_ECHO.sub("", line).strip()
+
+
+def _has_speech(text: str) -> bool:
+    """Van-e a sorban fordítható (beszélt) szöveg, vagy csak zörejjelző."""
+    return not _NO_SPEECH.match(str(text or "").strip())
 
 
 def _fit_warning(lines: dict[int, str], limits: dict[int, float]) -> list[int]:
@@ -424,6 +446,11 @@ def _translate_batch(cfg: dict, rows: list[tuple[int, str]], source_lang: str,
             value = _clean_translation(item.get("text"))
             if got == idx and value:
                 result[idx] = value
+    # a zörejjelzős cue-kat (``[music]``) a modell jogosan hagyja üresen: nincs
+    # bennük beszélt szöveg, ezért fordítás nélkül, változatlanul átvesszük őket
+    for idx, text in rows:
+        if idx not in result and not _has_speech(text):
+            result[idx] = text
     still = [i for i, _ in rows if i not in result]
     if still:
         raise IntakeError("A fordító kihagyta ezeket a feliratsorokat: "

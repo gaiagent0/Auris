@@ -194,8 +194,13 @@ $PY -m dubstudio youtube E01 --url https://youtu.be/... --then-run
 
 A `youtube` lépés a nyilvános YouTube URL-ről legfeljebb 1080p-s H.264 videót
 és angol (kézi vagy automatikus) feliratot tölt le, majd a meglévő
-`intake` + `run` láncot futtatja. Felirat nélküli videóhoz előbb külön SRT-t
-kell a projekt `subs/E01_eng.srt` helyére tenni. A WebUI ugyanezt a
+`intake` + `run` láncot futtatja. A feliratot a modul a videóhoz tartozó
+összes jelölt-címből, több körben kéri le: a YouTube átmeneti `HTTP 429`
+(rate limit) válasza így nem viszi el a teljes letöltést. A média letöltése
+formátum-tartalékláncon fut (1080p H.264 → 720p → 360p), és ha van a gépen
+`node` vagy `deno`, a yt-dlp JS-futtatókörnyezetként használja — enélkül a
+1080p60-as H.264 gyakran `403`-at ad. Felirat nélküli videóhoz előbb külön
+SRT-t kell a projekt `subs/E01_eng.srt` helyére tenni. A WebUI ugyanezt a
 `/api/dub/youtube` végponton és a „YouTube videó” panelen indítja.
 
 Hasznos kapcsolók: `--limit N` (csak az első N sor, gyors próba), `--no-mux`,
@@ -224,7 +229,7 @@ hiányzó anyagot:
 1. **magyar felirat** — külső `subs/<EP>_<nyelv>.srt`, majd beágyazott
    szöveges felirat (SubRip/ASS/mov_text/WebVTT); a képfelirat (PGS/VobSub)
    nem fordítható, ilyenkor külső SRT kell. A fordító OpenAI-kompatibilis
-   helyi LLM (alapból Ollama `http://127.0.0.1:11434/v1`, `ministral-3:8b`);
+   helyi LLM (alapból Ollama `http://127.0.0.1:11434/v1`, `qwen3.5:9b`);
    az időzítés változatlan, a kimenet `subs/<EP>_hun.srt`.
 2. **forráshangsáv** — az `original_audio` (alapból 0) sáv kinyerése,
    csúcsnormalizálás, majd `audio-separator` UVR/MDX szétválasztás. A

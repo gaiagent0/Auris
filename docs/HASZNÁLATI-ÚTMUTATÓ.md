@@ -219,10 +219,9 @@ Rövid lépések:
    Utólag: `... scripts\fetch_models.py` (`--check` = ellenőrzés).
 5. **Projekt:** `/szinkron` → új film varázsló, vagy
    `... scripts\check_dubstudio.py --init "Film címe" --kind movie`.
-6. **Fordítás:** OpenAI-kompatibilis végpont (alapból helyi Ollama,
-   `http://127.0.0.1:11434/v1`, `ministral-3:8b`). Távoli szolgáltatásnál a
-   projektfájlba csak a kulcs környezeti változójának **nevét** írd
-   (`"api_key_env": "OPENROUTER_API_KEY"`).
+6. **Fordítás:** csak helyi modell (alapból a helyi Ollama,
+   `http://127.0.0.1:11434/v1`, `qwen3.5:9b`). Külső végpontot a fordító
+   hibával elutasít — a repó nem küld feliratszöveget külső szolgáltatásnak.
 
 A futás sorrendje: **intake** (felirat + vokál/M&E) → **prepare** (beszélőfordulók)
 → **cluster** (szereplők, hangzár) → **dub** (terv, szintézis, keverés) → **mux**

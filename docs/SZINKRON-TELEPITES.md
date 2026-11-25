@@ -192,28 +192,16 @@ helyi Ollama:
 ```json
 "intake": { "translate": {
   "enabled": true, "base": "http://127.0.0.1:11434/v1",
-  "model": "ministral-3:8b", "batch": 20, "timeout": 300
+  "model": "qwen3.5:9b", "batch": 20, "timeout": 300
 }}
 ```
 
 - **Helyi szerver:** Ollama (`http://127.0.0.1:11434/v1`) vagy LM Studio
   (`http://127.0.0.1:1234/v1`), API-kulcs nélkül. A modell neve a szerveren
   futó modell; a kimenet JSON, ezért érdemes nem „gondolkodó” modellt választani.
-- **Távoli szolgáltatás** (pl. OpenRouter): a kulcsot **ne** írd a projektfájlba,
-  csak a környezeti változó nevét add meg:
-
-  ```json
-  "translate": {
-    "enabled": true, "base": "https://openrouter.ai/api/v1",
-    "model": "google/gemini-2.5-flash", "api_key_env": "OPENROUTER_API_KEY",
-    "source_lang": "eng", "max_tokens": 8192
-  }
-  ```
-
-  ```bat
-  set OPENROUTER_API_KEY=...
-  reader\run.bat
-  ```
+- **Külső szolgáltatás nincs:** a fordító csak `127.0.0.1`/`localhost`
+  végpontot fogad el, a távoli URL-t hibával elutasítja — a feliratszöveg nem
+  hagyja el a gépet, és a projektfájlba nem kerül API-kulcs.
 
 Ha a magyar felirat már kész (`subs\<EP>_hun.srt`), a fordítás kimarad; a
 felületre feltöltött magyar SRT-t az intake fordítás nélkül használja.

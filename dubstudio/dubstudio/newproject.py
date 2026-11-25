@@ -95,6 +95,23 @@ def default_models(models_dir: Path | None = None,
     return out
 
 
+#: Feliratfordítás: a repó **csak helyi** LLM-et használ (Ollama OpenAI-
+#: kompatibilis végpontja), külső szolgáltatás szándékosan nincs támogatva
+#: (lásd ``intake._endpoint``). A modell a szerveren telepített helyi modell
+#: neve; a kimenet JSON, ezért nem „gondolkodó” modellt érdemes választani.
+TRANSLATE_DEFAULTS = {
+    "enabled": True,
+    "base": "http://127.0.0.1:11434/v1",
+    "model": "qwen3.5:9b",
+    "api_key": "",
+    "api_key_env": "",
+    "batch": 20,
+    "timeout": 300,
+    "max_tokens": 4096,
+    "source_lang": "",
+}
+
+
 def project_doc(name: str, kind: str = "movie", season: int = 1,
                 source_lang: str = "eng", models_dir: Path | None = None,
                 auris_models: Path | None = None) -> dict:
@@ -131,10 +148,7 @@ def project_doc(name: str, kind: str = "movie", season: int = 1,
                 "required": False},
         "asr": {"mode": "parakeet", "batch": 1, "confirm_max": 30},
         "intake": {
-            "translate": {"enabled": True, "base": "http://127.0.0.1:11434/v1",
-                          "model": "ministral-3:8b", "api_key": "",
-                          "api_key_env": "", "batch": 20, "timeout": 300,
-                          "max_tokens": 4096, "source_lang": source_lang},
+            "translate": {**TRANSLATE_DEFAULTS, "source_lang": source_lang},
             "separate": {"enabled": True, "model": "UVR_MDXNET_Main.onnx",
                          "model_dir": str(models / "separate"),
                          "audio_stream": 0, "second_pass": False,

@@ -14,7 +14,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from dubstudio import intake  # noqa: E402
+from dubstudio import intake, newproject  # noqa: E402
 from dubstudio.config import Project  # noqa: E402
 
 SRT = """1
@@ -159,6 +159,24 @@ class IntakeTest(unittest.TestCase):
         self.assertIn("single subtitle line", prompts[2])
         self.assertIn("2. [2.8s] I am fine, thank you.", prompts[2])
 
+    def test_translate_keeps_sound_only_cues_without_translation(self):
+        path = self.base / "subs" / "E01_eng.srt"
+        path.write_text(
+            "1\n00:00:01,000 --> 00:00:03,000\nHello.\n\n"
+            "2\n00:00:04,000 --> 00:00:06,000\n[music]\n", encoding="utf-8")
+
+        def fake_chat(cfg, system, prompt):
+            # a zörejjelzős sort a modell üresen hagyja
+            return {"lines": [{"id": 1, "text": "Szia."}]}
+
+        cfg = intake.settings(self.project)["translate"]
+        with patch.object(intake, "_chat_json", side_effect=fake_chat):
+            result = intake.translate_subtitles(self.project, "E01", cfg=cfg)
+        out = (self.base / "subs" / "E01_hun.srt").read_text(encoding="utf-8")
+        self.assertEqual(result["translated"], 2)
+        self.assertIn("[music]", out)
+        self.assertIn("Szia.", out)
+
     def test_translate_uses_english_external_before_hebrew(self):
         self._source("eng")
         self._source("heb")
@@ -242,6 +260,24 @@ class IntakeTest(unittest.TestCase):
         self.assertIn("fordító hiba", message)
         self.assertIn("separátor hiba", message)
         self.assertEqual(intake.status(self.project, "E01")["state"], "error")
+
+    def test_translate_endpoint_only_accepts_local_llm(self):
+        """A repó nem küld feliratszöveget külső szolgáltatásnak."""
+        with self.assertRaises(intake.IntakeError) as ctx:
+            intake._endpoint("https://openrouter.ai/api/v1")
+        self.assertIn("helyi", str(ctx.exception))
+        self.assertEqual(intake._endpoint("http://127.0.0.1:11434/v1"),
+                         "http://127.0.0.1:11434/v1/chat/completions")
+        self.assertEqual(intake._endpoint("http://localhost:1234"),
+                         "http://localhost:1234/v1/chat/completions")
+
+    def test_new_project_translate_defaults_are_local(self):
+        doc = newproject.project_doc("Teszt film", "movie", 1, "eng")
+        tr = doc["intake"]["translate"]
+        self.assertTrue(tr["base"].startswith("http://127.0.0.1"))
+        self.assertEqual(tr["api_key"], "")
+        self.assertEqual(tr["api_key_env"], "")
+        self.assertEqual(tr["source_lang"], "eng")
 
 
 if __name__ == "__main__":

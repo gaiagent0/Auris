@@ -500,8 +500,10 @@ def _movie_project_doc(template, name: str, slug: str, source_lang: str) -> dict
     """Egy új filmprojekt JSON-ja a sablon beállításaiból.
 
     A modellek abszolút útvonalat kapnak, mert az új film gyökere más lesz,
-    mint a sabloné. A hangfelismerés/fordítás beállításai öröklődnek, a
-    vokál/M&E pedig az intake alaphelyére kerül (``work/<EP>/``).
+    mint a sabloné. A hangfelismerés beállításai öröklődnek, a fordítás
+    viszont mindig a helyi LLM-re áll (a repó nem küld szöveget külső
+    szolgáltatásnak), a vokál/M&E pedig az intake alaphelyére kerül
+    (``work/<EP>/``).
 
     **Sablon nélkül** (üres ``projects/``, azaz friss klón) a dubstudio
     ``newproject`` gyára adja az alapértékeket — így az első film is
@@ -521,7 +523,14 @@ def _movie_project_doc(template, name: str, slug: str, source_lang: str) -> dict
     if not sep.get("model_dir"):
         sep["model_dir"] = str(template.root / "models")
     intake_doc["separate"] = sep
-    tr = dict(intake_doc.get("translate") or {})
+    # A sablonból csak a hangolható számok jönnek át; a végpont és a modell
+    # nem, mert egy régi projekt külső szolgáltatásra is állhat — az új film
+    # fordítása mindig helyi modellé.
+    old_tr = dict(intake_doc.get("translate") or {})
+    tr = dict(_newproject().TRANSLATE_DEFAULTS)
+    for key in ("enabled", "batch", "timeout", "max_tokens"):
+        if old_tr.get(key) is not None:
+            tr[key] = old_tr[key]
     tr["source_lang"] = source_lang
     intake_doc["translate"] = tr
     # A sablon diarizációs beállításait örökítjük, de a sorozatra kalibrált
@@ -685,9 +694,9 @@ def create_youtube_project():
     """YouTube URL-ből filmprojekt: letöltés, felirat, majd automatikus szinkron.
 
     A projektet a kiválasztott sablonból hozza létre (mint a filmvarázsló;
-sablon nélkül a dubstudio gyára adja az alapot), a
-    letöltést és az intake+szinkron láncot pedig külön háttérfolyamat végzi,
-    hogy a hosszú videó ne blokkolja a webes kérést.
+    sablon nélkül a dubstudio gyára adja az alapot), a letöltést és az
+    intake+szinkron láncot pedig külön háttérfolyamat végzi, hogy a hosszú
+    videó ne blokkolja a webes kérést.
     """
     body = request.get_json(silent=True) or {}
     url = _youtube_url(body.get("url"))

@@ -276,10 +276,10 @@ reader\.venv\Scripts\python.exe scripts\check_dubstudio.py
    (sorozatnál `--kind series --season N`); a média a projekt `data\` mappájába
    kerül.
 
-A fordítás OpenAI-kompatibilis végponttal megy (alapból helyi Ollama:
-`http://127.0.0.1:11434/v1`, `ministral-3:8b`). Távoli szolgáltatásnál a
-projektfájlba csak a kulcs **környezeti változójának nevét** írd
-(`"api_key_env": "OPENROUTER_API_KEY"`), a kulcsot soha.
+A feliratfordítást **csak helyi** modell végzi (alapból a helyi Ollama
+OpenAI-kompatibilis végpontja, `http://127.0.0.1:11434/v1`, `qwen3.5:9b`).
+A fordító a nem helyi végpontot hibával elutasítja: a repó nem küld
+feliratszöveget külső szolgáltatásnak.
 
 ## Screenshots
 
