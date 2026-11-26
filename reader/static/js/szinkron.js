@@ -1196,11 +1196,14 @@
       sd.value = sduck;
       $('sound-speechduck-val').textContent = sduck ? fmt(-sduck) : 'ki';
     }
-    // kézi magyar hang: egyszemélyes videónál a teljes epizódra ez szól
+    // kézi magyar hang: csak egyszemélyes videónál érvényesül, sorozatnál a
+    // szereplőnkénti kiosztás dönt — a választót letiltjuk és figyelmeztetünk
     const vs = $('sound-voice');
+    const current = sound.voice_override || '';
+    const speakers = Number(sound.voice_speakers != null ? sound.voice_speakers : 0);
+    const single = sound.voice_single !== false;
     if (vs) {
       const pool = (state.data || {}).voice_pool || [];
-      const current = sound.voice_override || '';
       vs.innerHTML = '<option value="">Automatikus (a program választ)</option>'
         + pool.map((v) => `<option value="${esc(v.vid)}"${v.vid === current ? ' selected' : ''}>`
           + `${esc(v.vid)} · ${esc(v.gender)}${v.model_present ? '' : ' · nincs modell'}</option>`).join('');
@@ -1210,6 +1213,17 @@
           `<option value="${esc(current)}" selected>${esc(current)}</option>`);
         vs.value = current;
       }
+      vs.disabled = !single;
+    }
+    const voicePlayBtn = $('sound-voice-play');
+    if (voicePlayBtn) voicePlayBtn.disabled = !single;
+    const note = $('sound-voice-note');
+    if (note) {
+      note.hidden = single;
+      note.textContent = single ? ''
+        : `Ez a projekt ${speakers} szereplős — a kézi hang csak egyszemélyes `
+          + 'videónál érvényesül, itt a Szereplők panelenkénti kiosztás dönt.'
+          + (current ? ` A mentett kézi hang (${current}) ezért nem szól.` : '');
     }
     if (q) q.value = sound.quality || 'auto';
     const steps = $('sound-steps');
@@ -1828,7 +1842,10 @@
     }
     const voicePlay = $('sound-voice-play');
     if (voicePlay) {
-      voicePlay.addEventListener('click', () => previewVoice($('sound-voice').value));
+      voicePlay.addEventListener('click', () => {
+        if (voicePlay.disabled) return;
+        previewVoice($('sound-voice').value);
+      });
     }
     const soundSave = $('sound-save');
     if (soundSave) {

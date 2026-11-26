@@ -5,8 +5,11 @@ Futtatás:
 """
 from __future__ import annotations
 
+import json
 import os
 import sys
+import tempfile
+import types
 import unittest
 from pathlib import Path
 
@@ -536,6 +539,34 @@ class TestVoiceUsage(unittest.TestCase):
         # az osztozó szereplők hangja+pitch-je egyedi
         pairs = [(c.voice, c.pitch) for c in reg.characters]
         self.assertEqual(len(pairs), len(set(pairs)))
+
+
+class TestManualVoiceScope(unittest.TestCase):
+    """A kézi hang (voice_override) csak egyszemélyes projektnél érvényesül."""
+
+    def _project(self, folder: Path, durations: list[float]):
+        cast = folder / "cast.json"
+        cast.write_text(json.dumps({"voice_pool": [], "characters": [
+            {"char_id": f"C{i + 1:03d}", "gender": "M",
+             "voice": f"SUP_M{i + 1}", "duration": duration}
+            for i, duration in enumerate(durations)]}), encoding="utf-8")
+        return types.SimpleNamespace(cast_file=cast, tuning={})
+
+    def test_single_speaker_project(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            project = self._project(Path(tmp), [1200.0])
+            self.assertEqual(registry.speaker_count(project), 1)
+
+    def test_series_with_a_second_speaker_is_not_single(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            project = self._project(Path(tmp), [1200.0, 8.0])
+            self.assertEqual(registry.speaker_count(project), 2)
+
+    def test_missing_cast_counts_as_no_speaker(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            project = types.SimpleNamespace(cast_file=Path(tmp) / "nincs.json",
+                                            tuning={})
+            self.assertEqual(registry.speaker_count(project), 0)
 
 
 class TestRecast(unittest.TestCase):

@@ -1609,7 +1609,12 @@ def _sound_view(project) -> dict:
     except (TypeError, ValueError):
         steps_n = None
     quality = {None: "auto", 6: "fast", 8: "balanced", 12: "best"}.get(steps_n, "custom")
-    return {"duck_db": num("duck_db", _SOUND_DEFAULTS["duck_db"]),
+    try:
+        speakers = _registry().speaker_count(project)
+    except (ImportError, OSError, ValueError):
+        speakers = 0
+    return {"voice_speakers": speakers, "voice_single": speakers <= 1,
+            "duck_db": num("duck_db", _SOUND_DEFAULTS["duck_db"]),
             "dialogue_over_bed_db": num("dialogue_over_bed_db",
                                         _SOUND_DEFAULTS["dialogue_over_bed_db"]),
             "bed_db": num("bed_db", _SOUND_DEFAULTS["bed_db"]),
@@ -1693,6 +1698,7 @@ def set_sound():
     """
     name, doc, path = _read_project_raw((request.get_json(silent=True) or {}).get("project"))
     body = request.get_json(silent=True) or {}
+    config_mod = _core()[0]
     tuning = dict(doc.get("tuning") or {})
     quality = body.get("quality")
     if quality not in (None, "", "custom"):
@@ -1725,6 +1731,15 @@ def set_sound():
         else:
             if voice not in _voices().BY_ID:
                 return jsonify({"error": f"Ismeretlen hang: {voice}."}), 400
+            current = str(tuning.get("voice_override") or "")
+            speakers = _registry().speaker_count(config_mod.load_project(path))
+            if voice != current and speakers > 1:
+                # egy sorozat minden szereplőjét nem hangoljuk át egy hangra
+                return jsonify({"error": (
+                    f"Ez a projekt {speakers} szereplős — a kézi hang csak "
+                    f"egyszemélyes videónál érvényesül, különben minden "
+                    f"szereplő hangját felülírná. Több szereplőnél a Szereplők "
+                    f"panelen állítsd a hangokat.")}), 400
             tuning["voice_override"] = voice
     doc["tuning"] = tuning
     backup_dir = DUB_ROOT / "projects" / "_backup"
@@ -1735,7 +1750,6 @@ def set_sound():
         _write_project_json(path, doc)
     except OSError as exc:
         return jsonify({"error": f"A mentés nem sikerült: {exc}"}), 500
-    config_mod = _core()[0]
     return jsonify({"ok": True, "backup": backup.name,
                     "sound": _sound_view(config_mod.load_project(path))})
 

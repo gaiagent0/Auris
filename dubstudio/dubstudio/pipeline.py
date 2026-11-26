@@ -24,7 +24,7 @@ from . import (asrcheck, audio, clustering, diarization, linereview, mix, media,
 from .config import Project
 from .embeddings import SpeakerEmbedder
 from .gender import GenderClassifier
-from .registry import Registry, recall_threshold, share_threshold
+from .registry import Registry, recall_threshold, share_threshold, speaker_count
 from .synth import Synthesizer
 from .utterances import Utterance
 from .voices import VoiceBank
@@ -360,13 +360,21 @@ class Pipeline:
         override = str(tn.get("voice_override") or "").strip()
         if override:
             from .voices import BY_ID
-            if override in BY_ID:
+            speakers = speaker_count(self.p)
+            if override not in BY_ID:
+                if self.verbose:
+                    print(f"[hang] ismeretlen kézi hang ({override}) — "
+                          f"marad az automatikus kiosztás")
+            elif speakers > 1:
+                # egy sorozat nem hangolható át egy hangra: a kézi választó
+                # csak egyszemélyes videóra szól
+                print(f"[hang] a kézi hang ({override}) nem érvényesül: a projekt "
+                      f"{speakers} szereplős — marad a szereplőnkénti kiosztás.",
+                      file=sys.stderr)
+            else:
                 voices = {str(u.char): override for u in utts if u.char}
                 if self.verbose:
                     print(f"[hang] kézi hang az egész epizódra: {override}")
-            elif self.verbose:
-                print(f"[hang] ismeretlen kézi hang ({override}) — "
-                      f"marad az automatikus kiosztás")
         for u in utts:
             if u.char and voices.get(str(u.char)):
                 u.voice = voices[str(u.char)]

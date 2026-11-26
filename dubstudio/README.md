@@ -70,11 +70,17 @@ kulcs elhagyható, akkor a gyári érték él.
 
 | kulcs | jelentés | tartomány |
 |---|---|---|
-| `voice_override` | **egy** magyar hang a teljes projektre (a szereplőnkénti kiosztást felülírja); üres = automatikus | hang-azonosító, pl. `SUP_M2` |
+| `voice_override` | **egy** magyar hang a teljes projektre; **csak egyszemélyes videónál** érvényesül, sorozatnál a szereplőnkénti kiosztás marad (a felület letiltja és figyelmeztet); üres = automatikus | hang-azonosító, pl. `SUP_M2` |
 | `bed_db` | a zene+effekt ágy összesített halkítása (a magyar dialógus szintje nem változik vele) | 0…−30 dB |
 | `bed_speech_duck_db` | az ágy halkítása **ott, ahol az eredeti (angol) beszéd szól** — a szétválasztás maradékát nyomja el | 0…30 dB |
 | `duck_db` | az ágy halkítása a magyar beszéd alatt | 0…12 dB |
 | `dialogue_over_bed_db` | a magyar hang a zene fölötti szintje | 0…12 dB |
+
+A `voice_override` csak akkor él, ha a hangzár szerint a projektnek egyetlen
+beszélője van. Több szereplőnél a `dub` lépés figyelmeztetéssel kihagyja
+(„a kézi hang … nem érvényesül: a projekt N szereplős”), az API pedig nem is
+menti el, így egy sorozat összes szereplője nem hangolható át tévedésből egy
+hangra; ott a Szereplők panel szereplőnkénti választása érvényes.
 
 A `voice_override` a hang-gyorsítótár kulcsának része, ezért hangváltásnál a
 szintézis újrafut (226 sor ≈ 3 perc, 820 sor ≈ 14 perc); keverés-beállításnál

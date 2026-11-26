@@ -52,6 +52,23 @@ def share_threshold(tuning: dict | None) -> float:
     except (TypeError, ValueError):
         return MAIN_SHARE_MIN
 
+
+def speaker_count(project) -> int:
+    """A projekt ténylegesen beszélő szereplőinek száma a hangzár szerint.
+
+    A kézi „egy hang az egész projektre” választó csak **egyszemélyes**
+    videónál érvényesülhet: egy sorozatnál ugyanis minden szereplő hangját
+    felülírná. Beszélőnek számít minden olyan szereplő, akinek van mért
+    beszédideje — a töredék-klaszterek is, mert inkább figyelmeztessünk,
+    mint hogy észrevétlenül elhangoljunk egy egész sorozatot.
+    """
+    try:
+        reg = Registry(project.cast_file, share_threshold(project.tuning))
+    except (OSError, ValueError):
+        return 0
+    return sum(1 for c in reg.characters if float(c.duration or 0.0) > 0.0)
+
+
 CO_OCCUR_S = 20.0     # ennyin belül megszólaló szereplők = egy jelenet
 CO_OCCUR_CAP = 3      # egy pár egy epizódban ennyit számítson (ne domináljon)
 #: ennyi centroid-hasonlóság fölött ugyanaz a szereplő. Kalibrált érték az
