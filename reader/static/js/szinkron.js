@@ -1183,10 +1183,34 @@
     state.sound = sound || {};
     const duck = Number(sound.duck_db != null ? sound.duck_db : 4);
     const over = Number(sound.dialogue_over_bed_db != null ? sound.dialogue_over_bed_db : 4);
+    const bed = Number(sound.bed_db != null ? sound.bed_db : 0);
+    const sduck = Number(sound.bed_speech_duck_db != null ? sound.bed_speech_duck_db : 0);
     const d = $('sound-duck'), o = $('sound-over'), q = $('sound-quality');
     const fmt = (v) => `${Number(v).toFixed(1).replace('.0', '')} dB`;
     if (d) { d.value = duck; $('sound-duck-val').textContent = fmt(duck); }
     if (o) { o.value = over; $('sound-over-val').textContent = fmt(over); }
+    const b = $('sound-bed');
+    if (b) { b.value = bed; $('sound-bed-val').textContent = bed ? fmt(bed) : '0 dB'; }
+    const sd = $('sound-speechduck');
+    if (sd) {
+      sd.value = sduck;
+      $('sound-speechduck-val').textContent = sduck ? fmt(-sduck) : 'ki';
+    }
+    // kézi magyar hang: egyszemélyes videónál a teljes epizódra ez szól
+    const vs = $('sound-voice');
+    if (vs) {
+      const pool = (state.data || {}).voice_pool || [];
+      const current = sound.voice_override || '';
+      vs.innerHTML = '<option value="">Automatikus (a program választ)</option>'
+        + pool.map((v) => `<option value="${esc(v.vid)}"${v.vid === current ? ' selected' : ''}>`
+          + `${esc(v.vid)} · ${esc(v.gender)}${v.model_present ? '' : ' · nincs modell'}</option>`).join('');
+      vs.value = current;
+      if (current && !pool.some((v) => v.vid === current)) {
+        vs.insertAdjacentHTML('beforeend',
+          `<option value="${esc(current)}" selected>${esc(current)}</option>`);
+        vs.value = current;
+      }
+    }
     if (q) q.value = sound.quality || 'auto';
     const steps = $('sound-steps');
     if (steps) {
@@ -1788,18 +1812,41 @@
           `${Number(overEl.value).toFixed(1).replace('.0', '')} dB`;
       });
     }
+    const bedEl = $('sound-bed');
+    if (bedEl) {
+      bedEl.addEventListener('input', () => {
+        const v = Number(bedEl.value);
+        $('sound-bed-val').textContent = v ? `${v} dB` : '0 dB';
+      });
+    }
+    const sduckEl = $('sound-speechduck');
+    if (sduckEl) {
+      sduckEl.addEventListener('input', () => {
+        const v = Number(sduckEl.value);
+        $('sound-speechduck-val').textContent = v ? `-${v} dB` : 'ki';
+      });
+    }
+    const voicePlay = $('sound-voice-play');
+    if (voicePlay) {
+      voicePlay.addEventListener('click', () => previewVoice($('sound-voice').value));
+    }
     const soundSave = $('sound-save');
     if (soundSave) {
       soundSave.addEventListener('click', () => saveSound({
         duck_db: Number($('sound-duck').value),
         dialogue_over_bed_db: Number($('sound-over').value),
+        bed_db: Number($('sound-bed').value),
+        bed_speech_duck_db: Number($('sound-speechduck').value),
+        voice: $('sound-voice').value,
         quality: $('sound-quality').value,
       }));
     }
     const soundReset = $('sound-reset');
     if (soundReset) {
       soundReset.addEventListener('click', () => saveSound({
-        duck_db: null, dialogue_over_bed_db: null, quality: 'auto', synth_steps: null,
+        duck_db: null, dialogue_over_bed_db: null, bed_db: null,
+        bed_speech_duck_db: null, voice: null,
+        quality: 'auto', synth_steps: null,
       }));
     }
 

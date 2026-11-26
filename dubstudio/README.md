@@ -63,6 +63,26 @@ felülvizsgálat és a terv kihagyja őket, és nem mennek a TTS-be. Mért eset
 (E04): 2 dalszöveg-sor; a beszédidő így C001 182,2 s és C009 3,2 s (a
 kizárt dalszöveggel 185,0 / 4,7 s volt).
 
+### Hang és keverés kézi állítása (egyszemélyes videó)
+
+A WebUI „Hang és keverés” panelje a projekt `tuning` szakaszába ír; minden
+kulcs elhagyható, akkor a gyári érték él.
+
+| kulcs | jelentés | tartomány |
+|---|---|---|
+| `voice_override` | **egy** magyar hang a teljes projektre (a szereplőnkénti kiosztást felülírja); üres = automatikus | hang-azonosító, pl. `SUP_M2` |
+| `bed_db` | a zene+effekt ágy összesített halkítása (a magyar dialógus szintje nem változik vele) | 0…−30 dB |
+| `bed_speech_duck_db` | az ágy halkítása **ott, ahol az eredeti (angol) beszéd szól** — a szétválasztás maradékát nyomja el | 0…30 dB |
+| `duck_db` | az ágy halkítása a magyar beszéd alatt | 0…12 dB |
+| `dialogue_over_bed_db` | a magyar hang a zene fölötti szintje | 0…12 dB |
+
+A `voice_override` a hang-gyorsítótár kulcsának része, ezért hangváltásnál a
+szintézis újrafut (226 sor ≈ 3 perc, 820 sor ≈ 14 perc); keverés-beállításnál
+elég a „Csak szinkronhang” lépés, az gyorsítótárból dolgozik (42 perces epizód
+≈ 47 s). Mért eset (`hermes-tutorial-tech-tim`, angol beszéd a háttérben):
+`bed_db=-6`, `bed_speech_duck_db=15` → az ágy a 42,2 percből 40,2 percben
+halkul, a magyar dialógus szintje változatlan.
+
 ## Hogyan működik a beszélőazonosítás
 
 A `prepare` a teljes énekbeszéd-sávon futtatja a diarizációt, majd a

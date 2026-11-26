@@ -1195,6 +1195,54 @@ class TestAsrHybrid(unittest.TestCase):
         g, _ = mix._duck_curve(env, f_rms, duck, 0.1)
         self.assertTrue((g <= 1.0 + 1e-6).all(), "a ducking sosem erősít")
 
+    def test_bed_controls_lower_the_background(self):
+        """Háttér-hangerő és az eredeti beszéd elnyomása (kézi fogaskerekek)."""
+        import tempfile
+        from pathlib import Path
+
+        import soundfile as sf
+        from dubstudio.plan import Entry
+
+        tmp = Path(tempfile.mkdtemp())
+        sr = 8000
+        t = np.arange(int(sr * 3)) / sr
+        tone = (0.05 * np.sin(2 * np.pi * 220 * t)).astype(np.float32)
+        me = tmp / "me.wav"
+        sf.write(str(me), np.stack([tone, tone], axis=1), sr)
+        # az „eredeti” énekbeszéd-sáv: a középső másodpercben beszél
+        voc = np.zeros_like(tone)
+        voc[sr:sr * 2] = (0.3 * np.sin(2 * np.pi * 300 * t[: sr])).astype(np.float32)
+        vocp = tmp / "vocals.wav"
+        sf.write(str(vocp), voc, sr)
+        tts = tmp / "tts"
+        tts.mkdir()
+        sf.write(str(tts / "00001.wav"),
+                 (0.2 * np.sin(2 * np.pi * 400 * t[: sr])).astype(np.float32), sr)
+        entry = Entry(i=1, uid="u1", ep="E01", hu="Szia", start=0.2, end=1.2)
+
+        base = mix.build_track([entry], tts, me, tmp / "a.wav", verbose=False,
+                               orig_vocals=vocp)
+        quiet = mix.build_track([entry], tts, me, tmp / "b.wav", verbose=False,
+                                orig_vocals=vocp, bed_db=-6.0,
+                                speech_duck_db=12.0)
+        self.assertEqual(quiet["bed_db"], -6.0)
+        self.assertEqual(quiet["speech_duck_db"], 12.0)
+        self.assertGreater(quiet["speech_frames"], 0,
+                           "az eredeti beszéd kereteit megtalálja")
+
+        def rms_in(path, a, b):
+            y, _ = sf.read(str(path), dtype="float32")
+            seg = y[int(a * sr): int(b * sr)]
+            return 20 * np.log10(float(np.sqrt(np.mean(seg ** 2))) + 1e-12)
+
+        # a magyar dialógus szintje marad, a háttér (2,6–3,0 s: csak zene) halkul
+        self.assertLess(rms_in(tmp / "b.wav", 2.6, 3.0),
+                        rms_in(tmp / "a.wav", 2.6, 3.0) - 5.0,
+                        "a halkított háttér mérhetően halkabb")
+        self.assertGreater(rms_in(tmp / "b.wav", 0.3, 0.9),
+                           rms_in(tmp / "a.wav", 0.3, 0.9) - 1.0,
+                           "a magyar dialógus nem halkul vele együtt")
+
 
 class _FakeWhisper:
     """Hamis pipeline: minden szóra egy ``wN`` szót ad, sorban — így

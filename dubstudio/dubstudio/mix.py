@@ -12,6 +12,14 @@ Két javítás a korábbi lánchoz képest:
 
 A ducking 10 ms-os kereteken, blokkonként történik (nem mintánként), így egy
 40 perces epizód is másodpercek alatt keverhető.
+
+Két emberi fogaskerék (a projekt ``tuning`` szakaszából):
+  * ``bed_db`` — a zene+effekt ágy **összesített** halkítása (0…−30 dB);
+    arra kell, amikor az eredeti beszéd a szétválasztás után is átszűrődik
+    a zene alatt (dokumentumfilm, előadás);
+  * ``bed_speech_duck_db`` — az ágy halkítása **ott, ahol az eredeti (angol)
+    beszéd szól**; a szétválasztás maradékát ez nyomja el, nem a zene alatt
+    végig. Az eredeti énekbeszéd-sáv (``vocals.wav``) burkológörbéjét méri.
 """
 from __future__ import annotations
 
@@ -46,8 +54,11 @@ def _frame_env(nf: int, sr: int, clips: list[tuple[float, np.ndarray]]) -> np.nd
         env[i0:i0 + k] = np.maximum(env[i0:i0 + k], blocks)
     pos = env[env > 0]
     thr = max(1e-4, float(np.percentile(pos, 60)) * 3.0) if pos.size else 1e-4
-    e = np.clip(env / thr, 0.0, 1.0)
+    return _smooth(np.clip(env / thr, 0.0, 1.0))
 
+
+def _smooth(e: np.ndarray) -> np.ndarray:
+    """Támadás/elengedés a keret-burkológörbén (kattanás nélkül)."""
     out = np.empty_like(e)
     a_re = float(np.exp(-FRAME_S / RELEASE_S))
     prev = 0.0
@@ -59,6 +70,34 @@ def _frame_env(nf: int, sr: int, clips: list[tuple[float, np.ndarray]]) -> np.nd
             prev *= a_re             # elengedés: exponenciális (~0,35 s)
         out[i] = prev
     return out
+
+
+def _speech_env(path: Path, sr: int, nf: int, hop: int,
+                block: int = 2000) -> np.ndarray:
+    """Az **eredeti** beszédsáv keret-burkológörbéje (0..1).
+
+    A ``vocals.wav`` 40 percnél ~0,4 GB float32 lenne egyben, ezért blokkonként
+    olvassuk. Ahol a szétválasztás beszédet talált, ott 1-hez közeli érték jön
+    — a keverés ezzel húzza le az ágyat az angol beszéd alatt.
+    """
+    import soundfile as sf
+
+    env = np.zeros(max(nf, 0), dtype=np.float32)
+    idx = 0
+    with sf.SoundFile(str(path)) as fh:
+        while idx < nf:
+            chunk = fh.read(hop * block, dtype="float32", always_2d=True)
+            if len(chunk) < hop:
+                break
+            mono = chunk.mean(axis=1)
+            k = len(mono) // hop
+            blocks = np.abs(mono[: k * hop]).reshape(k, hop).max(axis=1)
+            stop = min(nf, idx + k)
+            env[idx:stop] = blocks[: stop - idx]
+            idx = stop
+    pos = env[env > 0]
+    thr = max(1e-4, float(np.percentile(pos, 60)) * 0.6) if pos.size else 1e-4
+    return _smooth(np.clip(env / thr, 0.0, 1.0))
 
 
 def _frame_rms(track: np.ndarray, hop: int, nf: int,
@@ -94,7 +133,10 @@ def _duck_curve(env: np.ndarray, f_rms: np.ndarray, duck: float,
 def build_track(entries: list[Entry], tts_dir: Path, me_path: Path,
                 out_wav: Path, verbose: bool = True,
                 duck_db: float = DUCK_DB,
-                over_bed_db: float = DIALOG_OVER_BED_DB) -> dict:
+                over_bed_db: float = DIALOG_OVER_BED_DB,
+                bed_db: float = 0.0,
+                speech_duck_db: float = 0.0,
+                orig_vocals: Path | None = None) -> dict:
     """A végleges magyar hangsáv elkészítése."""
     import soundfile as sf
 
@@ -130,15 +172,26 @@ def build_track(entries: list[Entry], tts_dir: Path, me_path: Path,
     gain = 10.0 ** ((bed_lvl + over_bed_db - dialog_lvl) / 20.0)
 
     track = np.array(bed, dtype=np.float32, copy=True)
+    # a háttér-ágy összesített halkítása (kézi fogaskerék)
+    bed_gain = 10.0 ** (bed_db / 20.0)
+    if bed_gain != 1.0:
+        track *= bed_gain
     hop = max(1, int(FRAME_S * sr))
     nf = len(track) // hop
     env = _frame_env(nf, sr, clips)
     duck = 10.0 ** (-duck_db / 20.0)
     # adaptív ducking: az ágy a dialógus alatt ne legyen hangosabb a teljes
     # sáv átlagánál (az intro zenéje tipikusan +6…15 dB-lel kiemelt)
-    allowed = 10.0 ** (bed_lvl / 20.0)
+    allowed = 10.0 ** (bed_lvl / 20.0) * bed_gain
     f_rms = _frame_rms(track, hop, nf)
     g, g_target = _duck_curve(env, f_rms, duck, allowed)
+    # az eredeti (angol) beszéd maradéka a szétválasztott ágyban: ahol a forrás
+    # énekbeszéd-sávja beszél, ott az ágyat külön is lehúzzuk
+    speech_env = None
+    if speech_duck_db > 0 and orig_vocals is not None \
+            and Path(orig_vocals).is_file() and nf:
+        speech_env = _speech_env(Path(orig_vocals), sr, nf, hop)
+        g = g * (10.0 ** (-speech_duck_db / 20.0 * speech_env))
     if nf:
         view = track[: nf * hop].reshape(nf, hop, -1)
         view *= g[:, None, None]
@@ -171,6 +224,10 @@ def build_track(entries: list[Entry], tts_dir: Path, me_path: Path,
             "duck_max_db": round(20 * np.log10(float(g_target.min())), 1)
             if nf else 0.0,
             "duck_frames": int(np.sum(g_target < duck * 0.999)) if nf else 0,
+            "bed_db": round(float(bed_db), 1),
+            "speech_duck_db": round(float(speech_duck_db), 1),
+            "speech_frames": (int(np.sum(speech_env > 0.5))
+                              if speech_env is not None else 0),
             "rms_db": round(audio.rms_db(write), 1),
             "duration": round(len(write) / sr, 1)}
     if verbose:
@@ -178,6 +235,10 @@ def build_track(entries: list[Entry], tts_dir: Path, me_path: Path,
               f"erősítés {info['gain_db']:+.1f} dB, ducking -{duck_db:.0f} dB "
               f"(mély ducking {info['duck_max_db']:.0f} dB, "
               f"{info['duck_frames']} keret)"
-              f"{' (csúcs-korlátozás)' if clipped else ''} -> {out_wav.name} "
-              f"({info['duration'] / 60:.1f} perc)")
+              + (f", háttér {bed_db:+.0f} dB" if bed_db else "")
+              + (f", eredeti beszéd elnyomása -{speech_duck_db:.0f} dB "
+                 f"({info['speech_frames']} keret)"
+                 if info["speech_frames"] else "")
+              + f"{' (csúcs-korlátozás)' if clipped else ''} -> {out_wav.name} "
+              + f"({info['duration'] / 60:.1f} perc)")
     return info

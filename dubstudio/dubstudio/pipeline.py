@@ -354,6 +354,19 @@ class Pipeline:
                                f"cluster {tag}")
         # a hangzár az irányadó: a megnyilatkozásba írt hang elavulhat
         voices = self._voice_map()
+        # kézi hang a teljes epizódra (a felület „Magyar hang” választója):
+        # egyszemélyes YouTube-videóhoz, ahol nincs értelme szereplőnként dönteni
+        tn = self.p.tuning or {}
+        override = str(tn.get("voice_override") or "").strip()
+        if override:
+            from .voices import BY_ID
+            if override in BY_ID:
+                voices = {str(u.char): override for u in utts if u.char}
+                if self.verbose:
+                    print(f"[hang] kézi hang az egész epizódra: {override}")
+            elif self.verbose:
+                print(f"[hang] ismeretlen kézi hang ({override}) — "
+                      f"marad az automatikus kiosztás")
         for u in utts:
             if u.char and voices.get(str(u.char)):
                 u.voice = voices[str(u.char)]
@@ -396,11 +409,13 @@ class Pipeline:
 
         me = self.p.me_bed(tag)
         dub_wav = self.p.ep_dir(tag) / "dub.wav"
-        tn = self.p.tuning or {}
         mix_info = mix.build_track(
             entries, tts_dir, me, dub_wav, verbose=self.verbose,
             duck_db=float(tn.get("duck_db", mix.DUCK_DB)),
-            over_bed_db=float(tn.get("dialogue_over_bed_db", mix.DIALOG_OVER_BED_DB)))
+            over_bed_db=float(tn.get("dialogue_over_bed_db", mix.DIALOG_OVER_BED_DB)),
+            bed_db=float(tn.get("bed_db", 0.0) or 0.0),
+            speech_duck_db=float(tn.get("bed_speech_duck_db", 0.0) or 0.0),
+            orig_vocals=self.p.vocals(tag))
 
         mkv = media.mux(self.p, tag, dub_wav,
                         out_name=out_name or media.safe_name(tag, self.p),

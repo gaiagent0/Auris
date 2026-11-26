@@ -100,6 +100,15 @@ def _youtube():
     return youtube
 
 
+def _voices():
+    """A magyar hangkatalógus (és a motorjai) lustán importálva."""
+    root = str(DUB_ROOT)
+    if root not in sys.path:
+        sys.path.insert(0, root)
+    from dubstudio import voices
+    return voices
+
+
 def _newproject():
     """Az új projekt gyára (modellek, küszöbök, kapuk egy helyen)."""
     root = str(DUB_ROOT)
@@ -982,6 +991,9 @@ def state():
                    for cid, row in records.items() if row.get("voice") == v.vid]}
         for v in voices_mod.CATALOG]
     payload["stages"] = _stage_states(project, tag, review_mod, records)
+    # a hang/keverés beállításai próba nélkül is kellenek (a felület
+    # hangválasztója és a háttér-csúszkák ebből töltődnek)
+    payload["sound"] = _sound_view(project)
 
     if audit_path is None:
         return jsonify(payload)
@@ -1566,10 +1578,13 @@ def set_char_role():
 _SOUND_KEYS = {
     "duck_db": (0.0, 12.0),            # zene halkítása a beszéd alatt
     "dialogue_over_bed_db": (0.0, 12.0),  # magyar hang a zene fölött
+    "bed_db": (-30.0, 0.0),            # a háttér-ágy összesített halkítása
+    "bed_speech_duck_db": (0.0, 30.0),  # háttér halkítása az eredeti beszéd alatt
     "synth_threads": (1, 16),           # CPU-szálak
     "synth_steps": (4, 32),             # Supertonic lépésszám (minőség)
 }
 _SOUND_DEFAULTS = {"duck_db": 4.0, "dialogue_over_bed_db": 4.0,
+                   "bed_db": 0.0, "bed_speech_duck_db": 0.0,
                    "synth_threads": 4, "synth_steps": 8}
 #: a felület három fokozata -> Supertonic lépésszám (None = automatikus)
 _QUALITY_STEPS = {"auto": None, "fast": 6, "balanced": 8, "best": 12}
@@ -1597,6 +1612,10 @@ def _sound_view(project) -> dict:
     return {"duck_db": num("duck_db", _SOUND_DEFAULTS["duck_db"]),
             "dialogue_over_bed_db": num("dialogue_over_bed_db",
                                         _SOUND_DEFAULTS["dialogue_over_bed_db"]),
+            "bed_db": num("bed_db", _SOUND_DEFAULTS["bed_db"]),
+            "bed_speech_duck_db": num("bed_speech_duck_db",
+                                      _SOUND_DEFAULTS["bed_speech_duck_db"]),
+            "voice_override": str(tn.get("voice_override") or ""),
             "synth_threads": int(num("synth_threads", _SOUND_DEFAULTS["synth_threads"])),
             "synth_steps": steps_n, "quality": quality,
             "defaults": dict(_SOUND_DEFAULTS)}
@@ -1698,6 +1717,15 @@ def set_sound():
         if not lo <= value <= hi:
             return jsonify({"error": f"{key}: {lo:g} és {hi:g} közötti érték kell."}), 400
         tuning[key] = int(value) if key == "synth_threads" else round(value, 2)
+    if "voice" in body:
+        # kézi magyar hang az egész projektre (egyszemélyes videó); üres = auto
+        voice = str(body.get("voice") or "").strip()
+        if not voice:
+            tuning.pop("voice_override", None)
+        else:
+            if voice not in _voices().BY_ID:
+                return jsonify({"error": f"Ismeretlen hang: {voice}."}), 400
+            tuning["voice_override"] = voice
     doc["tuning"] = tuning
     backup_dir = DUB_ROOT / "projects" / "_backup"
     backup_dir.mkdir(parents=True, exist_ok=True)
@@ -1707,7 +1735,7 @@ def set_sound():
         _write_project_json(path, doc)
     except OSError as exc:
         return jsonify({"error": f"A mentés nem sikerült: {exc}"}), 500
-    from dubstudio import config as config_mod
+    config_mod = _core()[0]
     return jsonify({"ok": True, "backup": backup.name,
                     "sound": _sound_view(config_mod.load_project(path))})
 

@@ -396,8 +396,25 @@
       <p class="sync-hint">
         Alapból minden automatikus, itt nem kell állítani. Csak akkor nyúlj
         hozzá, ha a kész filmben halk a magyar szöveg, vagy túl hangos alatta
-        a zene.
+        a zene — illetve ha az eredeti (angol) beszéd átszűrődik a háttérből.
+        A mentés után a <strong>Csak szinkronhang</strong> gomb újrakeveri a filmet.
       </p>
+      <div class="sync-soundrow">
+        <label for="sound-bed">Háttér hangereje</label>
+        <input id="sound-bed" type="range" min="-30" max="0" step="1" value="0">
+        <span class="sync-num" id="sound-bed-val">0 dB</span>
+      </div>
+      <div class="sync-soundrow">
+        <label for="sound-speechduck">Eredeti beszéd elnyomása a háttérben</label>
+        <input id="sound-speechduck" type="range" min="0" max="30" step="1" value="0">
+        <span class="sync-num" id="sound-speechduck-val">ki</span>
+      </div>
+      <div class="sync-soundrow">
+        <label for="sound-voice">Magyar hang (egyszemélyes videó)</label>
+        <select id="sound-voice" class="select-input"></select>
+        <button id="sound-voice-play" class="btn btn-sm btn-ghost" type="button"
+                title="A kiválasztott hang magyar mintája">▶ Minta</button>
+      </div>
       <div class="sync-soundrow">
         <label for="sound-duck">Zene halkítása a beszéd alatt</label>
         <input id="sound-duck" type="range" min="0" max="12" step="0.5" value="4">
