@@ -43,6 +43,7 @@ DEFAULTS = {
     "batch": 10,
     "timeout": 180,
     "num_predict": 600,     # a hosszú válasz CPU-n ne lépje túl a időt
+    "num_thread": 0,        # 0 = az Ollama alapértéke; >0 = ennyi CPU-szál
     "required": True,       # ha az LLM elérhetetlen, bukjon a kapu
     "min_ratio": 0.55,      # a javított szöveg hasonlósága az eredetihez
     "max_len_factor": 1.6,  # legfeljebb ennyiszer hosszabb lehet a javítás
@@ -90,7 +91,8 @@ def rule_pass(text: str) -> tuple[str, list[str]]:
 _SYSTEM = """Te magyar szinkronszöveg-korrektor vagy filmek és sorozatok magyar szinkronjához. A szöveg TTS-ből hangzik majd, feliratsorokból áll.
 Feladat: csak a VALÓDI hibás sorokat javítsd (elírás, elgépelt szó, nyelvtani hiba, rossz írásjel-elhelyezés, értelmetlen szórend).
 SZABÁLYOK: ne adj hozzá és ne vegyél el záró pontot; ne változtasd a stílust, a hangulatot és a beszédtempót; ne rövidíts és ne bővíts lényegesen; a neveket, számokat, idézeteket és a szereplő hangját (kiabálás, suttogás) őrizd meg; természetes, beszélt magyarsággal maradj.
-A hibátlan sorokat NE add vissza. Válaszolj CSAK JSON-ban ebben a formában: {"results":[{"id":<szám>,"fixed":"<javított sor>","errors":"<mi volt benne>"}]} ; ha egy sor sem hibás: {"results":[]}"""
+A hibátlan sorokat NE add vissza. Válaszolj CSAK JSON-ban ebben a formában: {"results":[{"id":<szám>,"fixed":"<javított sor>","errors":"<mi volt benne>"}]} ; ha egy sor sem hibás: {"results":[]}
+Az "errors" mező LEGFELJEBB 6 szó, csak a hiba típusa (pl. "elírás: csinált"). Ne indokolj, ne magyarázz, ne ismételd a szöveget, ne tegyél idézőjeles fejtegetést — hosszú magyarázattól a válasz félbeszakad, és a javítás elveszik."""
 
 
 def cfg_of(project: Project) -> dict:
@@ -160,11 +162,15 @@ def _parse_json_loose(resp: str) -> dict:
 
 
 def _post_json(base: str, cfg: dict, system: str, prompt: str) -> dict:
+    options = {"temperature": 0,
+               "num_predict": int(cfg.get("num_predict", 800))}
+    # erőforrás-korlát: egygépes futásnál ne vigye el az összes CPU-szálat
+    if int(cfg.get("num_thread") or 0) > 0:
+        options["num_thread"] = int(cfg["num_thread"])
     payload = json.dumps({
         "model": cfg["model"], "system": system, "prompt": prompt,
         "format": "json", "think": False, "stream": False,
-        "options": {"temperature": 0,
-                    "num_predict": int(cfg.get("num_predict", 800))},
+        "options": options,
     }).encode("utf-8")
     # egyszeri azonnali újrapróbálás: a szerver a sok javítást tartalmazó
     # batch-eket néha HTTP 500-zal adja vissza, de a második kérés rendben
