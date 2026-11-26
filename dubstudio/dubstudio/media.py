@@ -18,6 +18,14 @@ for _s in (sys.stdout, sys.stderr):
 FFMPEG = "ffmpeg"
 FFPROBE = "ffprobe"
 
+#: az eredeti hangsáv automatikus címkéje a nyelvkódból (ha a forrásban nincs
+#: saját cím); a lejátszó így megkülönböztethető nevet mutat a magyar sáv mellett
+_ORIGINAL_TITLES = {
+    "eng": "Eredeti angol",
+    "heb": "Eredeti héber",
+    "hun": "Eredeti magyar",
+}
+
 
 def probe_streams(media: str | Path) -> list[dict]:
     p = subprocess.run(
@@ -101,12 +109,23 @@ def mux(project: Project, tag: str, dub_wav: Path, out_name: str | None = None,
     cmd += ["-metadata:s:a:0", "language=hun", "-metadata:s:a:0", "title=Magyar szinkron"]
     for k, i in enumerate(ordered, start=1):
         st = next((s for s in auds if s["index"] == i), {})
-        lang = (st.get("tags") or {}).get("language", "und")
+        tags = st.get("tags") or {}
+        lang = tags.get("language") or "und"
+        if lang in ("", "und") and getattr(project, "source_lang", None):
+            lang = project.source_lang
         cmd += [f"-metadata:s:a:{k}", f"language={lang}"]
+        title = tags.get("title") or _ORIGINAL_TITLES.get(lang)
+        if not title and lang != "und":
+            title = "Eredeti hang"
+        if title:
+            cmd += [f"-metadata:s:a:{k}", f"title={title}"]
     for k, s in enumerate(picked_subs):
         lang = (s.get("tags") or {}).get("language", "und")
         cmd += [f"-metadata:s:s:{k}", f"language={lang}"]
-    cmd += ["-disposition:a:0", "default", str(out)]
+    cmd += ["-disposition:a:0", "default"]
+    for k in range(1, len(ordered) + 1):
+        cmd += [f"-disposition:a:{k}", "0"]
+    cmd += [str(out)]
 
     p = subprocess.run([str(c) for c in cmd], capture_output=True)
     if p.returncode != 0:
