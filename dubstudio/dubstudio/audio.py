@@ -62,6 +62,92 @@ def rms_db(x: np.ndarray) -> float:
     return float(20 * np.log10(np.sqrt(float(np.mean(np.square(x)))) + 1e-12))
 
 
+def peak_db(x: np.ndarray) -> float:
+    """Csúcs (sample peak) dBFS-ben."""
+    x = np.asarray(x, dtype=np.float32)
+    if x.size == 0:
+        return -120.0
+    return float(20 * np.log10(float(np.abs(x).max()) + 1e-12))
+
+
+def _k_weighting(sr: int) -> tuple[np.ndarray, ...]:
+    """Az ITU-R BS.1770-4 K-súlyozó szűrői (magas polc + mélyvágó).
+
+    A szűrők analóg prototípusból, bilineáris transzformációval készülnek,
+    ezért **bármilyen** mintavételi frekvencián érvényesek (a 48 kHz-re
+    előre számolt együtthatók máshol hibásak lennének).
+    """
+    from math import pi, tan
+
+    f0, gain, q = 1681.974450955533, 3.999843853973347, 0.7071752369554196
+    k = tan(pi * f0 / sr)
+    vh = 10.0 ** (gain / 20.0)
+    vb = vh ** 0.4996667741545416
+    a0 = 1.0 + k / q + k * k
+    b_shelf = np.array([(vh + vb * k / q + k * k) / a0,
+                        2.0 * (k * k - vh) / a0,
+                        (vh - vb * k / q + k * k) / a0], dtype=np.float64)
+    a_shelf = np.array([1.0, 2.0 * (k * k - 1.0) / a0,
+                        (1.0 - k / q + k * k) / a0], dtype=np.float64)
+    f0, q = 38.13547087602444, 0.5003270373238773
+    k = tan(pi * f0 / sr)
+    a0 = 1.0 + k / q + k * k
+    b_hp = np.array([1.0, -2.0, 1.0], dtype=np.float64)
+    a_hp = np.array([1.0, 2.0 * (k * k - 1.0) / a0,
+                     (1.0 - k / q + k * k) / a0], dtype=np.float64)
+    return b_shelf, a_shelf, b_hp, a_hp
+
+
+def integrated_lufs(x: np.ndarray, sr: int,
+                    block_s: float = 0.400, hop_s: float = 0.100) -> float:
+    """Integrált hangosság EBU R128 szerint (LUFS), kapuzással.
+
+    A BS.1770 szerinti 400 ms-os blokkok (100 ms lépés) K-súlyozott
+    négyzetes átlagából dolgozik: előbb a −70 LUFS abszolút, majd az
+    átlaghoz képest −10 LU relatív kapu. A szűrés **blokkokban** fut, így
+    egy 40 perces sztereó sáv mérése sem kér több memóriát a sávnál.
+    """
+    from scipy.signal import lfilter
+
+    a = np.asarray(x, dtype=np.float32)
+    if a.ndim == 1:
+        a = a[:, None]
+    if a.size == 0:
+        return -120.0
+    sr = int(sr)
+    bl = max(1, int(round(block_s * sr)))
+    hl = max(1, int(round(hop_s * sr)))
+    b_shelf, a_shelf, b_hp, a_hp = _k_weighting(sr)
+    ch = a.shape[1]
+    z1 = np.zeros((2, ch), dtype=np.float64)
+    z2 = np.zeros((2, ch), dtype=np.float64)
+    carry = np.zeros((0, ch), dtype=np.float32)
+    powers: list[np.ndarray] = []
+    step = max(bl, int(30 * sr))
+    for i in range(0, len(a), step):
+        y1, z1 = lfilter(b_shelf, a_shelf, a[i:i + step], axis=0, zi=z1)
+        y2, z2 = lfilter(b_hp, a_hp, y1, axis=0, zi=z2)
+        buf = np.concatenate([carry, np.asarray(y2, dtype=np.float32)])
+        k = 0
+        while k + bl <= len(buf):
+            seg = buf[k:k + bl].astype(np.float64)
+            powers.append(np.mean(seg * seg, axis=0))
+            k += hl
+        carry = buf[k:]
+    if not powers:
+        return -120.0
+    z = np.asarray(powers, dtype=np.float64).sum(axis=1)
+    lufs = -0.691 + 10.0 * np.log10(np.maximum(z, 1e-20))
+    gate = lufs > -70.0
+    if not gate.any():
+        return -120.0
+    rel = -0.691 + 10.0 * np.log10(float(np.mean(z[gate]))) - 10.0
+    keep = gate & (lufs > rel)
+    if not keep.any():
+        return -120.0
+    return float(-0.691 + 10.0 * np.log10(float(np.mean(z[keep]))))
+
+
 def speech_core(x: np.ndarray, sr: int, a: float, b: float,
                 min_s: float = 0.45, max_s: float = 4.0) -> np.ndarray | None:
     """Egy időablak beszédes magja (a csend és a zene levágva).

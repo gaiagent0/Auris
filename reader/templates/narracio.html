@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block title %}Narráció — Auris{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="/static/css/szinkron.css">
+<style>
+  .narr-grid { display: grid; gap: 18px; }
+  .narr-source { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+  .narr-source .sync-field { flex: 1 1 320px; }
+  .narr-clonebox { margin-top: 12px; padding: 14px; border: 1px solid var(--line, #333);
+                   border-radius: 12px; display: flex; flex-wrap: wrap; gap: 10px;
+                   align-items: flex-end; }
+  [hidden] { display: none !important; }
+  .narr-clonebox .sync-field { flex: 1 1 280px; }
+  .narr-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+                  gap: 12px; margin: 12px 0; }
+  .narr-stat { padding: 12px 14px; border-radius: 12px;
+               background: rgba(127,127,127,.10); }
+  .narr-stat b { display: block; font-size: 1.25rem; }
+  .narr-stat span { font-size: .78rem; opacity: .75; }
+  .narr-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+  .narr-result-audio { width: 100%; margin-top: 12px; }
+</style>
+{% endblock %}
+{% block content %}
+<main class="sync-page">
+  <header class="sync-header">
+    <div>
+      <p class="sync-eyebrow">Narráció</p>
+      <h1>Egyszereplős videó → magyar narráció</h1>
+      <p class="sync-intro">
+        Előadás, bemutató vagy saját videó egyetlen beszélővel. Itt nincs
+        szereplőfelismerés, hangkiosztás és utómunka: a szöveget összefüggő
+        blokkokban mondja el a hang, ezért a beszéd folyamatos marad. A forrás
+        lehet feltöltött videó, helyi fájl vagy YouTube URL; a hang kész hang
+        vagy saját hangmintából készült klón.
+      </p>
+    </div>
+    <div class="sync-badges">
+      <span class="badge-soft" id="narr-badge">készen áll</span>
+    </div>
+  </header>
+
+  <section class="sync-section">
+    <div class="sync-section-head">
+      <h2>1. Forrás</h2>
+      <span class="sync-configinfo" id="narr-source-info">videó vagy YouTube URL</span>
+    </div>
+    <div class="narr-source">
+      <label class="sync-field sync-loadpath">YouTube URL
+        <input id="narr-url" class="text-input" spellcheck="false" autocomplete="off"
+               placeholder="https://www.youtube.com/watch?v=…">
+      </label>
+    </div>
+    <div class="narr-source" style="margin-top:10px">
+      <label class="sync-field sync-loadpath">Videófájl a gépen
+        <input id="narr-path" class="text-input" spellcheck="false" autocomplete="off"
+               placeholder="C:\Videók\eloadas.mp4">
+      </label>
+      <button id="narr-pick" class="btn btn-ghost" type="button">Fájl…</button>
+      <button id="narr-upload-btn" class="btn btn-ghost" type="button">Feltöltés…</button>
+      <input id="narr-upload" type="file" accept="video/*,.mkv,.ts,.m2ts" hidden>
+    </div>
+    <div class="narr-source" style="margin-top:10px">
+      <label class="sync-field sync-loadpath">Felirat (opcionális SRT/VTT)
+        <input id="narr-srt" class="text-input" spellcheck="false" autocomplete="off"
+               placeholder="ha nincs, a program helyi ASR-rel ismeri fel a szöveget">
+      </label>
+      <button id="narr-srt-pick" class="btn btn-ghost" type="button">Fájl…</button>
+      <button id="narr-srt-upload-btn" class="btn btn-ghost" type="button">Feltöltés…</button>
+      <input id="narr-srt-upload" type="file" accept=".srt,.vtt" hidden>
+    </div>
+    <p id="narr-source-note" class="sync-loadresult" role="status" aria-live="polite"></p>
+  </section>
+
+  <section class="sync-section">
+    <div class="sync-section-head">
+      <h2>2. Hang</h2>
+      <span class="sync-configinfo" id="narr-voice-info"></span>
+    </div>
+    <label class="sync-field">Hang
+      <select id="narr-voice" class="select-input"></select>
+    </label>
+    <div class="sync-watchrow" style="margin-top:10px">
+      <label class="sync-check"><input id="narr-clone" type="checkbox">
+        Klónhang saját hangmintából</label>
+    </div>
+    <div id="narr-clonebox" class="narr-clonebox" hidden>
+      <label class="sync-field sync-loadpath">Hangminta (WAV/MP3/M4A)
+        <input id="narr-ref" class="text-input" spellcheck="false" autocomplete="off"
+               placeholder="C:\Voice\minta.wav">
+      </label>
+      <button id="narr-ref-pick" class="btn btn-ghost" type="button">Fájl…</button>
+      <button id="narr-ref-upload-btn" class="btn btn-ghost" type="button">Feltöltés…</button>
+      <input id="narr-ref-upload" type="file" accept="audio/*,.wav,.mp3,.m4a,.flac,.ogg" hidden>
+      <audio id="narr-ref-audio" controls preload="none" hidden style="flex:1 1 100%"></audio>
+    </div>
+    <p class="sync-hint" id="narr-clone-hint">
+      Klón nélkül a kiválasztott kész hang szólal meg. Klónnál a minta
+      beszélőjének hangján szól a narráció; a minta 10–60 másodperc legyen.
+    </p>
+  </section>
+
+  <section class="sync-section">
+    <div class="sync-section-head">
+      <h2>3. Indítás</h2>
+      <span class="sync-configinfo" id="narr-run-info"></span>
+    </div>
+    <div class="sync-watchrow">
+      <label class="sync-check"><input id="narr-keep" type="checkbox" checked>
+        Az eredeti hangsávot is megtartja a kész MKV-ban</label>
+      <label class="sync-check"><input id="narr-limit-on" type="checkbox">
+        Csak próba</label>
+      <label class="sync-field sync-field-sm" id="narr-limit-wrap" hidden>Blokkok
+        <input id="narr-limit" class="select-input" type="number" min="1" value="3">
+      </label>
+    </div>
+    <div class="narr-actions">
+      <button id="narr-start" class="btn btn-primary" type="button">Narráció indítása</button>
+      <button id="narr-stop" class="btn btn-ghost" type="button" hidden>Leállítás</button>
+    </div>
+    <pre id="narr-log" class="sync-log" aria-label="Futás naplója" tabindex="0"></pre>
+  </section>
+
+  <section class="sync-section" id="narr-result" hidden>
+    <div class="sync-section-head">
+      <h2>4. Eredmény</h2>
+      <span class="sync-configinfo" id="narr-result-state">kész</span>
+    </div>
+    <p id="narr-limit-note" class="sync-loadresult" role="status" hidden></p>
+    <div class="narr-summary" id="narr-stats"></div>
+    <audio id="narr-audio" class="narr-result-audio" controls preload="metadata"></audio>
+    <div class="narr-actions">
+      <a id="narr-download" class="btn btn-primary" href="#" download>MKV letöltése</a>
+      <a id="narr-audio-link" class="btn btn-ghost" href="#" download>Hangsáv letöltése</a>
+    </div>
+    <details style="margin-top:14px">
+      <summary>Blokkok (a folyamatos szintézis egységei)</summary>
+      <div id="narr-blocks" class="sync-library" style="margin-top:10px"></div>
+    </details>
+  </section>
+</main>
+{% endblock %}
+{% block scripts %}
+<script src="/static/js/narration.js"></script>
+{% endblock %}

@@ -135,7 +135,8 @@ def write(project: Project, tag: str, metrics: dict, utts: list[Utterance],
         ("hangváltás hiba", m.get("voice_switch", 0)),
         ("nem-ellentmondás", m.get("gender_conflict", 0)),
         ("lefedettség", f"{_fmt(m.get('coverage', 0), 3)}"),
-        ("túl hosszú sor", m.get("fit_over", 0)),
+        ("túl hosszú sor", "nem mért" if m.get("mix_only")
+         else m.get("fit_over", 0)),
         ("szöveghiba (TTS előtt)",
          (m.get("textcheck") or {}).get("remaining", "—")),
     ]
@@ -144,9 +145,15 @@ def write(project: Project, tag: str, metrics: dict, utts: list[Utterance],
                     f'<div class="v">{v}</div></div>')
 
     gate_html = []
+    unmeasured = set(m.get("unmeasured") or [])
     for g in gates:
-        cls = "ok" if g["ok"] else "bad"
-        mark = "ÁTMENT" if g["ok"] else "BUKOTT"
+        # csak keverés (mix-only) futásnál néhány kapu nem mérhető: ezt jelölni
+        # kell, nem zöldnek mutatni (a hiányzó mérés nem „átment”)
+        if g.get("measured", True) is False or g["name"] in unmeasured:
+            cls, mark = "warn", "NEM MÉRT"
+        else:
+            cls = "ok" if g["ok"] else "bad"
+            mark = "ÁTMENT" if g["ok"] else "BUKOTT"
         gate_html.append(
             f'<div class="gate"><span class="n">{html.escape(g["name"])}</span>'
             f'<span class="{cls}">{mark}</span>'
@@ -259,6 +266,7 @@ def write(project: Project, tag: str, metrics: dict, utts: list[Utterance],
             f"{tc.get('checked', 0)} sor ellenőrizve · "
             f"{tc.get('rule_fixed', 0)} szabály- + "
             f"{tc.get('override_fixed', 0)} felülírás + "
+            f"{tc.get('override_reviewed', 0)} lezárt + "
             f"{tc.get('llm_fixed', 0)} LLM-javítás · "
             f"<b>{tc.get('remaining', 0)}</b> megoldatlan · "
             f"{tc.get('flagged', 0)} jelzés · {tc.get('seconds', 0)} s</div>"
@@ -331,18 +339,26 @@ def write(project: Project, tag: str, metrics: dict, utts: list[Utterance],
 <header><h1>dubstudio riport — {html.escape(tag)}</h1>
 <div class="sub">{html.escape(project.name)} · S{project.season:02d} ·
 {'MINDEN KAPU ÁTMENT' if m.get('passed') else 'VAN BUKÓ KAPU'} ·
-{m.get('seconds', 0)} s feldolgozás · {html.escape(str(m.get('mkv') or ''))}</div></header>
+{m.get('seconds', 0)} s feldolgozás · {html.escape(str(m.get('mkv') or ''))}
+{' · <b class="warn">CSAK KEVERÉS (mix-only, nincs új szintézis)</b>' if m.get('mix_only') else ''}</div></header>
 <main>
 <div class="cards">{''.join(rows)}</div>
-<h2>Kapuk</h2>{''.join(gate_html)}
+<h2>Kapuk</h2>
+{'<div class="sub warn">Ez a futás csak újrakevert (mix-only): a TTS nem futott, ezért a hanghossz-illesztés (fit) kapu NEM MÉRT — az utolsó teljes szintézis mérése érvényes.</div>' if m.get('mix_only') else ''}
+{''.join(gate_html)}
 {tc_html}
 <h2>Keverés</h2>
-<table><tr><th>M&amp;E szint</th><th>dialógus szint</th><th>erősítés</th>
-<th>mély ducking</th><th>csúcs-korlátozás</th><th>hossz</th></tr>
-<tr><td>{_fmt(mix.get('bed_db'), 1)} dB</td><td>{_fmt(mix.get('dialog_db'), 1)} dB</td>
+<table><tr><th>M&amp;E szint</th><th>M&amp;E normalizálás</th><th>dialógus szint</th>
+<th>erősítés</th><th>mély ducking</th><th>mastering</th><th>eredmény</th>
+<th>hossz</th></tr>
+<tr><td>{_fmt(mix.get('me_lufs'), 1)} LUFS</td>
+<td>{_fmt(mix.get('me_gain_db'), 1)} dB</td>
+<td>{_fmt(mix.get('dialog_db'), 1)} dB</td>
 <td>{_fmt(mix.get('gain_db'), 1)} dB</td>
 <td>{_fmt(mix.get('duck_max_db'), 1)} dB ({mix.get('duck_frames', 0)} keret)</td>
-<td>{'igen' if mix.get('clipped') else 'nem'}</td>
+<td>{_fmt(mix.get('makeup_db'), 1)} dB{' + limiter' if mix.get('limited') else ''}</td>
+<td>{_fmt(mix.get('lufs'), 1)} LUFS (cél {_fmt(mix.get('lufs_target'), 1)}) /
+{_fmt(mix.get('peak_db'), 1)} dBFS (plafon {_fmt(mix.get('peak_target_db'), 1)})</td>
 <td>{_fmt(mix.get('duration'), 1)} s</td></tr></table>
 {asr_html}
 {asd_html(asd)}

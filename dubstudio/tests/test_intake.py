@@ -206,6 +206,29 @@ class IntakeTest(unittest.TestCase):
         self.assertTrue(result["source"].endswith("E01_eng.srt"))
         self.assertEqual(result["source_lang"], "eng")
 
+    def test_hungarian_source_is_adopted_without_translation(self):
+        self.project.source_lang = "hun"
+        (self.base / "subs" / "E01_hu.srt").write_text(
+            "1\n00:00:01,000 --> 00:00:03,000\nSzia, hogy vagy?\n",
+            encoding="utf-8")
+        # a projekt forrásnyelve magyar (a felirat neve ezért _hu.srt is lehet)
+        cfg = dict(intake.settings(self.project)["translate"], source_lang="hu")
+        with patch.object(intake, "_chat_json") as chat:
+            result = intake.translate_subtitles(self.project, "E01", cfg=cfg)
+        chat.assert_not_called()
+        self.assertTrue(result["passthrough"])
+        out = (self.base / "subs" / "E01_hun.srt").read_text(encoding="utf-8")
+        self.assertIn("00:00:01,000 --> 00:00:03,000", out)
+        self.assertIn("Szia, hogy vagy?", out)
+
+    def test_hungarian_language_aliases(self):
+        self.assertTrue(intake.is_hungarian("hu"))
+        self.assertTrue(intake.is_hungarian("magyar"))
+        self.assertFalse(intake.is_hungarian("eng"))
+        self.assertTrue(intake._language_matches("hu", "hun"))
+        self.assertTrue(intake._language_matches("hun", "hun"))
+        self.assertFalse(intake._language_matches("eng", "hun"))
+
     def test_missing_source_subtitle_is_a_clear_error(self):
         cfg = intake.settings(self.project)["translate"]
         with self.assertRaises(intake.IntakeError) as ctx:

@@ -569,6 +569,41 @@ class TestManualVoiceScope(unittest.TestCase):
             self.assertEqual(registry.speaker_count(project), 0)
 
 
+class TestCloneVoice(unittest.TestCase):
+    """A klónhang: a katalógusban van, de az automatikus kiosztásból kimarad."""
+
+    def test_catalog_has_the_clone_voice(self):
+        v = voices.BY_ID["XTTS_istvan01"]
+        self.assertEqual(v.engine, "xtts")
+        self.assertTrue(v.clone)
+        self.assertEqual(v.gender, "M")
+
+    def test_clone_is_not_in_the_automatic_pools(self):
+        self.assertNotIn("XTTS_istvan01", [v.vid for v in voices.pool("M")])
+        self.assertFalse(any(v.clone for v in voices.CATALOG_AUTO))
+        self.assertTrue(voices.is_clone("XTTS_istvan01"))
+        self.assertFalse(voices.is_clone("SUP_M1"))
+
+    def test_voice_decision_never_proposes_the_clone(self):
+        character = {"char_id": "C001", "gender": "M", "voice": None,
+                     "main": True}
+        result = voice_decision.decide_voice(character, usage={})
+        self.assertNotEqual(result["choice"], "XTTS_istvan01")
+        self.assertNotIn("XTTS_istvan01", result["probabilities"])
+
+    def test_xtts_engine_requires_a_reference_recording(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            model = Path(tmp) / "xtts_onnx"
+            model.mkdir()
+            for name in ("metadata.json", "vocab.json", "mel_stats.npy",
+                         "conditioning_encoder.onnx", "hifigan_vocoder.onnx",
+                         "speaker_encoder.onnx", "gpt_model.onnx"):
+                (model / name).write_text("")
+            with self.assertRaises(FileNotFoundError) as ctx:
+                voices.XTTSEngine(model, "")
+            self.assertIn("referencia", str(ctx.exception))
+
+
 class TestRecast(unittest.TestCase):
     """Évadszintű újrakiosztás: fő hang kizárólagos, a többi osztozik."""
 
@@ -1068,6 +1103,7 @@ class TestTextcheck(unittest.TestCase):
     def test_run_without_llm_applies_only_rules(self):
         from dubstudio.config import Project
         p = Project(name="teszt")
+        p.cache_dir = Path(tempfile.mkdtemp()) / "work"
         p.llm = {"enabled": False}
         e = plan.Entry(i=1, uid="E05:0001", ep="E05", hu="Szia  világ , üdv")
         stats = textcheck.run([e], p, verbose=False)
@@ -1076,6 +1112,64 @@ class TestTextcheck(unittest.TestCase):
         self.assertEqual(stats["llm_status"], "disabled")
         self.assertEqual(stats["remaining"], 0)
         self.assertFalse(stats["required"])
+
+    def test_human_review_closes_a_rejected_suggestion(self):
+        """„Átnéztem, nem kell változtatni” → a kapu nem számolja hibának."""
+        import tempfile
+        import threading
+        from http.server import BaseHTTPRequestHandler, HTTPServer
+        from dubstudio.config import Project
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self):
+                self._send(b"{}")          # /api/tags — a szerver elérhető
+
+            def do_POST(self):
+                length = int(self.headers.get("Content-Length") or 0)
+                body = json.loads(self.rfile.read(length))["prompt"]
+                ids = [int(x["id"]) for x in json.loads(body)["batch"]]
+                fixed = ("A rókák télen a hó alatt alszanak, minden egyes "
+                         "télen, amikor hideg van.")
+                out = {"results": [{"id": ids[0], "fixed": fixed,
+                                    "errors": "elírás"}]}
+                self._send(json.dumps({"response": json.dumps(out)}).encode())
+
+            def _send(self, payload: bytes):
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(payload)))
+                self.end_headers()
+                self.wfile.write(payload)
+
+            def log_message(self, *args):
+                pass
+
+        srv = HTTPServer(("127.0.0.1", 0), Handler)
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                p = Project(name="teszt", root=Path(tmp))
+                # a cache_dir nem a root-ból jön: a teszt ne írjon a repó work-jébe
+                p.cache_dir = Path(tmp) / "work"
+                p.llm = {"enabled": True,
+                         "base": f"http://127.0.0.1:{srv.server_port}",
+                         "fallback_base": "", "model": "teszt"}
+                ep = p.ep_dir("E05")
+                e = plan.Entry(i=23, uid="E05:0023", ep="E05",
+                               hu="Szia, itt vagyok.")
+                stats = textcheck.run([e], p, verbose=False)
+                self.assertEqual(stats["llm_rejected"], 1)
+                self.assertEqual(stats["remaining"], 1)
+
+                (ep / "textcheck_overrides.json").write_text(json.dumps(
+                    {e.hu: {"reviewed": True, "reason": "hamis pozitív"}},
+                    ensure_ascii=False), encoding="utf-8")
+                stats = textcheck.run([e], p, verbose=False)
+                self.assertEqual(stats["override_reviewed"], 1)
+                self.assertEqual(stats["remaining"], 0)
+                self.assertEqual(e.hu, "Szia, itt vagyok.")
+        finally:
+            srv.shutdown()
 
 
 class TestAsrMapping(unittest.TestCase):

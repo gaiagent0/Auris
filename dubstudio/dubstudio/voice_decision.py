@@ -2,7 +2,8 @@
 
 A System One szerződés három primitívje, változatlan jelentéssel:
 
-* **choice** — melyik hang kapja a szereplőt (opciók: a 13 hang katalógusa),
+* **choice** — melyik hang kapja a szereplőt (opciók: a hangkatalógus, a
+  klónhang nélkül — azt csak ember választhatja),
   kimenet: ``choice`` + ``probabilities`` + ``confidence``;
 * **score** — mennyire jó a kiosztás (0 = rossz … 3 = ideális);
 * **noul** — igen/nem: kell-e hangszín-eltolás, kell-e emberi döntés.
@@ -223,7 +224,9 @@ def decide_voice(character: dict, voices: list[Voice] | None = None,
                  engine: str | None = None,
                  temperature: float = TEMPERATURE) -> dict:
     """**choice**: a szereplő hangja, valószínűségekkel és indoklással."""
-    pool = [v for v in (voices or CATALOG)]
+    # a klónhang nem automatikus jelölt: egy konkrét ember hangja, ezért csak
+    # kézi választással kerülhet szereplőre
+    pool = [v for v in (voices or CATALOG) if not v.clone]
     usage = usage_without(usage, character.get("char_id"))
     if not pool:
         return {"choice": None, "probabilities": {}, "confidence": 0.0,

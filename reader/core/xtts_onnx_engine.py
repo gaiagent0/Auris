@@ -13,10 +13,12 @@ Mért adatok (M-41/M-49, Snapdragon X Elite, int8 GPT):
 
 A modell nem a repóban van (2,2 GB), hanem a repó melletti `vendor/`
 mappában vagy a gép modell-tárházában; az útvonal a `VOICEAI_XTTS_DIR`
-felülírással állítható. A letöltés a repó gyökeréből futtatható
-`python scripts/download_xtts.py` parancsal történik (a HF-repó gated:
-előbb el kell fogadni a CC BY-NC 4.0 licencet). A spacy ARM64-en nincs
-meg, ezért a `models/xtts-stubs/` alól töltjük be — a magyar út nem használja.
+környezeti változóval vagy a `xtts_dir` beállítással írható felül, egyébként
+a `candidate_dirs()` sorrendjében keressük. A letöltés a repó gyökeréből
+futtatható `python scripts/download_xtts.py` parancsal történik (a HF-repó
+gated: előbb el kell fogadni a CC BY-NC 4.0 licencet). A spacy ARM64-en
+nincs meg, ezért a `models/xtts-stubs/` alól töltjük be — a magyar út nem
+használja.
 
 Hiányzó modell esetén a betöltés magyar hibaüzenetet ad a letöltési
 forrással (`huggingface.co/pltobing/XTTSv2-Streaming-ONNX`).
@@ -43,6 +45,15 @@ XTTS_FILES = (
 
 # A spacy-stub helye: ARM64-en nincs wheel, a magyar út nem használja.
 STUBS_DIRNAME = "xtts-stubs"
+
+# A modell szokásos, gép-szintű helyei (a projekt dokumentációja szerint a fő
+# hang-AI repo `vendor/` mappája és a korábbi gyökér-telepítés). A repo saját
+# `vendor/` mappáját és a `reader/models/`-ot a candidate_dirs() adja hozzá.
+MACHINE_DIRS = (
+    Path(r"D:\VoiceAI\vendor\XTTSv2-Streaming-ONNX\xtts_onnx"),
+    Path(r"D:\XTTSv2-Streaming-ONNX\xtts_onnx"),
+    Path(r"C:\AI\XTTSv2-Streaming-ONNX\xtts_onnx"),
+)
 
 
 class XttsOnnxEngine(LocalEngineBase):
@@ -79,24 +90,31 @@ class XttsOnnxEngine(LocalEngineBase):
         """A lehetséges modellkönyvtárak felülírás nélkül, sorrendben."""
         from core.local_engines import MODELS_DIR
 
-        repo_root = Path(__file__).resolve().parents[2]
-        return (
+        repo_root = Path(__file__).resolve().parents[2]      # …\auris
+        workspace = repo_root.parent                          # a repó gyökere
+        repo_candidates = (
             repo_root / "vendor" / "XTTSv2-Streaming-ONNX" / "xtts_onnx",
+            workspace / "vendor" / "XTTSv2-Streaming-ONNX" / "xtts_onnx",
             MODELS_DIR / "xttsv2-streaming-onnx" / "xtts_onnx",
-            Path(r"D:\<projekt>\vendor\XTTSv2-Streaming-ONNX\xtts_onnx"),
         )
+        return repo_candidates + MACHINE_DIRS
 
     @classmethod
     def model_dir(cls) -> Path:
         """A modell könyvtára.
 
-        Sorrend: `VOICEAI_XTTS_DIR` → a repó melletti `vendor/` (ahogy a README
-        írja, így egy friss klón is működik) → `reader/models/` → a régi, gépi
-        tárház (ha megvan, a meglévő gépeket nem bontja meg). Ha egyik helyen
-        sincs meg, az első jelöltet adjuk vissza, hogy a hibaüzenet a várt
-        helyet mutassa.
+        Sorrend: `VOICEAI_XTTS_DIR` környezeti változó → a `xtts_dir` beállítás
+        → a repó melletti `vendor/` (ahogy a README írja, így egy friss klón is
+        működik) → `reader/models/` → a gép ismert modell-tárházai. Ha egyik
+        helyen sincs meg, az első jelöltet adjuk vissza, hogy a hibaüzenet a
+        várt helyet mutassa.
         """
         override = os.environ.get("VOICEAI_XTTS_DIR", "").strip()
+        if not override:
+            try:
+                override = str(_setting("xtts_dir", "") or "").strip()
+            except Exception:
+                override = ""
         if override:
             return Path(override).expanduser()
         candidates = cls.candidate_dirs()
@@ -127,8 +145,10 @@ class XttsOnnxEngine(LocalEngineBase):
                 + "). Töltsd le a repó gyökeréből: python scripts/download_xtts.py "
                 "(a hiteles forrás huggingface.co/pltobing/XTTSv2-Streaming-ONNX, "
                 "a gated repóhoz előbb fogadd el a CC BY-NC 4.0 licencet) — vagy "
-                "állítsd be a VOICEAI_XTTS_DIR környezeti változót a modell "
-                "könyvtárára."
+                "állítsd be a VOICEAI_XTTS_DIR környezeti változót (vagy a "
+                "`xtts_dir` beállítást) a modell könyvtárára. Keresett helyek: "
+                + ", ".join(p.as_posix() for p in self.candidate_dirs())
+                + "."
             )
         # A pipeline a saját moduljait a modellkönyvtárból importálja, a
         # spacy-t pedig a stub-könyvtárból vesszük (ARM64-en nincs wheel).
@@ -231,7 +251,7 @@ class XttsOnnxEngine(LocalEngineBase):
         lang = str(language or "").lower()[:2] or "hu"
         chunks = list(self.tts.inference_stream(
             text=text, language=lang, gpt_cond_latent=cond,
-            speaker_embedding=spk, stream_chunk_size=4,
+            speaker_embedding=spk, stream_chunk_size=40,
             speed=max(0.7, min(1.6, float(speed or 1.0))),
         ))
         audio = np.concatenate(chunks, axis=0) if chunks else np.zeros(0, np.float32)

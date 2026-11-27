@@ -150,6 +150,7 @@
           <select id="movie-source-lang" class="select-input">
             <option value="heb" selected>héber</option>
             <option value="eng">angol</option>
+            <option value="hun">magyar</option>
           </select>
         </label>
         <button id="movie-create" class="btn btn-primary" type="button">Film létrehozása</button>
@@ -165,9 +166,10 @@
       <summary>YouTube videó — URL-ből letöltés és szinkron</summary>
       <p class="sync-hint">
         A program a megadott nyilvános YouTube URL-ről letölti a legfeljebb
-        1080p-s videót és az angol (kézi vagy automatikus) feliratát, majd
-        elindítja az intake-et és az első szinkront. Felirat nélküli videóhoz
-        előbb tölts fel külön SRT-t a fenti feltöltővel.
+        1080p-s videót és a kiválasztott nyelvű (kézi vagy automatikus)
+        feliratát, majd elindítja az intake-et és az első szinkront. Magyar
+        forrásnál nincs fordítás: a magyar felirat megy szinkronszövegként.
+        Felirat nélküli videóhoz előbb tölts fel külön SRT-t a fenti feltöltővel.
       </p>
       <div class="sync-loadbox">
         <label class="sync-field sync-loadpath">YouTube URL
@@ -182,6 +184,7 @@
         <label class="sync-field sync-field-sm">Forrás nyelve
           <select id="youtube-source-lang" class="select-input">
             <option value="eng" selected>angol</option>
+            <option value="hun">magyar</option>
             <option value="heb">héber</option>
           </select>
         </label>
@@ -414,6 +417,10 @@
         <select id="sound-voice" class="select-input"></select>
         <button id="sound-voice-play" class="btn btn-sm btn-ghost" type="button"
                 title="A kiválasztott hang magyar mintája">▶ Minta</button>
+      </div>
+      <div class="sync-soundrow">
+        <label for="sound-voice-all" title="Egyhangos szinkron: minden megszólalás a kiválasztott hangon">Minden szereplő ezen a hangon</label>
+        <input id="sound-voice-all" type="checkbox">
       </div>
       <p class="sync-hint" id="sound-voice-note" hidden></p>
       <div class="sync-soundrow">

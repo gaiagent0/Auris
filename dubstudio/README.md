@@ -71,16 +71,21 @@ kulcs elhagyható, akkor a gyári érték él.
 | kulcs | jelentés | tartomány |
 |---|---|---|
 | `voice_override` | **egy** magyar hang a teljes projektre; **csak egyszemélyes videónál** érvényesül, sorozatnál a szereplőnkénti kiosztás marad (a felület letiltja és figyelmeztet); üres = automatikus | hang-azonosító, pl. `SUP_M2` |
+| `voice_override_all` | egyhangos szinkron: a `voice_override` **több szereplős** projektnél is érvényesül (minden megszólalás ugyanazon a hangon) — a felület „Minden szereplő ezen a hangon” kapcsolója | `true` / hiányzik |
 | `bed_db` | a zene+effekt ágy összesített halkítása (a magyar dialógus szintje nem változik vele) | 0…−30 dB |
 | `bed_speech_duck_db` | az ágy halkítása **ott, ahol az eredeti (angol) beszéd szól** — a szétválasztás maradékát nyomja el | 0…30 dB |
 | `duck_db` | az ágy halkítása a magyar beszéd alatt | 0…12 dB |
 | `dialogue_over_bed_db` | a magyar hang a zene fölötti szintje | 0…12 dB |
 
-A `voice_override` csak akkor él, ha a hangzár szerint a projektnek egyetlen
-beszélője van. Több szereplőnél a `dub` lépés figyelmeztetéssel kihagyja
-(„a kézi hang … nem érvényesül: a projekt N szereplős”), az API pedig nem is
-menti el, így egy sorozat összes szereplője nem hangolható át tévedésből egy
-hangra; ott a Szereplők panel szereplőnkénti választása érvényes.
+A `voice_override` alapból csak akkor él, ha a hangzár szerint a projektnek
+egyetlen beszélője van. Több szereplőnél a `dub` lépés figyelmeztetéssel
+kihagyja („a kézi hang … nem érvényesül: a projekt N szereplős”), az API pedig
+nem is menti el, így egy sorozat összes szereplője nem hangolható át
+tévedésből egy hangra; ott a Szereplők panel szereplőnkénti választása
+érvényes. Kivétel a **kifejezett egyhangos szinkron**: a
+`voice_override_all: true` (felület: „Minden szereplő ezen a hangon”)
+bejelölésekor a kézi hang több szereplőnél is mindenkire érvényes — ezt egy
+YouTube-videónál érdemes használni, ahol amúgy is egy ember beszél.
 
 A `voice_override` a hang-gyorsítótár kulcsának része, ezért hangváltásnál a
 szintézis újrafut (226 sor ≈ 3 perc, 820 sor ≈ 14 perc); keverés-beállításnál
@@ -132,12 +137,42 @@ ugyanazon színész két különböző magyar hangja igen.
 * Nem-osztályozó: `alefiury/wav2vec2-large-xlsr-53-gender-recognition-librispeech`
   (HuggingFace cache-ből; első futásnál letölti).
 
-## Hangok (13)
+## Hangok (13 + klónhang)
 
 | motor | hangok | nem | fix paraméterek |
 |---|---|---|---|
 | Supertonic 3 | `SUP_F1`…`SUP_F5`, `SUP_M1`…`SUP_M5` | 7 nő / 6 férfi összesen | `sid`, `speed`, `num_steps`, `silence_scale` |
 | Piper hu_HU | `PIP_anna`, `PIP_berta` (nő), `PIP_imre` (férfi) | | `length_scale`, `noise_scale`, `noise_w` |
+| XTTSv2 klón (ONNX) | `XTTS_istvan01` | 1 férfi | `speed`, `temperature`, `top_k`, `top_p`, `repetition_penalty`, `chunk` |
+
+### Klónhang (saját felvételből)
+
+A klónhang a projekt saját referenciafelvételén szólal meg; a modell és a
+felvétel a projekt `models` szakaszában van:
+
+| kulcs | jelentés |
+|---|---|
+| `xtts` | az XTTSv2-ONNX modellkönyvtár (`metadata.json`, `vocab.json`, `mel_stats.npy`, a négy ONNX-súly) |
+| `xtts_ref` | a referenciafelvétel (WAV, 6–12 s tiszta beszéd; a conditioning az első 6 s-ből készül) |
+| `xtts_stubs` | opcionális: minimál `spacy` stub-könyvtár, ha a környezetben nincs valódi spacy (a magyar fonémázáshoz nem kell) |
+| `tuning.xtts_lang` | a klón nyelve (alap: `hu`) |
+
+A conditioning latentek a felvételenként **egyszer** számolódnak ki, utána a
+sorok szintézise azokkal fut (a felvétel módosításakor újraszámolódnak; a
+szintézis-gyorsítótár a referencia útvonalát is nézi). Mért tempó ezen a
+gépen (8 szál, int8 GPT): 6,1 s hang 12,1 s alatt az első sornál
+(conditioning + modellbetöltés), utána ~4 s / 5 s hang — egy 20 perces videó
+néhány száz sora tehát **órákban** mérhető, ezért a klónhangot elsősorban
+rövid, egyhangos anyagra érdemes használni.
+
+A klónhang **nem** vesz részt az automatikus kiosztásban (`CATALOG_AUTO`):
+sem a `recast`, sem a döntési modell nem választja, mert egy konkrét ember
+hangja. Csak kézzel kerülhet szereplőre (Szereplők panel, illetve
+`tuning.voice_override`), és a `recast` a már kézzel klónhangra állított
+szereplőt nem írja felül.
+
+Etikai/jogi keret: **csak a saját** (vagy írásos engedéllyel rendelkező)
+hangból készüljön klón — a modell más hangját utánozni nem szabad.
 
 Ha két szereplő mégis ugyanazt a hangot kapja (elfogytak a hangok), **fix
 hangszín-eltolással** (`pitch`, félhang, `rubberband`) különböztetjük meg —
@@ -257,6 +292,10 @@ hiányzó anyagot:
    nem fordítható, ilyenkor külső SRT kell. A fordító OpenAI-kompatibilis
    helyi LLM (alapból Ollama `http://127.0.0.1:11434/v1`, `qwen3.5:9b`);
    az időzítés változatlan, a kimenet `subs/<EP>_hun.srt`.
+   Ha a forrás **már magyar** (`source_lang: hun`, pl. magyar YouTube-felirat
+   vagy magyar beágyazott sáv), a fordítás kimarad: a szöveg változatlanul
+   kerül a kimenetbe (`passthrough`), a helyi LLM egyáltalán nem fut — a
+   magyar anyagnál tehát nem kell „minden folyamatot” lefuttatni.
 2. **forráshangsáv** — az `original_audio` (alapból 0) sáv kinyerése,
    csúcsnormalizálás, majd `audio-separator` UVR/MDX szétválasztás. A
    `work/<EP>/vocals.wav` a vokál, a `work/<EP>/me.wav` a zene+effekt; a
@@ -288,6 +327,36 @@ Kimenetek:
 | `fit` | a szintetizált sor hossza illeszkedik az ablakhoz | ≤2%, ≤0,6 s |
 
 A küszöbök a projekt JSON `gate` szakaszában állíthatók.
+
+### Szöveg-ellenőrző pont és emberi lezárás
+
+A `dub` a szintézis **előtt** szabályokkal és a helyi LLM-mel átnézi a magyar
+sorokat. Az LLM javaslata csak hasonlóság- és hosszkontroll után megy a TTS-be;
+a `text_errors` kapu viszont minden **elutasított** javaslatot megoldatlan
+hibának számol — akkor is, ha a javaslat valójában téves (a modell például a
+következő sor tartalmát akarja bemásolni). Az ilyen hamis pozitív a sor
+tisztított szövegével kulcsolt bejegyzéssel zárható le:
+
+```json
+{
+  "A 23. sor szövege.": {
+    "reviewed": true,
+    "reason": "hamis pozitív: a modell a 24. sor tartalmát akarta bemásolni"
+  }
+}
+```
+
+A `work/<EP>/textcheck_overrides.json` háromféle bejegyzést ismer:
+
+| bejegyzés | jelentés | hatás |
+|---|---|---|
+| `{"fixed": "..."}` | jóváhagyott javítás | a javított szöveg megy a TTS-be |
+| `{"reviewed": true}` | átnéztem, nem kell változtatni | a sor tiszta marad, a gyorsítótár `clean`, a kapu nem számolja hibának |
+| `{"reason": "..."}` (reviewed nélkül) | nyitott, emberi döntésre vár | látszik a riportban, minden futás újrakérdezi |
+
+A `reviewed` bejegyzés a futás után is megmarad, tehát a kapu a következő
+`dub`-nál is zöld marad; a gyorsítótár miatt a lezárás után a futás csak a
+megváltozott sorokat szintetizálja újra.
 
 ## Kézi sor-javítás és a szinkron
 
@@ -332,7 +401,7 @@ tárolja, így a következő futás ugyanazt az ablakot állítja vissza.
 | `utterances` | sorok → akusztikusan összefüggő megnyilatkozások |
 | `clustering` | évad-szintű klaszterezés + Viterbi-finomítás |
 | `registry` | szereplő-rekord, hangzár és hanggyakoriság (fő/mellék) |
-| `voices` | a 13 hang és a motorjaik (Supertonic, Piper) |
+| `voices` | a hangok és a motorjaik (Supertonic, Piper, XTTS klón) |
 | `plan` | időzítési terv (a hang itt már nem változhat) |
 | `synth` | szintézis fix paraméterekkel + gyorsítótár |
 | `mix` | keverés ducking-gal |
@@ -363,7 +432,7 @@ felülvizsgáló- és kezelőfelülete. **Nem másolatot használ:** ugyanazt a
 | Pipeline-lépések indítása (intake / prepare / cluster / dub / run / asr) kapcsolókkal | a Futtatás szekcióban | háttér-folyamat, log: `work/webui_<idő>_<lépés>_*.log` |
 | Futtatás állapota és a napló élő nyoma | a Futtatás szekcióban (3 mp-ként frissül) | `GET /api/dub/run` |
 | Futtatás leállítása | Leállítás gomb | `POST /api/dub/run/stop` |
-| Hangkatalógus (13 hang, motor, nem, paraméterek) és modell-mappa jelenlét | a Beállítások oldal alján lévő kártyá-sor | ** nem tölt modellt** |
+| Hangkatalógus (13 hang + klónhang, motor, nem, paraméterek) és modell/referencia jelenlét | a Beállítások oldal alján lévő kártyá-sor | ** nem tölt modellt** |
 | Próba-futtatás (audit) és hangszín-mérés | a felső eszközsában | `POST /api/dub/audit`, `POST /api/dub/timbres` |
 | Sorozat/film könyvtár, új epizód hozzáadása, hiányzó anyagok | a Könyvtár szekcióban | `work/<EP>/`, `subs/<EP>_hun.srt`, `data/` |
 | Beépített lejátszó forrás/magyar hangsávval és felirattal | a Lejátszó szekcióban | `work/<EP>/review/player_*.mp4`, `sub_*.vtt` |
@@ -379,7 +448,7 @@ felülvizsgáló- és kezelőfelülete. **Nem másolatot használ:** ugyanazt a
 | `GET /api/dub/projects` | projektek, epizódok, auditok, médiaszám elérhetősége |
 | `GET /api/dub/state` | egy próba teljes állapota (beszélők, döntési modell javaslata, angol sorok) |
 | `GET/POST /api/dub/config` | beállítások olvasása / mentése szerkesztéssel + biztonsági mentéssel |
-| `GET /api/dub/voices` | a 13 hang katalógusa + modell-jelenlét |
+| `GET /api/dub/voices` | a hangkatalógus (13 + klónhang) + modell-jelenlét |
 | `POST /api/dub/audit` | új próba futtatása (start/duration/language) |
 | `POST /api/dub/timbres` | a TTS-hangok CAM++ beágyazása (hangkiosztás bizonyítéka) |
 | `POST /api/dub/speaker`, `POST /api/dub/voice` | emberi döntés rögzítése |

@@ -23,6 +23,14 @@ represent a new product generation or an incompatible change.
   melletti, soronkénti beszélő-ellenőrzés, amely a döntéseket a következő
   futásba írja vissza. Az Auris ezzel **hangoskönyv- és szinkronstúdió**; a
   márkafelirat, a PWA-név, a súgó és a README is ezt a két felületet írja le.
+- **Narráció modul (egyszereplős hangoskönyv)** — a `/narracio` oldal és a
+  `dubstudio narrate` parancs egy videóból + magyar feliratból egyszereplős,
+  magyar narrációval felülhangosított MKV-t készít (beépített Supertonic vagy
+  XTTSv2-ONNX klón). A `--limit N` próba le is vágja a kimenetet, külön
+  `… PROBA.mkv` néven, a riport `limited`/`trimmed` mezőkkel jelzi a próbát.
+  A munkamappa újrahasznosítható (ugyanahhoz a forráshoz + hanghoz + nyelvhez),
+  a teljes futás előnyt élvez a próbával szemben; a relatív forrásút a
+  dubstudio gyökeréből oldódik fel.
 - **`scripts/check_dubstudio.py` — a szinkronlánc környezetellenőrzése** —
   soronként kiírja, megvan-e a dubstudio, a Python csomagok (`sherpa-onnx`,
   `torch`, `transformers`, `audio-separator`…), a `ffmpeg`/`ffprobe`, az

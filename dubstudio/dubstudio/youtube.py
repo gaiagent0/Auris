@@ -459,6 +459,38 @@ def _download_media(url: str, stage: Path) -> Path:
     raise YouTubeError(f"A YouTube-letöltés nem sikerült: {last}")
 
 
+def fetch(url: str, stage: Path, *, language: str = "hun") -> dict:
+    """Média (és ha van, felirat) letöltése egy munkamappába — **projekt nélkül**.
+
+    A narrációs modul ezt használja: nem kell hozzá filmprojekt, csak egy
+    munkamappa. A felirat hiánya nem hiba (ilyenkor az ASR adja a szöveget).
+    """
+    if not is_youtube_url(url):
+        raise YouTubeError("Érvénytelen YouTube URL.")
+    info = _extract_info(url)
+    stage.mkdir(parents=True, exist_ok=True)
+    code = _lang_code(language)
+    srt = None
+    try:
+        srt = _merge_fragments(_download_subtitle(_caption_candidates(info, code), code))
+    except Exception as exc:                      # noqa: BLE001 — felirat nélkül is jó
+        print(f"[youtube] nincs {code} felirat: {exc}", flush=True)
+    media_file = _download_media(url, stage)
+    out = {
+        "title": str(info.get("title") or ""),
+        "video_id": str(info.get("id") or ""),
+        "duration": info.get("duration"),
+        "url": str(info.get("webpage_url") or url),
+        "media": str(media_file),
+        "subtitle": None,
+    }
+    if srt:
+        sub = stage / "source.srt"
+        sub.write_text(srt, encoding="utf-8")
+        out["subtitle"] = str(sub)
+    return out
+
+
 # ── belépési pont ────────────────────────────────────────────────────────────
 
 

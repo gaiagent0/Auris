@@ -20,8 +20,8 @@ from pathlib import Path
 from flask import Blueprint, jsonify, render_template, request, send_file
 
 from core.dub_api import (DUB_ROOT, _PREVIEW_MUTEX, _cast_rows, _model_ok,
-                          _project, _tag, _project_key, _voice_preview_engine,
-                          _registry, _write_wav)
+                          _project, _tag, _project_key, _voice_ok,
+                          _voice_preview_engine, _registry, _write_wav)
 
 bp = Blueprint("lines", __name__)
 
@@ -252,7 +252,7 @@ def _payload(project, tag: str, key: str | None = None) -> dict:
         "has_utterances": bool(rows),
         "cast": people,
         "voices": [{"vid": v.vid, "label": v.label, "engine": v.engine,
-                    "gender": v.gender, "model_present": _model_ok(project, v.engine)}
+                    "gender": v.gender, "model_present": _voice_ok(project, v)}
                    for v in _voice_catalog().CATALOG],
         "lines": lines,
         "stats": summary,
@@ -409,7 +409,11 @@ def preview_line():
         return jsonify({"error": str(exc)}), 400
     if not text:
         return jsonify({"error": "Ehhez a sorhoz nincs szöveg (az előkészítés futtatandó)."}), 404
-    if not _model_ok(project, voice.engine):
+    if not _voice_ok(project, voice):
+        if voice.engine == "xtts":
+            return jsonify({"error": "A klónhanghoz XTTS modellkönyvtár "
+                                     "(models.xtts) és referenciafelvétel "
+                                     "(models.xtts_ref) kell."}), 400
         return jsonify({"error": f"A {voice.engine} modell-mappa hiányzik vagy "
                                  f"nincs beállítva (Beállítások → Modellek)."}), 400
 

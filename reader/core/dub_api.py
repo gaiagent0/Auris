@@ -587,6 +587,30 @@ def _youtube_url(value: str) -> str:
     return url if _youtube().is_youtube_url(url) else ""
 
 
+#: a felület forrásnyelv-választója → a projekt belső nyelvkódja
+#: (a magyar forráshoz nem kell fordítás, ezért is külön kód)
+_SOURCE_LANG_ALIASES = {
+    "eng": "eng", "en": "eng", "angol": "eng", "english": "eng",
+    "heb": "heb", "he": "heb", "héber": "heb", "hebrew": "heb",
+    "hun": "hun", "hu": "hun", "magyar": "hun", "hungarian": "hun",
+}
+
+
+def _source_lang(value: str | None, default: str = "eng") -> str:
+    """A kért forrásnyelv normalizálása (``eng`` / ``heb`` / ``hun``).
+
+    Magyar forrásnál a felirat **nem megy át fordításón**: az intake a magyar
+    szöveget használja szinkronszövegként. Üres vagy ismeretlen érték az
+    alapértékre esik vissza (a régi projektek angol/héber beállításai is
+    változatlanul mûködnek).
+    """
+    for raw in (value, default):
+        key = str(raw or "").strip().lower()
+        if key in _SOURCE_LANG_ALIASES:
+            return _SOURCE_LANG_ALIASES[key]
+    return "eng"
+
+
 def _youtube_video_id(url: str) -> str:
     """A videó azonosítója a projekt alapértelmezett nevéhez."""
     from urllib.parse import parse_qs, urlparse
@@ -629,8 +653,7 @@ def create_movie_project():
     # üres projects/ (friss klón): nincs sablon, a dubstudio gyára adja az alapot
     template = _project(body.get("template") or None) if _project_names() else None
     default_lang = template.source_lang if template is not None else "eng"
-    lang = str(body.get("source_lang") or default_lang or "heb").strip().lower()
-    lang = "heb" if lang in ("he", "heb", "héber") else "eng"
+    lang = _source_lang(body.get("source_lang"), default_lang)
     doc = _movie_project_doc(template, name, slug, lang)
     try:
         _write_project_json(dest, doc)
@@ -723,8 +746,7 @@ def create_youtube_project():
         return jsonify({"error": f"Már van ilyen projekt: {slug}."}), 409
     # üres projects/ esetén sablon nélkül, a dubstudio gyárából épül a projekt
     template = _project(body.get("template") or None) if _project_names() else None
-    lang = str(body.get("source_lang") or "eng").strip().lower()
-    lang = "heb" if lang in ("he", "heb", "héber") else "eng"
+    lang = _source_lang(body.get("source_lang"), "eng")
     doc = _movie_project_doc(template, name, slug, lang)
     try:
         _write_project_json(dest, doc)
@@ -984,7 +1006,7 @@ def state():
     from dubstudio import voices as voices_mod
     payload["voice_pool"] = [
         {"vid": v.vid, "label": v.label, "engine": v.engine, "gender": v.gender,
-         "model_present": _model_ok(project, v.engine),
+         "model_present": _voice_ok(project, v),
          "users": [{"char_id": str(cid),
                     "role": (cast_rows.get(str(cid)) or {}).get("role"),
                     "pitch": (cast_rows.get(str(cid)) or {}).get("pitch")}
@@ -1614,6 +1636,8 @@ def _sound_view(project) -> dict:
     except (ImportError, OSError, ValueError):
         speakers = 0
     return {"voice_speakers": speakers, "voice_single": speakers <= 1,
+            # egyhangos szinkron: több szereplőnél is egy hang szólal meg
+            "voice_all": bool(tn.get("voice_override_all")),
             "duck_db": num("duck_db", _SOUND_DEFAULTS["duck_db"]),
             "dialogue_over_bed_db": num("dialogue_over_bed_db",
                                         _SOUND_DEFAULTS["dialogue_over_bed_db"]),
@@ -1723,24 +1747,36 @@ def set_sound():
         if not lo <= value <= hi:
             return jsonify({"error": f"{key}: {lo:g} és {hi:g} közötti érték kell."}), 400
         tuning[key] = int(value) if key == "synth_threads" else round(value, 2)
-    if "voice" in body:
-        # kézi magyar hang az egész projektre (egyszemélyes videó); üres = auto
-        voice = str(body.get("voice") or "").strip()
+    if "voice" in body or "voice_all" in body:
+        # kézi magyar hang az egész projektre; üres = automatikus kiosztás.
+        # Több szereplőnél csak a kifejezett „minden szereplő egy hangon”
+        # jelöléssel érvényesül — így nem hangolódik át véletlenül egy sorozat.
+        force_all = bool(body.get("voice_all"))
+        if "voice" in body:
+            voice = str(body.get("voice") or "").strip()
+        else:
+            voice = str(tuning.get("voice_override") or "").strip()
         if not voice:
             tuning.pop("voice_override", None)
+            tuning.pop("voice_override_all", None)
         else:
             if voice not in _voices().BY_ID:
                 return jsonify({"error": f"Ismeretlen hang: {voice}."}), 400
             current = str(tuning.get("voice_override") or "")
             speakers = _registry().speaker_count(config_mod.load_project(path))
-            if voice != current and speakers > 1:
+            if voice != current and speakers > 1 and not force_all:
                 # egy sorozat minden szereplőjét nem hangoljuk át egy hangra
                 return jsonify({"error": (
                     f"Ez a projekt {speakers} szereplős — a kézi hang csak "
                     f"egyszemélyes videónál érvényesül, különben minden "
-                    f"szereplő hangját felülírná. Több szereplőnél a Szereplők "
-                    f"panelen állítsd a hangokat.")}), 400
+                    f"szereplő hangját felülírná. Jelöld be a „Minden szereplő "
+                    f"ezen a hangon” kapcsolót az egyhangos szinkronhoz, vagy "
+                    f"a Szereplők panelen állítsd a hangokat.")}), 400
             tuning["voice_override"] = voice
+            if force_all:
+                tuning["voice_override_all"] = True
+            else:
+                tuning.pop("voice_override_all", None)
     doc["tuning"] = tuning
     backup_dir = DUB_ROOT / "projects" / "_backup"
     backup_dir.mkdir(parents=True, exist_ok=True)
@@ -1773,6 +1809,8 @@ _PREVIEW_TEXTS = (
     "A kapitány azt mondta, hajnalban kifut a hajó a kikötőből.",
     "Kérlek, mondd el újra, mert most nem figyeltem eléggé.",
     "Tizenöt perccel a kezdés előtt már a helyünkön ültünk.",
+    # a 14. minta a klónhangé: saját felvétel, saját mondat
+    "Ezt a mondatot már a saját hangomon mondom el, hogy össze tudd hasonlítani.",
     "Az öreg ház tetejéről látni az egész várost a folyóig.",
     "Köszönöm, hogy ilyen gyorsan elintézted ezt a dolgot.",
 )
@@ -1782,7 +1820,7 @@ def _preview_text(vid: str, order: list[str] | None = None) -> str:
     """A hanghoz tartozó mintamondat: katalógus-sorrend szerint egyedi.
 
     Ha a ``order`` (a katalógus id-sorrendje) megadott és benne van a hang,
-    abból az indexből veszünk — így 13 hang = 13 különböző mondat. Ha nem,
+    abból az indexből veszünk — így 14 hang = 14 különböző mondat. Ha nem,
     a stabil hashes visszafelé kompatibilis útvonal.
     """
     if order and vid in order:
@@ -1807,6 +1845,20 @@ def _model_ok(project, key: str) -> bool:
         and project.model(key).is_dir()
 
 
+def _voice_ok(project, voice) -> bool:
+    """Egy katalógushang szólaltatható-e ebben a projektben.
+
+    A klónhangnak a modellkönyvtáron kívül egy létező referenciafelvétel is
+    kell (``models.xtts_ref``) — enélkül a katalógusban látszik, de nem
+    választható.
+    """
+    if voice.engine == "xtts":
+        ref = str(project.models.get("xtts_ref") or "").strip()
+        return (_model_ok(project, "xtts") and bool(ref)
+                and project.model("xtts_ref").is_file())
+    return _model_ok(project, voice.engine)
+
+
 def _voice_preview_engine(project, kind: str):
     """A minta-motor betöltése: a dubstudio voices modul lustán, zárolva."""
     root = str(DUB_ROOT)
@@ -1821,13 +1873,20 @@ def _preview_engine(project, kind: str, voices_mod):
     st = str(project.model("supertonic"))
     pi = str(project.model("piper"))
     es = str(project.model("espeak"))
-    key = f"{kind}|{st}|{pi}|{es}"
+    xt = str(project.model("xtts")) if project.models.get("xtts") else ""
+    xt_ref = str(project.models.get("xtts_ref") or "")
+    key = f"{kind}|{st}|{pi}|{es}|{xt}|{xt_ref}"
     with _PREVIEW_MUTEX:
         cached = _PREVIEW_ENGINES.get(key)
         if cached:
             return cached[0]
         if kind == "supertonic":
             obj = voices_mod.SupertonicEngine(project.model("supertonic"))
+        elif kind == "xtts":
+            obj = voices_mod.XTTSEngine(
+                project.model("xtts"), xt_ref,
+                language=str((project.tuning or {}).get("xtts_lang") or "hu"),
+                stubs=str(project.models.get("xtts_stubs") or "") or None)
         else:
             obj = voices_mod.PiperEngine(project.model("piper"), project.model("espeak"))
         _PREVIEW_ENGINES[key] = (obj, key)
@@ -1874,12 +1933,13 @@ def voice_preview():
     if voice is None:
         return jsonify({"error": f"Ismeretlen hang: {vid} (a katalógus: "
                                  f"{', '.join(voices_mod.BY_ID)})."}), 400
-    engine_ok = (_model_ok(project, "supertonic") if voice.engine == "supertonic"
-                 else _model_ok(project, "piper"))
-    if not engine_ok:
-        kind = "supertonic" if voice.engine == "supertonic" else "piper"
-        return jsonify({"error": f"A {kind} modell-mappa hiányzik vagy nincs beállítva "
-                                 f"(Beállítások → Modellek)."}), 400
+    if not _voice_ok(project, voice):
+        if voice.engine == "xtts":
+            return jsonify({"error": "A klónhanghoz XTTS modellkönyvtár "
+                                     "(models.xtts) és referenciafelvétel "
+                                     "(models.xtts_ref) kell."}), 400
+        return jsonify({"error": f"A {voice.engine} modell-mappa hiányzik vagy nincs "
+                                 f"beállítva (Beállítások → Modellek)."}), 400
     cache = project.work / f"_voicepreview_{_PREVIEW_VERSION}"
     out = cache / f"{voice.vid}.wav"
     if not out.is_file():
@@ -2236,11 +2296,8 @@ def get_config():
     chosen, doc, path = _read_project_raw(request.args.get("project"))
     project = config.load_project(path)
     catalog = [v.to_dict() for v in voices_mod.CATALOG]
-    voices = []
-    for v in catalog:
-        engine_ok = (project.model("supertonic").is_dir() if v["engine"] == "supertonic"
-                     else project.model("piper").is_dir())
-        voices.append({**v, "model_present": bool(engine_ok)})
+    voices = [{**v.to_dict(), "model_present": _voice_ok(project, v)}
+              for v in voices_mod.CATALOG]
     return jsonify({
         "project": chosen,
         "file": str(path),

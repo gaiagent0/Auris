@@ -29,7 +29,7 @@ Modulok:
   diarization – pyannote + CAM++ forduló-alapú beszélőazonosítás
   utterances  – sorok → beszélőfordulók → megnyilatkozások
   clustering  – évad-szintű klaszterezés + diarizációs validálás
-  voices      – 13 magyar hang, fix paraméterekkel
+  voices      – 13 magyar hang + XTTS klónhang, fix paraméterekkel
   registry    – szereplő-rekord és hangzár (cast.json)
   plan        – időzítési terv
   synth       – TTS szintézis fix paraméterekkel

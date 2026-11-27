@@ -267,3 +267,80 @@ docker compose up -d --build
 > A Docker-kép az Aurist futtatja; a szinkronstúdióhoz a dubstudio modelljei
 > és a külső programok (ffmpeg, espeak-ng) is kellenek (6. szakasz), ezért a
 > szinkron út a natív telepítés.
+
+---
+
+## 8. Narráció — egyszereplős hangoskönyv (videó → magyar narráció)
+
+A **Narráció** oldal (`/narracio`) egy egyszereplős, magyar narrációval
+felülhangosított MKV-t készít egy videóból + magyar feliratból. Nem
+szereplőkezelő (az a 6. szakasz szinkronja), hanem egyetlen, folyamatos hang,
+amely a videó hangját (vagy annak feliratát) magyarul szólalja meg — ideális
+hangoskönyv-szerű kimenethez vagy egyetlen narrátoros videóhoz.
+
+### 8.1 Mi kell hozzá
+
+- egy videófájl (helyi út vagy YouTube URL),
+- hozzá egy magyar felirat (`.srt`/`.vtt`), vagy a beépített ASR-útvonal,
+- egy TTS-hang: beépített Supertonic (`SUP_M1`…`SUP_M5`, `SUP_F1`…`SUP_F5`)
+  vagy XTTSv2-ONNX klón (`--ref minta.wav`),
+- `ffmpeg`/`ffprobe` a PATH-ban (a kimenet muxolásához).
+
+### 8.2 Web UI — `/narracio`
+
+1. **Forrás** — videó kiválasztása (helyi fájlválasztó vagy útvonal),
+   felirat (SRT/VTT) feltöltése vagy ASR.
+2. **Hang** — legördülőből; klónhoz feltölthető referencia-WAV.
+3. **Nyelv** — alap `hu`.
+4. **Próba (limit)** — „Csak próba” jelölő: csak az első N blokk készül el;
+   a kimenet neve `… - HUN NARRACIO PROBA.mkv`, és a riport `limited: true`
+   jelzi, hogy ez nem kész munka. A videó a próba végéig vágódik (nincs csend
+   a végén).
+5. **Indítás** — a háttérfolyamat a `dubstudio narrate` parancsot futtatja;
+   állapot + napló 3 mp-ként frissül (`/api/narration/status`).
+6. **Eredmény** — MKV lejátszás/letöltés, hangfájl, riport (blokkok, szint,
+   hossz, LUFS/csúcs). A fejlécben a `próba` jelző és a blokkszám `2/62`
+   alakban jelzi a korlátozott futást.
+
+### 8.3 CLI
+
+```bat
+cd /d "C:\Users\istva\Dev\portfolio\Projects\audiobook narrator\auris\dubstudio"
+..\reader\.venv\Scripts\python.exe -m dubstudio narrate ^
+  "movies\...\data\source.mp4" ^
+  --srt "movies\...\subs\E01_hun.srt" ^
+  --voice SUP_M4 ^
+  --work "work\narration\20261127-153045-source"
+```
+
+Fő kapcsolók: `--out`, `--work`, `--voice`, `--ref` (klón), `--lang`, `--srt`,
+`--limit N` (próba), `--block-chars`, `--block-max`, `--gap`, `--models`,
+`--replace-audio`, `--no-mux`, `--force`.
+
+### 8.4 Munkamappa újrahasznosítása
+
+A Web UI (és a futás) nem készít mindig új timestampes mappát: ha már van
+ugyanahhoz a forráshoz + hanghoz + nyelvhez + klónmintához tartozó munkamappa,
+**újrahasznosítja** azt, és a kész blokkokat a gyorsítótárból veszi. A teljes
+(nem próba) futást előnyben részesíti a frissebb próbával szemben. A UI
+kiírja: *„Korábbi munkamappa újrahasznosítva — a kész blokkok a
+gyorsítótárból jönnek.”*
+
+### 8.5 Riportmezők (`report.json`)
+
+`limited`, `limit`, `blocks_total`, `blocks`, `synth`, `mix`, `audio`,
+`output`, `seconds`, `trimmed`, `trimmed_to`. A `limited: true` jelzi a próba
+futást — egy próba ne tűnjön kész munkának.
+
+### 8.6 API-végpontok
+
+| Végpont | Mit csinál |
+|---|---|
+| `GET /narracio` | a Narráció oldal |
+| `GET /api/narration/voices` | választható hangok + klón lehetőség |
+| `POST /api/narration/upload` | videó/hangminta/felirat feltöltése |
+| `POST /api/narration/pick` | natív fájlválasztó (tkinter) |
+| `POST /api/narration/start` | narráció indítása (`limit` támogatott) |
+| `GET /api/narration/status` | állapot + napló-tail + riport |
+| `POST /api/narration/stop` | futó feladat leállítása |
+| `GET /api/narration/file?path=…` | kimeneti fájl megnyitása/letöltése |

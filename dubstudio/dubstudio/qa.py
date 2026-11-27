@@ -278,12 +278,23 @@ def evaluate(project: Project, tag: str, utts: list[Utterance],
          f"{metrics['main_shared']} db / {metrics['mains']} főszereplő "
          f"(max {t['main_shared_max']})"),
     ]
+    # nem mért kapuk: a mix-only futás nem szintetizál, ezért az illesztés
+    # (fit) mérőszámai nem keletkeznek. A hiányzó "over"/"max_over" miatt a
+    # kapu 0 lógó sorral **hamisan átmenne** — ezért "nem mért" jelölést kap,
+    # és a riportban is így látszik (nem zöld pipa).
+    unmeasured: set[str] = set()
     if synth_stats:
-        checks.append(("fit", metrics.get("fit_over_ratio", 0) <= t["fit_over_ratio_max"]
-                       and metrics.get("fit_max_over_s", 0) <= t["fit_max_over_s"],
-                       f"{metrics.get('fit_over', 0)} sor lóg túl, "
-                       f"max {metrics.get('fit_max_over_s', 0):+.2f}s "
-                       f"(max {t['fit_over_ratio_max']:.0%}, {t['fit_max_over_s']}s)"))
+        if synth_stats.get("mix_only"):
+            unmeasured.add("fit")
+            checks.append(("fit", True,
+                           "nem mért — csak keverés (nincs új szintézis); "
+                           "az utolsó teljes futás mérése érvényes"))
+        else:
+            checks.append(("fit", metrics.get("fit_over_ratio", 0) <= t["fit_over_ratio_max"]
+                           and metrics.get("fit_max_over_s", 0) <= t["fit_max_over_s"],
+                           f"{metrics.get('fit_over', 0)} sor lóg túl, "
+                           f"max {metrics.get('fit_max_over_s', 0):+.2f}s "
+                           f"(max {t['fit_over_ratio_max']:.0%}, {t['fit_max_over_s']}s)"))
 
     if text_stats:
         # az LLM-kötelezőség ("required") esetén a nem futott LLM is bukás:
@@ -295,6 +306,7 @@ def evaluate(project: Project, tag: str, utts: list[Utterance],
         det = (f"{metrics['text_errors']} megoldatlan · "
                f"{text_stats.get('rule_fixed', 0)} szabály- + "
                f"{text_stats.get('override_fixed', 0)} felülírás + "
+               f"{text_stats.get('override_reviewed', 0)} lezárt + "
                f"{text_stats.get('llm_fixed', 0)} LLM-javítás · "
                f"{text_stats.get('checked', 0)} sor ellenőrizve · "
                f"LLM: {text_stats.get('llm_status')}")
@@ -305,15 +317,23 @@ def evaluate(project: Project, tag: str, utts: list[Utterance],
                        and not forced,
                        det))
 
-    metrics["gates"] = [{"name": n, "ok": bool(ok), "detail": d} for n, ok, d in checks]
+    metrics["mix_only"] = bool((synth_stats or {}).get("mix_only"))
+    metrics["unmeasured"] = sorted(unmeasured)
+    metrics["gates"] = [{"name": n, "ok": bool(ok), "detail": d,
+                         "measured": n not in unmeasured}
+                        for n, ok, d in checks]
     metrics["passed"] = all(ok for _, ok, _ in checks)
     return metrics
 
 
 def print_report(metrics: dict) -> None:
     print("\n── QA kapuk ───────────────────────────────────────────")
+    if metrics.get("mix_only"):
+        print("  (csak keverés: nincs új szintézis — a nem mért kapuk jelölve)")
     for g in metrics["gates"]:
-        print(f"  {'OK ' if g['ok'] else 'HIBA'}  {g['name']:20s} {g['detail']}")
+        mark = ("OK " if g["ok"] else "HIBA") if g.get("measured", True) \
+            else "NEM MÉRT"
+        print(f"  {mark}  {g['name']:20s} {g['detail']}")
     print(f"  összesítés: {'MINDEN KAPU ÁTMENT' if metrics['passed'] else 'VAN BUKÓ KAPU'}")
     if metrics.get("voice_switch_examples"):
         print("\n  hangváltás példák (ugyanaz a hang, más magyar hang):")

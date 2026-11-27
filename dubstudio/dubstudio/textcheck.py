@@ -19,6 +19,15 @@ ténylegesen változott sorok szintetizálódnak újra. Az eredmény a QA
 Sor-szintű gyorsítótár (``work/<ep>/textcheck_cache.json``): ami egyszer már
 tisztának bizonyult, azt a következő futtatás nem kéri le újra — így a napi
 ``dub`` nem fizet újra teljes LLM-kört.
+
+Emberi lezárás (``work/<ep>/textcheck_overrides.json``): a kulcs a sor
+tisztított szövege, az érték háromféle lehet:
+
+* ``{"fixed": "..."}`` — jóváhagyott javítás, ez megy a TTS-be;
+* ``{"reviewed": true}`` — „átnéztem, nem kell változtatni”: a sor tiszta
+  marad, és a korábban elutasított LLM-javaslat **nem** számít megoldatlan
+  hibának (enélkül egy hamis pozitív örökre pirosan tartja a kaput);
+* ``{"reason": "..."}`` — nyitott, emberi döntésre váró sor.
 """
 from __future__ import annotations
 
@@ -252,7 +261,7 @@ def run(entries: list[Entry], project: Project, verbose: bool = True) -> dict:
     cache_path = project.ep_dir(tag) / "textcheck_cache.json"
     cache = _load_cache(cache_path)
     model = str(cfg["model"])
-    override_fixed = 0
+    override_fixed = override_reviewed = 0
     ov_path = project.ep_dir(tag) / "textcheck_overrides.json"
     try:
         overrides = json.loads(ov_path.read_text(encoding="utf-8"))
@@ -273,6 +282,12 @@ def run(entries: list[Entry], project: Project, verbose: bool = True) -> dict:
                 e.hu = cleaned
                 override_fixed += 1
                 cache[_key(model, cleaned)] = "clean"
+        elif o.get("reviewed"):
+            # emberi lezárás: „átnéztem, nem kell változtatni”. A szöveg
+            # marad, a gyorsítótár viszont tisztára vált, így az ezt korábban
+            # elutasított LLM-javaslat nem lesz újra megoldatlan hiba.
+            override_reviewed += 1
+            cache[_key(model, e.hu or "")] = "clean"
         elif o.get("reason"):
             # nyitott, emberi döntésre váró sor — látszik a riportban,
             # és nem záródik le: minden futtatásban újrakérdezzük
@@ -411,6 +426,7 @@ def run(entries: list[Entry], project: Project, verbose: bool = True) -> dict:
         "unchecked": unchecked,
         "rule_fixed": rule_fixed,
         "override_fixed": override_fixed,
+        "override_reviewed": override_reviewed,
         "llm_fixed": llm_fixed,
         "llm_rejected": len(rejected),
         "flagged": len(flagged),
@@ -421,7 +437,7 @@ def run(entries: list[Entry], project: Project, verbose: bool = True) -> dict:
     if verbose:
         print(f"[szöveg-ellenőrzés] {checked} sor ellenőrizve · "
               f"{rule_fixed} szabály- + {override_fixed} felülírás + "
-              f"{llm_fixed} LLM-javítás · "
+              f"{override_reviewed} lezárt + {llm_fixed} LLM-javítás · "
               f"{remaining} megoldatlan · LLM: {status} "
               f"({stats['llm_base']}, {cfg['model']}) · {stats['seconds']}s",
               flush=True)

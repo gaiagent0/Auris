@@ -1202,6 +1202,12 @@
     const current = sound.voice_override || '';
     const speakers = Number(sound.voice_speakers != null ? sound.voice_speakers : 0);
     const single = sound.voice_single !== false;
+    const forceAll = !!sound.voice_all;
+    const allBox = $('sound-voice-all');
+    if (allBox) {
+      allBox.checked = forceAll;
+      allBox.disabled = single;
+    }
     if (vs) {
       const pool = (state.data || {}).voice_pool || [];
       vs.innerHTML = '<option value="">Automatikus (a program választ)</option>'
@@ -1213,17 +1219,18 @@
           `<option value="${esc(current)}" selected>${esc(current)}</option>`);
         vs.value = current;
       }
-      vs.disabled = !single;
+      vs.disabled = !single && !forceAll;
     }
     const voicePlayBtn = $('sound-voice-play');
-    if (voicePlayBtn) voicePlayBtn.disabled = !single;
+    if (voicePlayBtn) voicePlayBtn.disabled = !single && !forceAll;
     const note = $('sound-voice-note');
     if (note) {
-      note.hidden = single;
-      note.textContent = single ? ''
+      note.hidden = single || forceAll;
+      note.textContent = (single || forceAll) ? ''
         : `Ez a projekt ${speakers} szereplős — a kézi hang csak egyszemélyes `
-          + 'videónál érvényesül, itt a Szereplők panelenkénti kiosztás dönt.'
-          + (current ? ` A mentett kézi hang (${current}) ezért nem szól.` : '');
+          + 'videónál érvényesül, itt a Szereplők panelenkénti kiosztás dönt. '
+          + 'Egyhangos szinkronhoz jelöld be a „Minden szereplő ezen a hangon” kapcsolót.'
+          + (current ? ` A mentett kézi hang (${current}) ezért most nem szól.` : '');
     }
     if (q) q.value = sound.quality || 'auto';
     const steps = $('sound-steps');
@@ -1847,6 +1854,19 @@
         previewVoice($('sound-voice').value);
       });
     }
+    // egyhangos szinkron: a jelölőnégyzet azonnal feloldja a hangválasztót,
+    // a mentés a „Hang-beállítás mentése” gombbal történik
+    const voiceAll = $('sound-voice-all');
+    if (voiceAll) {
+      voiceAll.addEventListener('change', () => {
+        const select = $('sound-voice');
+        const note2 = $('sound-voice-note');
+        const sound = (state.data || {}).sound || {};
+        if (select) select.disabled = !voiceAll.checked && sound.voice_single === false;
+        if (voicePlay) voicePlay.disabled = !voiceAll.checked && sound.voice_single === false;
+        if (note2) note2.hidden = voiceAll.checked || sound.voice_single !== false;
+      });
+    }
     const soundSave = $('sound-save');
     if (soundSave) {
       soundSave.addEventListener('click', () => saveSound({
@@ -1855,6 +1875,7 @@
         bed_db: Number($('sound-bed').value),
         bed_speech_duck_db: Number($('sound-speechduck').value),
         voice: $('sound-voice').value,
+        voice_all: $('sound-voice-all') ? $('sound-voice-all').checked : false,
         quality: $('sound-quality').value,
       }));
     }

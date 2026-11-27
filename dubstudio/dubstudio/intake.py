@@ -5,7 +5,9 @@ Ez a modul ezeket állítja elő egy nyers MKV/MP4-ből:
 
 1. **felirat** — a projekt nyelvű külső vagy beágyazott szöveges feliratát
    kimenti, majd OpenAI-kompatibilis helyi LLM-mel magyarra fordítja
-   (időzítés változatlan; a kimenet ``subs/<EP>_hun.srt``);
+   (időzítés változatlan; a kimenet ``subs/<EP>_hun.srt``). Ha a forrás
+   **már magyar**, a fordítás kimarad: a szöveg változatlanul kerül a
+   kimenetbe, és a helyi LLM egyáltalán nem fut;
 2. **hangsáv** — a forrás eredeti hangsávját kimenti, normalizálja, majd az
    ``audio-separator`` UVR/MDX modellel leválasztja a vokált. A zene+effekt
    (M&E) sáv a maradék beszéd eltávolításával készül;
@@ -42,7 +44,18 @@ _LANG_ALIASES = {
     "eng": {"eng", "en", "english"},
     "he": {"heb", "he", "iw", "hebrew"},
     "heb": {"heb", "he", "iw", "hebrew"},
+    "hu": {"hun", "hu", "hungarian", "magyar"},
+    "hun": {"hun", "hu", "hungarian", "magyar"},
 }
+
+#: a magyar célnyelv nevei: magyar forrásnál nincs mit fordítani, a felirat
+#: szövege maga a szinkronszöveg
+_HU_NAMES = {"hun", "hu", "hungarian", "magyar"}
+
+
+def is_hungarian(lang: str) -> bool:
+    """A forrásfelirat már magyar-e (akkor a fordítás kimarad)."""
+    return str(lang or "").strip().lower() in _HU_NAMES
 
 _DEFAULTS = {
     "translate": {
@@ -171,6 +184,7 @@ def _embedded_subtitle(project: Project, tag: str, cfg: dict) -> tuple[Path, str
     stream_lang = str((chosen.get("tags") or {}).get("language") or "").lower()
     lang = "eng" if stream_lang in _LANG_ALIASES["eng"] else \
         "heb" if stream_lang in _LANG_ALIASES["heb"] else \
+        "hun" if stream_lang in _LANG_ALIASES["hun"] else \
         (wanted[0] if wanted else "und")
     project.subs_dir.mkdir(parents=True, exist_ok=True)
     out = project.subtitle(tag, lang)
@@ -493,13 +507,39 @@ def _translate_batch(cfg: dict, rows: list[tuple[int, str]], source_lang: str,
     return result
 
 
+def _adopt_hungarian_source(project: Project, tag: str, source: Path,
+                            source_lang: str) -> dict:
+    """A magyar forrásfelirat **fordítás nélkül** lesz a szinkronszöveg.
+
+    Ha a forrás már magyar (pl. magyar YouTube-felirat vagy magyar MKV
+    beágyazott sávja), nincs mit fordítani: a sorok szövege változatlanul
+    megy tovább, csak a célhelyre (``subs/<EP>_hun.srt``) normalizáljuk.
+    Így a magyar anyagnál a helyi LLM egyáltalán nem fut.
+    """
+    cues = subs.parse_srt(source)
+    if not cues:
+        raise IntakeError(f"A felirat üres vagy nem SRT: {source}")
+    out = project.subtitle(tag, "hun")
+    if source.resolve() != out.resolve():
+        project.subs_dir.mkdir(parents=True, exist_ok=True)
+        tmp = out.with_suffix(".srt.tmp")
+        _write_srt(tmp, [(c, subs.one_line(c.text)) for c in cues])
+        tmp.replace(out)
+    _write_marker(project, tag, translated_at=time.strftime("%Y-%m-%d %H:%M:%S"),
+                  subtitle_source=str(source), subtitle_lang=source_lang,
+                  translated_lines=len(cues), passthrough=True)
+    print(f"[translate] {tag} magyar forrás — fordítás kihagyva "
+          f"({len(cues)} sor)", flush=True)
+    return {"subtitle": str(out), "translated": 0, "skipped": False,
+            "passthrough": True, "source": str(source),
+            "source_lang": source_lang, "lines": len(cues)}
+
+
 def translate_subtitles(project: Project, tag: str, *, force: bool = False,
                         cfg: dict | None = None,
                         progress=None) -> dict:
     """Magyar SRT készítése a forrásfeliratból (időzítés megtartásával)."""
     cfg = cfg or settings(project)["translate"]
-    if not cfg.get("enabled", True):
-        raise IntakeError("A feliratfordítás ki van kapcsolva (intake.translate.enabled).")
     out = project.subtitle(tag, "hun")
     if out.is_file() and not force and out.stat().st_size > 0:
         return {"subtitle": str(out), "translated": 0, "skipped": True,
@@ -511,6 +551,10 @@ def translate_subtitles(project: Project, tag: str, *, force: bool = False,
             f"subs/{tag.upper()}_eng.srt vagy _heb.srt fájlt a projektbe, "
             "vagy legyen a mkv-ban szöveges (nem kép) feliratsáv.")
     source, source_lang = found
+    if is_hungarian(source_lang):
+        return _adopt_hungarian_source(project, tag, source, source_lang)
+    if not cfg.get("enabled", True):
+        raise IntakeError("A feliratfordítás ki van kapcsolva (intake.translate.enabled).")
     cues = subs.parse_srt(source)
     if not cues:
         raise IntakeError(f"A felirat üres vagy nem SRT: {source}")

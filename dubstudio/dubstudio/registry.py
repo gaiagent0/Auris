@@ -21,7 +21,7 @@ from pathlib import Path
 
 from . import subs
 from .utterances import Utterance
-from .voices import CATALOG, Voice, VoiceBank
+from .voices import CATALOG, Voice, VoiceBank, is_clone
 
 #: fix hangszín-létra az azonos hangot osztozó szereplők szétválasztására
 PITCH_LADDER = [0.0, 1.0, -1.0, 1.8, -1.8, 0.5, -0.5, 1.4, -1.4]
@@ -353,7 +353,8 @@ class Registry:
                 u.voice = None
 
         co = co_occurrence(utts)
-        self.voice_pool = [v.vid for v in bank.available.values()]
+        # a klónhang nem automatikus választék: csak kézi választással szólal meg
+        self.voice_pool = [v.vid for v in bank.available.values() if not v.clone]
 
         # beszédidő szerint csökkenő sorrend: a főszereplők kapnak először hangot
         order = sorted(clusters, key=lambda cid: -clusters[cid].dur)
@@ -604,8 +605,9 @@ class Registry:
                     c.episodes = sorted(c.ep_durations)
 
         self.analyze()
-        pool_ids = ([v.vid for v in bank.available.values()] if bank
-                    else (self.voice_pool or [v.vid for v in CATALOG]))
+        pool_ids = ([v.vid for v in bank.available.values() if not v.clone]
+                    if bank else (self.voice_pool
+                                  or [v.vid for v in CATALOG if not v.clone]))
         by_gender = {g: [v for v in pool_ids
                          if BY_ID.get(v) and BY_ID[v].gender == g]
                      for g in ("F", "M")}
@@ -613,6 +615,10 @@ class Registry:
             return self.usage
 
         chars = {c.char_id: c for c in self.characters}
+        # A **kézzel klónhangra állított** szereplőt az újrakiosztás nem bántja:
+        # a klónhang nem tagja az automatikus választéknak, így a szokásos
+        # kiosztás lecserélné — pedig az ember választotta
+        clone_held = {c.char_id for c in self.characters if is_clone(c.voice)}
         reserved: set[str] = set()
         owner: dict[str, str] = {}
 
@@ -621,6 +627,8 @@ class Registry:
                  if c.role == "fő" and c.gender in ("F", "M")]
         mains.sort(key=lambda c: (-c.duration, c.char_id))
         for c in mains:
+            if c.char_id in clone_held:
+                continue
             pool = by_gender[c.gender]
             free = [v for v in pool if v not in reserved]
             if not free:
@@ -658,9 +666,10 @@ class Registry:
 
         # 4) mellékszereplők: a maradék hangokon, jelenet-ütközés nélkül
         secondaries = [c for c in self.characters
-                       if c.role != "fő" and c.gender in ("F", "M")]
+                       if c.role != "fő" and c.gender in ("F", "M")
+                       and c.char_id not in clone_held]
         pending = {c.char_id: c for c in secondaries}
-        assigned = {c.char_id for c in mains if c.voice in reserved}
+        assigned = {c.char_id for c in mains if c.voice in reserved} | clone_held
         used_count = Counter(owner.values())
         while pending:
             def key(c: Character) -> tuple[int, int, int, float]:
@@ -712,7 +721,8 @@ class Registry:
 
         for _ in range(8):
             bad = [(a, b) for a, b in co
-                   if a != b and chars[a].voice == chars[b].voice]
+                   if a != b and chars[a].voice == chars[b].voice
+                   and a not in clone_held and b not in clone_held]
             if not bad:
                 break
             improved = False
@@ -749,7 +759,8 @@ class Registry:
         # ütközésszáma csökken.
         for _ in range(8):
             bad = [(a, b) for a, b in co
-                   if a != b and chars[a].voice == chars[b].voice]
+                   if a != b and chars[a].voice == chars[b].voice
+                   and a not in clone_held and b not in clone_held]
             if not bad:
                 break
             improved = False

@@ -13,6 +13,13 @@ Két javítás a korábbi lánchoz képest:
 A ducking 10 ms-os kereteken, blokkonként történik (nem mintánként), így egy
 40 perces epizód is másodpercek alatt keverhető.
 
+**Hangerő-mastering** (a lánc végén): a zene+effekt ágy előbb egy fix
+referenciaszintre normalizálódik (``ME_TARGET_LUFS``), a kész sáv pedig az
+EBU R128 integrált hangosságát tekintve a ``TARGET_LUFS``-ra kerül, előretekintő
+limiterrel a ``TARGET_PEAK_DB`` csúcsplafon alatt. Enélkül a keverés a
+forrásfilm ágyának szintjét örökli (mért eset: −34,9 LUFS, −13 dBFS csúcs — a
+beszéd a −40 dB-es ágyhoz igazodott, majd 10 dB-t vágtak rajta).
+
 Két emberi fogaskerék (a projekt ``tuning`` szakaszából):
   * ``bed_db`` — a zene+effekt ágy **összesített** halkítása (0…−30 dB);
     arra kell, amikor az eredeti beszéd a szétválasztás után is átszűrődik
@@ -35,8 +42,19 @@ DUCK_DB = 4.0                # ennyit húzunk a zenén, ahol beszéd van
 DUCK_MAX_DB = 18.0           # az adaptív ducking mélységi korlátja
 ATTACK_S = 0.06
 RELEASE_S = 0.35
-PEAK_CEIL = 0.98
 FRAME_S = 0.010
+#: a kész sáv cél-hangossága (EBU R128 integrált) és csúcsplafonja
+TARGET_LUFS = -16.0
+TARGET_PEAK_DB = -1.5
+#: a zene+effekt ágy normalizálási célja: ehhez képest áll a dialógus szintje,
+#: így a forrásfilm eredeti keverése nem visz el több dB-t
+ME_TARGET_LUFS = -27.0
+ME_MAX_GAIN_DB = 24.0         # a normalizálás korlátja (néma/rossz ágy ellen)
+LIMIT_FRAME_S = 0.005
+LIMIT_RELEASE_S = 0.060
+LIMIT_LOOKAHEAD = 3           # keret (15 ms) — a gyorsítók ne csússzanak át
+MASTER_ITER = 5               # emelés + limiter ismétlése a cél-hangerőig
+MASTER_TOL_LU = 0.2
 
 
 def _frame_env(nf: int, sr: int, clips: list[tuple[float, np.ndarray]]) -> np.ndarray:
@@ -130,6 +148,81 @@ def _duck_curve(env: np.ndarray, f_rms: np.ndarray, duck: float,
     return 1.0 + (target - 1.0) * env, target
 
 
+def _limit_peaks(track: np.ndarray, sr: int, ceiling: float
+                 ) -> tuple[int, int]:
+    """Előretekintő csúcslimiter a kész sávra (helyben módosít).
+
+    A cél-hangerőre emelés után a beszéd tranziensei a plafon fölé kerülnek; a
+    hard vágás torzítana, ezért 5 ms-os kereteken, 15 ms előretekintéssel
+    húzzuk vissza a csúcsokat, 60 ms-os elengedéssel (nincs pumpálás).
+
+    Visszatérés: (csökkentett keretek száma, a limiter után is plafon fölé eső
+    minták száma). Utóbbi csaknem mindig 0; ha nem, a végén hard vágunk.
+    """
+    hop = max(1, int(LIMIT_FRAME_S * sr))
+    n = (len(track) // hop) * hop
+    if n < hop * 2:
+        return 0, int(np.sum(np.abs(track) > ceiling))
+    mono = track.ndim == 1
+    view = (track[:n].reshape(-1, hop) if mono
+            else track[:n].reshape(-1, hop, track.shape[1]))
+    peak = np.abs(view).max(axis=tuple(range(1, view.ndim))).astype(np.float32)
+    need = np.minimum(1.0, ceiling / np.maximum(peak, 1e-9))
+    g = need.copy()
+    for j in range(1, LIMIT_LOOKAHEAD + 1):
+        g[:-j] = np.minimum(g[:-j], need[j:])
+    rel = float(np.exp(-LIMIT_FRAME_S / LIMIT_RELEASE_S))
+    prev = 1.0
+    for i in range(len(g)):
+        v = float(g[i])
+        prev = v if v < prev else 1.0 - (1.0 - prev) * rel
+        if prev > v:                 # az elengedés sosem léphet a szükséges
+            prev = v                 # csillapítás fölé (ott csúcs maradna)
+        g[i] = prev
+    reduced = int(np.sum(g < 0.9999))
+    view *= g[:, None] if mono else g[:, None, None]
+    over = int(np.sum(np.abs(track) > ceiling))
+    if over:
+        np.clip(track, -ceiling, ceiling, out=track)
+    return reduced, over
+
+
+def _master(track: np.ndarray, sr: int, target_db: float = TARGET_LUFS,
+            peak_db: float = TARGET_PEAK_DB) -> dict:
+    """Cél-hangerőre emelés + csúcsplafon, **ismételve** a konvergenciáig.
+
+    Egyetlen emelés nem elég: a beszéd csúcs/helyzet aránya nagy, ezért a
+    limiter az első menetben több dB-t visszavesz, és a sáv a cél alatt marad
+    (mért példa: +5,2 dB emelés → −1,5 dBFS plafon → −19,0 LUFS). A ciklus az
+    újramért hiányt emeli rá, amíg a limiter már csak a csúcsokat fogja — így
+    a kész sáv tényleg a célon landol, nem 3 dB-lel alatta.
+    """
+    ceiling = 10.0 ** (peak_db / 20.0)
+    makeup = 0.0
+    reduced = over = 0
+    lufs = audio.integrated_lufs(track, sr)
+    for _ in range(MASTER_ITER):
+        step = target_db - lufs
+        if abs(step) <= MASTER_TOL_LU:
+            break
+        track *= np.float32(10.0 ** (step / 20.0))
+        makeup += step
+        reduced, over = _limit_peaks(track, sr, ceiling)
+        lufs = audio.integrated_lufs(track, sr)
+    if over:                          # maradék túllövés: néma mikro-halkítás
+        track *= np.float32(ceiling / max(float(np.abs(track).max()), 1e-9))
+        over = 0
+    return {"makeup_db": float(makeup), "limited_frames": int(reduced),
+            "clipped": bool(over), "lufs": float(lufs)}
+
+
+def master(track: np.ndarray, sr: int,
+           target_lufs: float = TARGET_LUFS,
+           peak_db: float = TARGET_PEAK_DB) -> dict:
+    """Cél-hangerőre masterelés (a szinkronlánc és a narráció közös útja)."""
+    return _master(np.asarray(track, dtype=np.float32), sr, target_lufs, peak_db)
+
+
 def build_track(entries: list[Entry], tts_dir: Path, me_path: Path,
                 out_wav: Path, verbose: bool = True,
                 duck_db: float = DUCK_DB,
@@ -167,22 +260,29 @@ def build_track(entries: list[Entry], tts_dir: Path, me_path: Path,
     if not clips:
         raise RuntimeError("egyetlen szintetizált sor sincs — nincs mit keverni")
 
-    bed_lvl = audio.rms_db(bed)
+    # ── M&E szintnormalizálás ───────────────────────────────────────────
+    # a forrásfilm ágya epizódonként más szinten jön (E01: −40,5 dB RMS); a
+    # dialógus hozzá igazítása ezt örökölné, ezért az ágyat előbb egy fix
+    # referenciaszintre visszük, és a dialógus ehhez képest áll
+    bed_lufs = audio.integrated_lufs(bed, sr)
+    me_gain_db = 0.0
+    if bed_lufs > -70.0:
+        me_gain_db = float(np.clip(ME_TARGET_LUFS - bed_lufs,
+                                   -ME_MAX_GAIN_DB, ME_MAX_GAIN_DB))
+    bed_lvl = audio.rms_db(bed) + me_gain_db
     dialog_lvl = float(np.median(levels))
     gain = 10.0 ** ((bed_lvl + over_bed_db - dialog_lvl) / 20.0)
 
-    track = np.array(bed, dtype=np.float32, copy=True)
-    # a háttér-ágy összesített halkítása (kézi fogaskerék)
-    bed_gain = 10.0 ** (bed_db / 20.0)
-    if bed_gain != 1.0:
-        track *= bed_gain
+    # az ágy: M&E-normalizálás + a kézi halkítás együtt (egy szorzó)
+    bed_gain = 10.0 ** ((me_gain_db + bed_db) / 20.0)
+    track = np.asarray(bed, dtype=np.float32) * np.float32(bed_gain)
     hop = max(1, int(FRAME_S * sr))
     nf = len(track) // hop
     env = _frame_env(nf, sr, clips)
     duck = 10.0 ** (-duck_db / 20.0)
     # adaptív ducking: az ágy a dialógus alatt ne legyen hangosabb a teljes
     # sáv átlagánál (az intro zenéje tipikusan +6…15 dB-lel kiemelt)
-    allowed = 10.0 ** (bed_lvl / 20.0) * bed_gain
+    allowed = 10.0 ** ((bed_lvl + bed_db) / 20.0)
     f_rms = _frame_rms(track, hop, nf)
     g, g_target = _duck_curve(env, f_rms, duck, allowed)
     # az eredeti (angol) beszéd maradéka a szétválasztott ágyban: ahol a forrás
@@ -210,28 +310,41 @@ def build_track(entries: list[Entry], tts_dir: Path, me_path: Path,
         track[i0:i0 + len(seg)] += seg[:, None]
         used += 1
 
-    peak = float(np.abs(track).max())
-    clipped = peak > PEAK_CEIL
-    if clipped:
-        track *= PEAK_CEIL / peak
-
+    # ── cél-hangerő + csúcsplafon (EBU R128) ────────────────────────────
+    # a kész sáv integrált hangosságát a célra állítjuk: enélkül a keverés a
+    # forrásfilm ágyának szintjét örökli (mért: −34,9 LUFS, −13 dBFS csúcs).
+    # A mastering a **kiírt** jelen dolgozik (a sztereó ágy mono leszűrése
+    # ~3 dB-t vesz el), különben a fájl a cél alá kerül.
     write = track.mean(axis=1) if stereo else track[:, 0]
+    master = _master(write, sr)
     audio.write_wav(out_wav, write, sr)
-    info = {"sr": sr, "clips": used, "bed_db": round(bed_lvl, 1),
+    info = {"sr": sr, "clips": used,
+            "me_lufs": round(bed_lufs, 1),
+            "me_gain_db": round(float(me_gain_db), 1),
+            "bed_lvl_db": round(bed_lvl, 1),
             "dialog_db": round(dialog_lvl, 1),
             "gain_db": round(20 * np.log10(gain), 1),
-            "clipped": bool(clipped),
+            "bed_db": round(float(bed_db), 1),
+            "lufs": round(audio.integrated_lufs(write, sr), 1),
+            "lufs_target": TARGET_LUFS,
+            "makeup_db": round(master["makeup_db"], 1),
+            "peak_db": round(audio.peak_db(write), 1),
+            "peak_target_db": TARGET_PEAK_DB,
+            "limited": bool(master["limited_frames"]),
+            "limited_frames": master["limited_frames"],
+            "clipped": master["clipped"],
             "duck_max_db": round(20 * np.log10(float(g_target.min())), 1)
             if nf else 0.0,
             "duck_frames": int(np.sum(g_target < duck * 0.999)) if nf else 0,
-            "bed_db": round(float(bed_db), 1),
             "speech_duck_db": round(float(speech_duck_db), 1),
             "speech_frames": (int(np.sum(speech_env > 0.5))
                               if speech_env is not None else 0),
             "rms_db": round(audio.rms_db(write), 1),
             "duration": round(len(write) / sr, 1)}
     if verbose:
-        print(f"[keverés] {used} sor, M&E {bed_lvl:.1f} dB, dialógus {dialog_lvl:.1f} dB, "
+        print(f"[keverés] {used} sor, M&E {info['me_lufs']:.1f} LUFS "
+              f"({info['me_gain_db']:+.1f} dB normalizálás) -> "
+              f"{bed_lvl:.1f} dB RMS, dialógus {dialog_lvl:.1f} dB, "
               f"erősítés {info['gain_db']:+.1f} dB, ducking -{duck_db:.0f} dB "
               f"(mély ducking {info['duck_max_db']:.0f} dB, "
               f"{info['duck_frames']} keret)"
@@ -239,6 +352,9 @@ def build_track(entries: list[Entry], tts_dir: Path, me_path: Path,
               + (f", eredeti beszéd elnyomása -{speech_duck_db:.0f} dB "
                  f"({info['speech_frames']} keret)"
                  if info["speech_frames"] else "")
-              + f"{' (csúcs-korlátozás)' if clipped else ''} -> {out_wav.name} "
-              + f"({info['duration'] / 60:.1f} perc)")
+              + f", mastering {info['makeup_db']:+.1f} dB -> "
+              + f"{info['lufs']:.1f} LUFS / {info['peak_db']:.1f} dBFS"
+              + (f" (limiter {info['limited_frames']} keret)"
+                 if info["limited_frames"] else "")
+              + f" -> {out_wav.name} ({info['duration'] / 60:.1f} perc)")
     return info

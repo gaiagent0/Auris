@@ -1,9 +1,16 @@
-"""A 13 magyar hang katalógusa — **fix generálási paraméterekkel**.
+"""A magyar hangok katalógusa — **fix generálási paraméterekkel**.
 
 | motor | hangok | nem |
 |---|---|---|
 | Supertonic 3 (sherpa-onnx, int8) | F1–F5, M1–M5 | 5 nő + 5 férfi |
 | Piper (hu_HU, VITS) | anna, berta, imre | 2 nő + 1 férfi |
+| XTTSv2 klón (ONNX, streaming) | istvan (klónhang) | 1 férfi |
+
+A **klónhang** (`engine="xtts"`) a projekt saját referenciafelvételéből
+(`models.xtts` = a modellkönyvtár, `models.xtts_ref` = a referencia WAV)
+szólal meg, és szándékosan **nem** vesz részt az automatikus kiosztásban:
+az egy konkrét ember hangja, ezért csak kézi választással (a felület hang-
+választója vagy `tuning.voice_override`) kerül elő.
 
 Elv: a hang **paraméterei hozzá vannak rendelve a hanghoz**, nem a sorhoz.
 A TTS mindig ezekkel a fix értékekkel szólal meg (``speed``,
@@ -37,11 +44,12 @@ class Voice:
     params: dict = field(default_factory=dict)
     sr: int = 44100
     pitch: float = 0.0             # fix hangszín-eltolás félhangban
+    clone: bool = False            # klónhang: csak kézi választással szólal meg
 
     def to_dict(self) -> dict:
         return {"vid": self.vid, "label": self.label, "engine": self.engine,
                 "gender": self.gender, "params": self.params, "sr": self.sr,
-                "pitch": self.pitch}
+                "pitch": self.pitch, "clone": self.clone}
 
 
 #: a hangkészlet: nemenként a preferencia-sorrend (= a katalógus sorrendje)
@@ -59,13 +67,30 @@ CATALOG: list[Voice] = [
     Voice("SUP_M4", "M4", "supertonic", "M", {"sid": 8, "speed": 1.0, "num_steps": 8, "silence_scale": 0.20}),
     Voice("SUP_M5", "M5", "supertonic", "M", {"sid": 9, "speed": 1.0, "num_steps": 8, "silence_scale": 0.20}),
     Voice("PIP_imre", "imre", "piper", "M", {"length_scale": 1.0, "noise_scale": 0.667, "noise_w": 0.8}, 22050),
+    # klónhang: a referenciafelvétel és a modell a projektből jön (lásd a
+    # moduldocstringet); a hang paraméterei viszont fixek, így a klón
+    # karaktere soronként nem változik
+    Voice("XTTS_istvan01", "istvan", "xtts", "M",
+          {"speed": 1.0, "temperature": 0.75, "top_k": 50, "top_p": 0.85,
+           "repetition_penalty": 10.0, "chunk": 40}, 24000, 0.0, True),
 ]
 
 BY_ID: dict[str, Voice] = {v.vid: v for v in CATALOG}
 
+#: az **automatikusan kiosztható** hangok: a klónhang kimarad, mert az egy
+#: konkrét ember hangja — csak kézi választással szólal meg
+CATALOG_AUTO: list[Voice] = [v for v in CATALOG if not v.clone]
+#: a klónhangok azonosítói
+CLONE_VIDS: set[str] = {v.vid for v in CATALOG if v.clone}
+
+
+def is_clone(vid: str) -> bool:
+    """Klónhang-e (azaz nem automatikusan kiosztható) az azonosító."""
+    return str(vid or "") in CLONE_VIDS
+
 
 def pool(gender: str) -> list[Voice]:
-    return [v for v in CATALOG if v.gender == gender]
+    return [v for v in CATALOG if v.gender == gender and not v.clone]
 
 
 def _auto_threads(value=None) -> int:
@@ -225,6 +250,110 @@ class PiperEngine:
         return np.asarray(y).reshape(-1).astype(np.float32), sr
 
 
+class XTTSEngine:
+    """XTTSv2 klón (ONNX, streaming) — egy referenciafelvétel beszélőjének hangján.
+
+    A hangot a ``models.xtts_ref`` referenciafelvétel adja: a conditioning
+    latenteket egyszer számoljuk ki (a felvétel módosulásáig), utána minden sor
+    szintézise azokkal fut. A modellkönyvtár (``models.xtts``) a
+    ``metadata.json``-ban felsorolt ONNX-súlyokat tartalmazza; a futtató modul
+    (``xtts_streaming_pipeline.py``) a könyvtár **szülőjében** van, ezért azt
+    tesszük az importútra.
+
+    A vendored csomag importja ``spacy``-t vár; ha a környezetben nincs, a
+    ``models.xtts_stubs`` (opcionális) minimál stub-könyvtárát használjuk — a
+    magyar fonémázáshoz a valódi spacy nem kell.
+    """
+
+    name = "xtts"
+    SR = 24000
+
+    def __init__(self, model_dir: str | Path, ref: str | Path | None,
+                 language: str = "hu", num_threads: int = 4,
+                 stubs: str | Path | None = None):
+        self.dir = Path(model_dir)
+        if not self.dir.is_dir():
+            raise FileNotFoundError(f"nincs XTTS modellkönyvtár: {self.dir}")
+        need = ["metadata.json", "vocab.json", "mel_stats.npy",
+                "conditioning_encoder.onnx", "hifigan_vocoder.onnx",
+                "speaker_encoder.onnx", "gpt_model.onnx"]
+        missing = [n for n in need if not (self.dir / n).is_file()]
+        if missing:
+            raise FileNotFoundError(f"hiányzó XTTS fájlok: {self.dir} {missing}")
+        self.ref = Path(ref).expanduser() if str(ref or "").strip() else None
+        if self.ref is None or not self.ref.is_file():
+            raise FileNotFoundError(
+                "nincs XTTS referenciafelvétel (models.xtts_ref) — "
+                f"beállítva: {self.ref or 'üres'}")
+        self.language = str(language or "hu")
+        self._threads = max(1, min(16, int(num_threads or 4)))
+        self.stubs = Path(stubs) if str(stubs or "").strip() else None
+        self._pipe = None
+        self._cond: tuple | None = None
+        self._cond_key: tuple | None = None
+
+    def _load(self):
+        if self._pipe is not None:
+            return self._pipe
+        import sys
+
+        try:                                     # a vendored tokenizer spacy-t importál
+            import spacy  # noqa: F401
+        except ImportError:
+            if self.stubs and (self.stubs / "spacy").is_dir():
+                sys.path.insert(0, str(self.stubs))
+        vendor = str(self.dir.parent)
+        if vendor not in sys.path:
+            sys.path.insert(1, vendor)
+        from xtts_streaming_pipeline import StreamingTTSPipeline
+
+        # A vendored modul importkor INFO-ra állítja a naplózást és tokenenként
+        # ír — ez a futásnaplót elárasztaná. A szinteket **import után** kell
+        # csökkenteni (a hibák viszont továbbra is látszanak).
+        import logging
+
+        for name in ("data_processing_pipeline", "root"):
+            logging.getLogger(name).setLevel(logging.WARNING)
+
+        self._pipe = StreamingTTSPipeline(
+            model_dir=str(self.dir),
+            vocab_path=str(self.dir / "vocab.json"),
+            mel_norms_path=str(self.dir / "mel_stats.npy"),
+            use_int8_gpt=(self.dir / "gpt_model_int8.onnx").is_file(),
+            num_threads_gpt=self._threads)
+        return self._pipe
+
+    def conditioning(self) -> tuple:
+        """A referenciafelvétel conditioning latentjei (felvételenként egyszer)."""
+        key = (str(self.ref), self.ref.stat().st_mtime)
+        if self._cond is None or self._cond_key != key:
+            self._cond = self._load().get_conditioning_latents(str(self.ref))
+            self._cond_key = key
+        return self._cond
+
+    def synth(self, text: str, voice: Voice) -> tuple[np.ndarray, int]:
+        pipe = self._load()
+        cond, spk = self.conditioning()
+        p = voice.params
+        from xtts_onnx_orchestrator import SamplingConfig
+
+        sampling = SamplingConfig(
+            temperature=float(p.get("temperature", 0.75)),
+            top_k=int(p.get("top_k", 50)),
+            top_p=float(p.get("top_p", 0.85)),
+            repetition_penalty=float(p.get("repetition_penalty", 10.0)),
+            do_sample=bool(p.get("do_sample", True)))
+        chunks = list(pipe.inference_stream(
+            text=text, language=self.language, gpt_cond_latent=cond,
+            speaker_embedding=spk, stream_chunk_size=int(p.get("chunk", 40)),
+            sampling=sampling, speed=float(p.get("speed", 1.0))))
+        if not chunks:
+            return np.zeros(0, dtype=np.float32), int(self.SR)
+        y = np.concatenate([np.asarray(c, dtype=np.float32).reshape(-1)
+                            for c in chunks])
+        return y, int(getattr(pipe, "sample_rate", self.SR))
+
+
 class VoiceBank:
     """A projektben elérhető hangok és a motorjaik.
 
@@ -247,11 +376,32 @@ class VoiceBank:
         tuning = project.tuning or {}
         steps = tuning.get("synth_steps")
         threads = _auto_threads(tuning.get("synth_threads"))
+        # klónhang: a modell és a referenciafelvétel a projekt beállításaiból
+        xt_ref = (str(project.models.get("xtts_ref") or "").strip()
+                  or str(tuning.get("xtts_ref") or "").strip())
+        xt_stubs = str(project.models.get("xtts_stubs") or "").strip()
+        xt_lang = str(tuning.get("xtts_lang") or "hu")
+        xt_dir = project.model("xtts") if project.models.get("xtts") else None
         for v in CATALOG:
             try:
                 if v.engine == "supertonic":
                     if "supertonic" not in self.engines:
                         self.engines["supertonic"] = SupertonicEngine(st, num_threads=threads)
+                elif v.engine == "xtts":
+                    if xt_dir is None:
+                        raise FileNotFoundError("nincs XTTS modell beállítva "
+                                                "(models.xtts)")
+                    if "xtts" not in self.engines:
+                        self.engines["xtts"] = XTTSEngine(
+                            xt_dir, xt_ref, language=xt_lang,
+                            num_threads=threads, stubs=xt_stubs or None)
+                    # a referencia a hang paramétereibe is bekerül, hogy a
+                    # szintézis-gyorsítótár kulcsa a felvételt is tartsa
+                    self.available[v.vid] = _with_steps(
+                        Voice(v.vid, v.label, v.engine, v.gender,
+                              {**v.params, "ref": xt_ref}, v.sr, v.pitch,
+                              v.clone), steps)
+                    continue
                 else:
                     if "piper" not in self.engines:
                         self.engines["piper"] = PiperEngine(pi, es)
@@ -266,7 +416,8 @@ class VoiceBank:
                 print(f"[hang] ! {vid} nem elérhető: {err}")
 
     def pool(self, gender: str) -> list[Voice]:
-        return [v for v in CATALOG
+        """Nem szerinti automatikus választék — a klónhang nélkül."""
+        return [v for v in CATALOG_AUTO
                 if v.gender == gender and v.vid in self.available]
 
     def synth(self, text: str, voice: Voice, pitch: float = 0.0

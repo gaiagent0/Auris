@@ -518,6 +518,27 @@ def _transcribe_windowed(tr, wav_path: Path, verbose: bool = True,
     return words, text
 
 
+def transcribe_words(wav_path: str | Path, language: str = "hu",
+                     verbose: bool = True) -> tuple[list[dict], str]:
+    """Egy hangsáv szavai időbélyeggel — projekt nélkül (a narrációs modulnak).
+
+    Ugyanaz az ablakos út, mint az ASR-visszaellenőrzésnél: a hosszú sáv nem
+    megy egyben a transformer long-form ágára (az natív memóriahibát okoz).
+    """
+    _auris()
+    from core.qa import (ParakeetTranscriber, Transcriber,  # type: ignore
+                         asr_backend_for)
+
+    # A ``Transcriber.for_language()`` hibrid módban egy összevont
+    # ``model_id``-t ad ("parakeet + whisper"), amit az ONNX-betöltő nem tud
+    # értelmezni. A hibrid elsődleges motorja a Parakeet, ezért azt használjuk
+    # önállóan; ha nem elérhető, a Whisper megy.
+    backend = asr_backend_for(language)
+    tr = (Transcriber.whisper_for(language) if backend == "whisper"
+          else ParakeetTranscriber())
+    return _transcribe_windowed(tr, Path(wav_path), verbose=verbose)
+
+
 def heard_for(e: Entry, words: list[dict], pad: float = 0.30,
               wide: float = 1.5) -> str:
     """A sor körüli hallott szöveg; üres ablaknál tágabb rákeresés.

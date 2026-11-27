@@ -5,11 +5,12 @@ változó, vagy — ha a ``projects/`` mappában pontosan egy JSON van — maga 
 parancs választja ki; beégetett projekt nincs a repóban.
 
 Példák:
-  python -m dubstudio voices                      # a 13 hang és elérhetőségük
+  python -m dubstudio voices                      # a hangok (13 + klónhang) és elérhetőségük
   python -m dubstudio prepare E05                 # feliratok + hang-identitás
   python -m dubstudio cluster E01 E02 ... E11     # évad-szintű szereplők + hangzár
   python -m dubstudio dub E05                     # szinkron elkészítése
   python -m dubstudio run E05 E06 --season        # prepare + cluster + dub
+  python -m dubstudio narrate eloadas.mp4 --ref minta.wav   # egyszereplős narráció
 """
 from __future__ import annotations
 
@@ -89,6 +90,8 @@ def main(argv=None) -> int:
     sp.add_argument("--out", default=None, help="a kimeneti MKV neve")
     sp.add_argument("--allow-fail", action="store_true",
                     help="bukó QA kapu esetén is fejezze be")
+    sp.add_argument("--mix-only", action="store_true",
+                    help="csak újrakeverés a meglévő sor-WAV-okkal (TTS nélkül)")
 
     sp = sub.add_parser("run", help="prepare + cluster + dub")
     sp.add_argument("episodes", nargs="+")
@@ -97,6 +100,34 @@ def main(argv=None) -> int:
     sp.add_argument("--limit", type=int, default=0)
     sp.add_argument("--no-mux", action="store_true")
     sp.add_argument("--allow-fail", action="store_true")
+
+    sp = sub.add_parser("narrate", help="egyszereplős videó narráció — külön lánc, "
+                                        "szereplőkezelés és utómunka nélkül")
+    sp.add_argument("source", help="videófájl vagy nyilvános YouTube URL")
+    sp.add_argument("--out", default=None, help="a kimeneti MKV")
+    sp.add_argument("--work", default=None,
+                    help="munkamappa (alap: work/narration/<név>)")
+    sp.add_argument("--voice", default=None,
+                    help="hang azonosítója (pl. SUP_M1); --ref nélkül kész hang")
+    sp.add_argument("--ref", default=None,
+                    help="klónozandó hangminta WAV — ezzel XTTS klónhang szól")
+    sp.add_argument("--lang", default="hu", help="a beszéd nyelve (alap: hu)")
+    sp.add_argument("--srt", default=None, help="kézzel adott felirat (SRT)")
+    sp.add_argument("--limit", type=int, default=0,
+                    help="csak az első N blokk (próba)")
+    sp.add_argument("--block-chars", type=int, default=320,
+                    help="egy folyamatos blokk karakterkorlátja (alap: 320)")
+    sp.add_argument("--block-max", type=float, default=26.0,
+                    help="egy blokk maximális hossza másodpercben (alap: 26)")
+    sp.add_argument("--gap", type=float, default=1.0,
+                    help="ennél nagyobb szünetnél új blokk kezdődik")
+    sp.add_argument("--models", type=Path, default=None,
+                    help="modellek JSON-ja (opcionális, pl. xtts útvonal)")
+    sp.add_argument("--replace-audio", dest="keep_original", action="store_false",
+                    default=True, help="az eredeti hangsávot ne tartsa meg")
+    sp.add_argument("--no-mux", action="store_true")
+    sp.add_argument("--force", action="store_true",
+                    help="a gyorsítótárat (felirat, blokkok) is újra készítse")
 
     sp = sub.add_parser("asr", help="a kész MKV magyar hangjának felismerése "
                                     "és WER/CER-összevetése a szándékolt "
@@ -145,6 +176,32 @@ def main(argv=None) -> int:
     sp.add_argument("--note", default="")
 
     args = ap.parse_args(argv)
+    if args.cmd == "narrate":
+        import json as _json
+
+        from . import narration
+
+        models = None
+        if args.models:
+            try:
+                models = _json.loads(Path(args.models).read_text(encoding="utf-8"))
+            except (OSError, ValueError) as exc:
+                print(f"[narráció] a modell-JSON nem olvasható: {exc}", file=sys.stderr)
+                return 2
+            models = models.get("models", models)
+        opts = narration.Options(
+            language=args.lang, block_chars=args.block_chars,
+            block_max_s=args.block_max, gap_split=args.gap, limit=args.limit,
+            keep_original=args.keep_original)
+        try:
+            narration.run(args.source, out=args.out, work=args.work,
+                          voice=args.voice, ref=args.ref, srt=args.srt,
+                          opts=opts, models=models, force=args.force,
+                          no_mux=args.no_mux, verbose=not args.quiet)
+        except Exception as exc:          # noqa: BLE001 — a hiba a felhasználóé
+            print(f"[narráció] HIBA: {type(exc).__name__}: {exc}", file=sys.stderr)
+            return 2
+        return 0
     try:
         args.project = str(resolve_project(args.project))
     except FileNotFoundError as exc:
@@ -347,7 +404,8 @@ def main(argv=None) -> int:
     if args.cmd == "dub":
         for t in tags:
             pipe.dub(t, limit=args.limit, no_mux=args.no_mux,
-                     out_name=args.out, allow_fail=args.allow_fail)
+                     out_name=args.out, allow_fail=args.allow_fail,
+                     mix_only=getattr(args, "mix_only", False))
         return 0
 
     if args.cmd == "run":

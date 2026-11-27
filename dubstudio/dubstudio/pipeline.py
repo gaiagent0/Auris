@@ -345,7 +345,8 @@ class Pipeline:
         return out
 
     def dub(self, tag: str, limit: int = 0, no_mux: bool = False,
-            out_name: str | None = None, allow_fail: bool = False) -> dict:
+            out_name: str | None = None, allow_fail: bool = False,
+            mix_only: bool = False) -> dict:
         t0 = time.time()
         self._asd_metrics = None
         utts = self.load_utterances([tag])
@@ -358,6 +359,10 @@ class Pipeline:
         # egyszemélyes YouTube-videóhoz, ahol nincs értelme szereplőnként dönteni
         tn = self.p.tuning or {}
         override = str(tn.get("voice_override") or "").strip()
+        # egyhangos szinkron: a felület jelölőnégyzetével akkor is érvényes,
+        # ha a projektnek több beszélője van (pl. YouTube-videó, ahol minden
+        # megszólalás ugyanazon a hangon kell elhangozzon)
+        override_all = bool(tn.get("voice_override_all"))
         if override:
             from .voices import BY_ID
             speakers = speaker_count(self.p)
@@ -365,16 +370,18 @@ class Pipeline:
                 if self.verbose:
                     print(f"[hang] ismeretlen kézi hang ({override}) — "
                           f"marad az automatikus kiosztás")
-            elif speakers > 1:
+            elif speakers > 1 and not override_all:
                 # egy sorozat nem hangolható át egy hangra: a kézi választó
-                # csak egyszemélyes videóra szól
+                # csak egyszemélyes videóra szól (vagy kifejezett kérésre)
                 print(f"[hang] a kézi hang ({override}) nem érvényesül: a projekt "
                       f"{speakers} szereplős — marad a szereplőnkénti kiosztás.",
                       file=sys.stderr)
             else:
                 voices = {str(u.char): override for u in utts if u.char}
                 if self.verbose:
-                    print(f"[hang] kézi hang az egész epizódra: {override}")
+                    print(f"[hang] kézi hang az egész epizódra: {override}"
+                          + (f" ({speakers} szereplő egy hangon)"
+                             if speakers > 1 else ""))
         for u in utts:
             if u.char and voices.get(str(u.char)):
                 u.voice = voices[str(u.char)]
@@ -413,7 +420,19 @@ class Pipeline:
 
         tts_dir = self.p.ep_dir(tag) / "tts"
         synth = Synthesizer(self.p, self.bank)
-        stats = synth.run(entries, tts_dir, limit=limit, verbose=self.verbose)
+        if mix_only:
+            # csak újrakeverés: a meglévő sor-WAV-okkal, TTS nélkül (kézi
+            # hangolású keverés-beállítások kipróbálásához)
+            have = sum(1 for e in entries if not e.skip
+                       and (tts_dir / f"{e.i:05d}.wav").is_file())
+            if not have:
+                raise RuntimeError(f"nincs szintetizált sor ({tag}) — "
+                                   f"futtasd előbb: dub {tag}")
+            stats = {"done": 0, "cached": have, "fits": [], "mix_only": True}
+            if self.verbose:
+                print(f"[szintézis] kihagyva (csak keverés): {have} meglévő sor")
+        else:
+            stats = synth.run(entries, tts_dir, limit=limit, verbose=self.verbose)
 
         me = self.p.me_bed(tag)
         dub_wav = self.p.ep_dir(tag) / "dub.wav"
